@@ -57,7 +57,7 @@ export function SearchInput({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.5 }}
             transition={snappy}
-            className="absolute top-2 right-2 rounded-full p-1 text-ink-2 hover:bg-surface-2 hover:text-ink max-md:top-2.5"
+            className="absolute top-1/2 right-1.5 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-full text-ink-2 hover:bg-surface-2 hover:text-ink"
           >
             <X className="size-4" />
           </motion.button>

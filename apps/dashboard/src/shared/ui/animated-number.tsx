@@ -6,6 +6,8 @@ const plain = new Intl.NumberFormat('fr-FR');
 
 /**
  * Nombre qui défile jusqu'à sa valeur (à l'apparition, puis à chaque changement).
+ * Le premier comptage prend son temps ; les changements suivants sont des changements
+ * d'état et restent sous le tiers de seconde.
  * Chiffres tabulaires : la largeur ne tremble pas pendant le comptage.
  * Les lecteurs d'écran lisent directement la valeur finale.
  */
@@ -26,6 +28,7 @@ export function AnimatedNumber({
   const formatRef = useRef(format);
   formatRef.current = format;
   const current = useMotionValue(reduce ? value : 0);
+  const played = useRef(false);
   const text = useTransform(current, (n) => formatRef.current(n));
 
   useEffect(() => {
@@ -35,8 +38,11 @@ export function AnimatedNumber({
     }
     if (!inView) return;
     const controls = animate(current, value, {
-      duration,
+      duration: played.current ? Math.min(duration, 0.3) : duration,
       ease: [0.22, 1, 0.36, 1],
+      onComplete: () => {
+        played.current = true;
+      },
     });
     return () => controls.stop();
   }, [value, inView, reduce, duration, current]);

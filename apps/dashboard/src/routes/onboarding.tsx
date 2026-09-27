@@ -158,7 +158,7 @@ function StoreForm() {
               <div className="flex items-stretch">
                 <Input
                   {...props}
-                  className="rounded-r-none"
+                  className="min-w-0 rounded-r-none"
                   autoComplete="off"
                   spellCheck={false}
                   placeholder="chez-awa"
@@ -166,7 +166,7 @@ function StoreForm() {
                     onChange: () => setSlugTouched(true),
                   })}
                 />
-                <span className="tabular inline-flex items-center rounded-r-xl bg-surface-2 px-3 text-[0.875rem] font-semibold whitespace-nowrap text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line-strong)]">
+                <span className="tabular inline-flex max-w-[55%] shrink-0 items-center truncate rounded-r-xl bg-surface-2 px-3 text-[0.875rem] font-semibold whitespace-nowrap text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line-strong)]">
                   .{PLATFORM_ROOT_DOMAIN}
                 </span>
               </div>

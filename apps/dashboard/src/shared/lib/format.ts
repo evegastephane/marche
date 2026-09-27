@@ -18,13 +18,23 @@ export function formatMoney(amount: number, currency: Currency): string {
   return format.format(amount / 10 ** CURRENCY_EXPONENT[currency]);
 }
 
-/** Montant sans le symbole, pour les chiffres affichés en grand (le symbole est posé à côté). */
+const amountFormats = new Map<Currency, Intl.NumberFormat>();
+
+/**
+ * Montant sans le symbole, pour les chiffres affichés en grand (le symbole est posé à côté).
+ * Appelé à chaque image d'un chiffre qui défile : le format est mis en cache.
+ */
 export function formatAmount(amount: number, currency: Currency): string {
   const digits = CURRENCY_EXPONENT[currency];
-  return new Intl.NumberFormat('fr-FR', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  }).format(amount / 10 ** digits);
+  let format = amountFormats.get(currency);
+  if (!format) {
+    format = new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    });
+    amountFormats.set(currency, format);
+  }
+  return format.format(amount / 10 ** digits);
 }
 
 export function currencyLabel(currency: Currency): string {
@@ -45,7 +55,10 @@ export function amountToInput(amount: number, currency: Currency): string {
   return digits === 0 ? String(amount) : (amount / 10 ** digits).toFixed(digits).replace('.', ',');
 }
 
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
+const dateFormat = new Intl.DateTimeFormat('fr-FR', {
+  day: 'numeric',
+  month: 'short',
+});
 const dateTimeFormat = new Intl.DateTimeFormat('fr-FR', {
   day: 'numeric',
   month: 'short',

@@ -9,6 +9,10 @@ import { UpsellMark } from '@/components/upsell-mark';
 const navLink =
   "relative text-fg/75 no-underline transition-colors duration-200 after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:scale-x-0 after:rounded-full after:bg-primary after:transition-transform after:duration-300 after:ease-out-soft after:content-[''] hover:text-fg hover:after:scale-x-100";
 
+/** Menu du téléphone : des cibles d'au moins 40 px de haut, faciles au pouce. */
+const mobileNavLink =
+  'inline-flex min-h-10 shrink-0 items-center rounded-full px-3 text-fg/80 no-underline active:bg-soft';
+
 /** En-tête : annonce, nom ou logo de la boutique, catalogues, panier avec son compteur. */
 export function Header({ store, cartCount }: { store: StorefrontStoreDto; cartCount: number }) {
   const { announcement } = store.theme;
@@ -19,11 +23,11 @@ export function Header({ store, cartCount }: { store: StorefrontStoreDto; cartCo
         <p className="bg-accent px-4 py-2 text-center text-sm font-semibold text-on-accent">{announcement.text}</p>
       )}
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
-        <Link href="/" className="min-w-0 shrink-0 text-fg no-underline">
+        <Link href="/" className="min-w-0 text-fg no-underline md:max-w-[40%] md:shrink-0">
           {store.logo ? (
             <img {...imageProps(store.logo, '160px')} alt={store.name} className="h-9 w-auto" />
           ) : (
-            <span className="truncate font-heading text-xl font-bold tracking-tight">{store.name}</span>
+            <span className="block truncate font-heading text-xl font-bold tracking-tight">{store.name}</span>
           )}
         </Link>
         <nav aria-label="Catalogues" className="hidden flex-1 items-center gap-5 text-sm md:flex">
@@ -38,7 +42,7 @@ export function Header({ store, cartCount }: { store: StorefrontStoreDto; cartCo
         </nav>
         <Link
           href="/cart"
-          className="group relative ml-auto inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-fg no-underline transition-colors duration-200 hover:bg-soft"
+          className="group relative ml-auto inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-3 text-sm font-semibold text-fg no-underline transition-colors duration-200 hover:bg-soft"
         >
           <ShoppingBag
             className="size-5 transition-transform duration-300 ease-out-soft group-hover:-translate-y-0.5"
@@ -51,13 +55,13 @@ export function Header({ store, cartCount }: { store: StorefrontStoreDto; cartCo
       {collections.length > 0 && (
         <nav
           aria-label="Catalogues"
-          className="flex gap-4 overflow-x-auto border-t border-line px-4 py-2.5 text-sm [scrollbar-width:none] md:hidden"
+          className="flex gap-1 overflow-x-auto border-t border-line px-2 py-1 text-sm [scrollbar-width:none] md:hidden"
         >
-          <Link href="/collections" className="shrink-0 text-fg/80 no-underline">
+          <Link href="/collections" className={mobileNavLink}>
             Tous les produits
           </Link>
           {collections.map((c) => (
-            <Link key={c.slug} href={`/collections/${c.slug}`} className="shrink-0 text-fg/80 no-underline">
+            <Link key={c.slug} href={`/collections/${c.slug}`} className={mobileNavLink}>
               {c.title}
             </Link>
           ))}

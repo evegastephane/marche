@@ -98,7 +98,8 @@ export function AddToCart({
                   className={cn(
                     'relative min-h-11 rounded-full border px-4 text-sm font-medium transition-colors duration-200',
                     selected ? 'border-fg text-bg' : 'border-line hover:border-fg',
-                    !inStock && 'text-muted line-through decoration-1',
+                    !inStock && 'line-through decoration-1',
+                    !inStock && !selected && 'text-muted',
                   )}
                 >
                   {selected && (

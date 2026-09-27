@@ -58,11 +58,7 @@ export function StoreOverview({
         aria-label="Chiffres du moment"
         className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-[1.5fr_1fr_1fr]"
       >
-        <motion.div
-          whileHover={{ y: -3 }}
-          transition={spring}
-          className="relative isolate flex min-h-[11.5rem] flex-col justify-between gap-4 overflow-hidden rounded-[1.25rem] bg-brand p-5 text-on-brand shadow-[0_18px_40px_-20px_var(--color-brand)] max-lg:col-span-2 sm:p-6"
-        >
+        <div className="relative isolate flex min-h-[11.5rem] flex-col justify-between gap-4 overflow-hidden rounded-[1.25rem] bg-brand p-5 text-on-brand shadow-[0_18px_40px_-20px_var(--color-brand)] max-lg:col-span-2 sm:p-6">
           <UpsellMark
             className="pointer-events-none absolute -right-6 -bottom-8 -z-10 h-40 w-auto opacity-[0.14]"
             mono="#ffffff"
@@ -93,7 +89,7 @@ export function StoreOverview({
               ' '
             )}
           </span>
-        </motion.div>
+        </div>
 
         <Kpi
           icon={Truck}
@@ -132,7 +128,7 @@ function PeriodSwitch({ value, onChange }: { value: ReportingPeriod; onChange: (
             aria-pressed={active}
             onClick={() => onChange(p.value)}
             className={cn(
-              'tabular relative h-7 rounded-full px-2.5 text-[0.75rem] font-bold transition-colors duration-200',
+              'tabular relative h-7 rounded-full px-2.5 text-[0.75rem] font-bold transition-colors duration-200 max-md:h-9 max-md:px-3',
               active ? 'text-[#0c1a3c]' : 'text-white/80 hover:text-white',
             )}
           >
@@ -186,16 +182,14 @@ function Kpi({
     </>
   );
   const className =
-    'card group flex min-h-[9.5rem] flex-col justify-between gap-3 p-5 text-ink no-underline sm:min-h-[11.5rem] sm:p-6';
+    'card group flex h-full min-h-[9.5rem] flex-col justify-between gap-3 rounded-[1.25rem] p-5 text-ink no-underline sm:min-h-[11.5rem] sm:p-6';
+  // Seule la carte cliquable se soulève au survol : une carte inerte ne doit pas promettre un clic.
+  if (!to) return <div className={className}>{body}</div>;
   return (
     <motion.div whileHover={{ y: -3 }} transition={spring} className="rounded-[1.25rem]">
-      {to ? (
-        <Link to={to} search={{ filter: 'to-ship' }} className={cn(className, 'h-full rounded-[1.25rem]')}>
-          {body}
-        </Link>
-      ) : (
-        <div className={cn(className, 'h-full rounded-[1.25rem]')}>{body}</div>
-      )}
+      <Link to={to} search={{ filter: 'to-ship' }} className={className}>
+        {body}
+      </Link>
     </motion.div>
   );
 }

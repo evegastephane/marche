@@ -8,6 +8,7 @@ import { useCurrentStore } from '@/features/shell/use-current-store';
 import { ApercuSite } from '@/features/site/apercu';
 import { useCollections, useSite, useSiteAction } from '@/features/site/api';
 import { errorMessage } from '@/shared/api/client';
+import { cn } from '@/shared/lib/cn';
 import { formatDateTime } from '@/shared/lib/format';
 import { Badge } from '@/shared/ui/badge';
 import { UpsellMark } from '@/shared/ui/brand';
@@ -18,6 +19,7 @@ import { Field, Input, Select } from '@/shared/ui/field';
 import { LiveName } from '@/shared/ui/live-name';
 import { EASE_OUT, riseIn, snappy } from '@/shared/ui/motion';
 import { SiteAddress } from '@/shared/ui/site-address';
+import { Switch } from '@/shared/ui/switch';
 
 export const Route = createFileRoute('/_app/site')({ component: SitePage });
 
@@ -87,6 +89,8 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
   const collections = useCollections();
   const [settings, setSettings] = useState<ThemeSettings>(() => structuredClone(site.draftThemeSettings));
   const [dirty, setDirty] = useState(false);
+  // Le bouton qui a lancé l'action porte le chargement (Publier enchaîne enregistrement puis publication).
+  const [busy, setBusy] = useState<'save' | 'publish' | null>(null);
   const online = site.status === 'PUBLISHED';
   const host = new URL(site.url).host;
   const pending = action.isPending ? action.variables?.type : undefined;
@@ -108,29 +112,43 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
   const hero = settings.sections.find((s) => s.type === 'hero');
   const featured = settings.sections.find((s) => s.type === 'featured-collection');
 
-  const saveDraft = (then?: () => void) =>
+  const fail = (error: unknown) => {
+    setBusy(null);
+    toast.error(errorMessage(error));
+  };
+  const publishTheme = () => {
+    setBusy('publish');
+    action.mutate(
+      { type: 'publish-theme' },
+      {
+        onSuccess: () => {
+          setBusy(null);
+          toast('Modifications publiées sur votre site');
+        },
+        onError: fail,
+      },
+    );
+  };
+  const saveDraft = (thenPublish = false) => {
+    setBusy(thenPublish ? 'publish' : 'save');
     action.mutate(
       { type: 'save-theme', settings },
       {
         onSuccess: () => {
           setDirty(false);
-          if (then) then();
-          else
-            toast('Brouillon enregistré', {
-              description: 'Publiez pour l’afficher sur le site.',
-            });
+          if (thenPublish) {
+            publishTheme();
+            return;
+          }
+          setBusy(null);
+          toast('Brouillon enregistré', {
+            description: 'Publiez pour l’afficher sur le site.',
+          });
         },
-        onError: (error) => toast.error(errorMessage(error)),
+        onError: fail,
       },
     );
-  const publishTheme = () =>
-    action.mutate(
-      { type: 'publish-theme' },
-      {
-        onSuccess: () => toast('Modifications publiées sur votre site'),
-        onError: (error) => toast.error(errorMessage(error)),
-      },
-    );
+  };
   const togglePublished = () =>
     action.mutate(
       { type: online ? 'unpublish' : 'publish' },
@@ -199,7 +217,7 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
         <div className="flex flex-col gap-6">
           <Card>
             <CardHeader title="Couleurs" />
-            <div className="grid grid-cols-2 gap-4 px-5 pb-6">
+            <div className="grid gap-2 px-3 pb-4 sm:grid-cols-2 sm:gap-4 sm:px-5 sm:pb-6">
               {(
                 [
                   ['primary', 'Principale', 'Bandeau d’accueil, boutons'],
@@ -213,7 +231,7 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                   className="group flex cursor-pointer items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-2"
                 >
                   <motion.span
-                    className="relative size-11 shrink-0 overflow-hidden rounded-xl shadow-[inset_0_0_0_1px_rgb(12_26_60/0.18)]"
+                    className="relative size-11 shrink-0 overflow-hidden rounded-xl shadow-[inset_0_0_0_1px_rgb(12_26_60/0.18)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand"
                     animate={{ backgroundColor: settings.colors[key] }}
                     whileHover={{ scale: 1.06, rotate: -3 }}
                     transition={snappy}
@@ -342,20 +360,15 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                   )}
                 </Field>
               )}
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-surface-2 px-4 py-3">
+                <Switch
                   checked={settings.announcement.enabled}
-                  onChange={(e) =>
+                  onChange={(enabled) =>
                     edit({
                       ...settings,
-                      announcement: {
-                        ...settings.announcement,
-                        enabled: e.target.checked,
-                      },
+                      announcement: { ...settings.announcement, enabled },
                     })
                   }
-                  className="mt-0.5 size-5 accent-brand"
                 />
                 <span className="flex flex-col">
                   <span className="font-[650]">Bandeau d’annonce</span>
@@ -405,12 +418,12 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
             <span className="flex items-center gap-2 text-[0.875rem] text-ink-2">
               <motion.span
                 aria-hidden
-                className="size-2 rounded-full"
-                animate={{
-                  backgroundColor: dirty ? '#fdb52a' : site.hasUnpublishedChanges ? '#0b57f0' : '#13a15a',
-                  scale: dirty ? [1, 1.4, 1] : 1,
-                }}
-                transition={{ duration: 0.4 }}
+                className={cn(
+                  'size-2 shrink-0 rounded-full transition-colors duration-300',
+                  dirty ? 'bg-sun' : site.hasUnpublishedChanges ? 'bg-brand' : 'bg-success',
+                )}
+                animate={{ scale: dirty ? [1, 1.4, 1] : 1 }}
+                transition={{ duration: 0.3 }}
               />
               <AnimatePresence mode="wait" initial={false}>
                 <motion.span
@@ -431,16 +444,16 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="secondary"
-                disabled={!dirty}
-                loading={pending === 'save-theme' && !hasChanges}
+                disabled={!dirty || busy !== null}
+                loading={busy === 'save'}
                 onClick={() => saveDraft()}
               >
                 Enregistrer
               </Button>
               <Button
-                disabled={!hasChanges}
-                loading={pending === 'save-theme' || pending === 'publish-theme'}
-                onClick={() => (dirty ? saveDraft(publishTheme) : publishTheme())}
+                disabled={!hasChanges || busy !== null}
+                loading={busy === 'publish'}
+                onClick={() => (dirty ? saveDraft(true) : publishTheme())}
               >
                 Publier
               </Button>

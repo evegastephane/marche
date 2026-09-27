@@ -70,7 +70,7 @@ export function StaggerItem({ children, className }: { children: ReactNode; clas
 /** Pastille du panier : rebondit à chaque changement du nombre d'articles. */
 export function CartCount({ count }: { count: number }) {
   return (
-    <AnimatePresence initial={false}>
+    <AnimatePresence mode="popLayout" initial={false}>
       {count > 0 && (
         <motion.span
           key={count}
@@ -81,6 +81,7 @@ export function CartCount({ count }: { count: number }) {
           className="tabular inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-bold text-on-primary"
         >
           {count}
+          <span className="sr-only"> {count > 1 ? 'articles' : 'article'}</span>
         </motion.span>
       )}
     </AnimatePresence>

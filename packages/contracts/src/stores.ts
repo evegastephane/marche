@@ -85,6 +85,8 @@ export type UpdateStoreInput = z.infer<typeof updateStoreSchema>;
 
 export const storeSchema = z.object({
   id: z.uuid(),
+  /** Organisation Clerk de la boutique : le dashboard l'active après la création. */
+  clerkOrgId: z.string(),
   name: z.string(),
   slug: z.string(),
   currency: currencySchema,

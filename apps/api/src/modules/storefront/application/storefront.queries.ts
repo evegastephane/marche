@@ -47,6 +47,7 @@ export class StorefrontQueries {
     const logoId = site.theme.logoMediaId ?? settings.logoMediaId;
     const media = await this.media.getMany([...heroImages, ...(logoId ? [logoId] : [])]);
     return {
+      id: this.actor.storeId,
       name: settings.name,
       slug: settings.slug,
       currency: settings.currency,

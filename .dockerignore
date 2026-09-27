@@ -1,0 +1,23 @@
+# Contexte de build Docker : uniquement les sources (les dépendances et builds sont refaits dans l'image)
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+apps/api/src/generated
+
+# Secrets : jamais dans une image
+**/.env
+**/.env.*
+!**/.env.example
+
+.git
+.github
+.vscode
+.idea
+.agents
+.claude
+skills-lock.json
+docs
+*.log

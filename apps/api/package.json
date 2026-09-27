@@ -23,13 +23,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "prebuild": "prisma generate",
-    "pretypecheck": "prisma generate",
     "dev:worker": "nest start --watch --entryFile worker",
     "start:worker": "node dist/worker",
-    "predev": "prisma generate",
-    "prelint": "prisma generate",
-    "pretest:e2e": "prisma generate",
     "db:seed": "prisma db seed",
     "media:init": "tsx scripts/init-media-bucket.ts"
   },

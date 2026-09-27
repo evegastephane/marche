@@ -2,7 +2,7 @@
 
 > Plan d'implémentation détaillé, phase par phase, de ce que décrit [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 >
-> **Version** : 0.1 · **Date** : 2026-09-27 · **Statut** : prêt à exécuter à partir de la phase 0.
+> **Version** : 0.2 · **Date** : 2026-09-27 · **Statut** : backend livré (phases 0 à 5 côté API, écarts au §0.3). Prochaine étape : dashboard (P0-15), puis storefront (P0-16).
 
 ## Sommaire
 0. [Mode d'emploi](#0-mode-demploi)
@@ -49,8 +49,26 @@ Les versions publiées ont été vérifiées le 2026-09-27, ce qui entraîne les
 | Files BullMQ | 5 files | **+ file `analytics`** | Isoler les envois PostHog côté serveur, avec leurs propres retries |
 | Site | `themeSettings` | **+ `draftThemeSettings`** | L'éditeur de thème travaille sur un brouillon. « Publier » le copie vers le thème en ligne, comme Shopify |
 | Tableaux | TanStack Table | **v8 (`8.21.x`)** | La v9 vient de sortir, alors que les exemples shadcn (data-table) sont en v8 |
-| Gestionnaire de paquets | pnpm workspaces | **npm workspaces** (npm 12, livré avec Node 26) | Choix du porteur du projet (2026-09-27) : aucun outil supplémentaire à installer |
+| Gestionnaire de paquets | pnpm workspaces | **npm workspaces** (npm 12) | Choix du porteur du projet (2026-09-27) : aucun outil supplémentaire à installer. Node 26 embarque encore npm 11 : la CI et l'image Docker installent `npm@12.0.1` (champ `packageManager`) |
 | `@nestjs/mau` | – | **Retiré** | Outil de déploiement propriétaire de Nest, inutilisé ; il apportait 5 vulnérabilités (`npm audit`) |
+
+### 0.3 Écarts constatés pendant la réalisation du backend
+| Sujet | Prévu | Réalisé | Raison |
+|---|---|---|---|
+| API du storefront | Endpoints publics dans chaque module | **Module `storefront` dédié (BFF)** : `StorefrontGuard`, requêtes et controllers qui passent par les façades | Un seul endroit pour le jeton partagé, la résolution de l'hôte et le throttling |
+| E-mails | React Email | **HTML typé** dans `packages/emails` (échappement automatique, sans dépendance) | Les paquets `@react-email/*` sont dépréciés, et `react-email` 6 est lourd pour quatre gabarits |
+| Notifications | Bridge `Notification` × `Channel` | **Canal e-mail seul** (Strategy `EmailSender` : smtp, resend, log) | Le Bridge viendra avec un deuxième canal (SMS, WhatsApp) |
+| Socle Nest | `@nestjs/config`, `@nestjs/terminus`, `@nestjs/event-emitter` | **Config Zod maison, `/health` maison, outbox + BullMQ** | Moins de dépendances ; les événements passent tous par l'outbox |
+| Migrations | Une migration par phase | **Une migration `init`** | Aucun déploiement entre les phases : un seul schéma initial, plus lisible |
+| Commandes | – | **Colonne `order_lines.tracks_inventory`** | L'expédition et l'annulation savent si la ligne a réservé du stock, même si la variante change ensuite |
+| Postgres local | Port 5432 | **Port 5434** | 5432 et 5433 sont déjà pris sur le poste de dev |
+| Rate limiting | 100 requêtes/min | **`RATE_LIMIT_PER_MINUTE`** (120 par défaut) ; checkout et paniers à 10/min | Réglable par environnement |
+| Variables | – | **`DASHBOARD_URL`** | Liens vers le dashboard dans les e-mails marchand |
+| Organisations Clerk | Slug de la boutique = slug de l'organisation | **Slug gardé chez nous**, recopié dans `publicMetadata.storeSlug` | L'instance Clerk a les slugs d'organisation désactivés |
+| Choix d'organisation | – | **Forcé par Clerk** (`force_organization_selection`) | Le dashboard devra envoyer la tâche Clerk `choose-organization` vers l'onboarding |
+| Client Prisma | `prisma generate` dans les scripts `pre*` | **Tâche Turborepo `db:generate`**, dont dépendent build, lint, typecheck et tests | Les hooks lancés en parallèle écrivaient en même temps dans `src/generated` |
+| Audit npm | – | **`overrides`** : `deepmerge-ts` ^8, `mysql2` ^3.24 | Failles « high » de la CLI Prisma 7.10 (non exploitables ici), corrigées sans attendre Prisma 8 |
+| Image Docker | `npm prune --omit=dev` | **`npm ci --omit=dev`** dans l'étape finale + **cible `migrate`** séparée | Couches plus propres ; le moteur de migration est téléchargé à la construction (npm 12 bloque son script d'installation) |
 
 ---
 
@@ -1072,7 +1090,7 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
 **Objectif** : un marchand se connecte, crée sa boutique, et l'infrastructure (BD, files, outbox, CI) tourne de bout en bout.
 
 **0.A : Monorepo et outillage**
-- [x] **P0-01** Gestionnaire de paquets : **npm 12**, livré avec Node 26 (pnpm abandonné le 2026-09-27, à la demande du porteur du projet). Fixer `.nvmrc` (26).
+- [x] **P0-01** Gestionnaire de paquets : **npm 12** (pnpm abandonné le 2026-09-27, à la demande du porteur du projet). Fixer `.nvmrc` (26).
 - [x] **P0-02** Créer le monorepo :
   - supprimer `backend/.git` (aucun commit) et faire `git init` à la racine ;
   - déplacer `backend/` vers `apps/api` et le renommer `@marche/api` ;
@@ -1088,45 +1106,45 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
 - [x] **P0-05** Créer `docker-compose.yml` (§4.2) et `apps/api/.env.example` (§4.3). Les `.env.example` du dashboard et du storefront seront créés avec leurs apps (P0-15, P0-16).
 
 **0.B : Socle API**
-- [ ] **P0-06** Config :
+- [x] **P0-06** Config :
   - `env.schema.ts` (Zod) + `ConfigModule` global ;
   - `ObserveModule` activé seulement si `OBSERVE_APP_KEY` est défini (les clés en dur du scaffold sont supprimées) ;
   - `main.ts` : `rawBody: true`, helmet, CORS en liste blanche, `enableShutdownHooks`, Swagger sur `/docs` hors production.
-- [ ] **P0-07** Prisma :
+- [x] **P0-07** Prisma :
   - installer `prisma`, `@prisma/client`, `@prisma/adapter-pg` en **version exacte `7.10.0`** (`npm i -E … -w @marche/api`), plus `dotenv` et `tsx` ;
   - `prisma.config.ts` + migration P0 (§5.2) + index partiel de l'outbox ;
   - `src/generated/` dans `.gitignore` ;
   - `prisma generate` exécuté par `build` (`prebuild`) et par le script `db:generate`, pas par `postinstall` : npm 12 bloque par défaut les scripts d'installation.
-- [ ] **P0-08** Noyau de domaine `shared/domain` (§6.1) avec tests unitaires (`Money`, `Slug`, `Email`, `AggregateRoot`).
-- [ ] **P0-09** Infrastructure partagée :
+- [x] **P0-08** Noyau de domaine `shared/domain` (§6.1) avec tests unitaires (`Money`, `Slug`, `Email`, `AggregateRoot`).
+- [x] **P0-09** Infrastructure partagée :
   - CLS + `TenantContext` + extension tenant + Transactional (§6.2) ;
   - `ProblemDetailsFilter`, pipe Zod et décorateurs (§6.3) ;
   - nestjs-pino (champs `reqId`, `storeId`, `userId` ; `pino-pretty` en dev) ;
   - `@nestjs/terminus` : `/health/live`, `/health/ready` (Prisma `SELECT 1` + Redis `PING`).
-- [ ] **P0-10** Redis et files :
+- [x] **P0-10** Redis et files :
   - `ioredis` ; `BullModule.forRootAsync` avec `maxRetriesPerRequest: null` ;
   - enregistrement des 6 files (§6.5) ;
   - `TenantJobProcessor` ;
   - Bull Board sur `/admin/queues` (authentification basique) ;
   - `@nestjs/throttler` (stockage Redis ; 100 requêtes/min par IP sur l'admin).
-- [ ] **P0-11** Outbox :
+- [x] **P0-11** Outbox :
   - `OutboxPort` + `PrismaOutboxRepository` (écrit via `txHost.tx`) ;
   - `OutboxModule.forFeature(routes)` ;
   - `OutboxRelayProcessor` (§6.5) ;
   - test d'intégration : événement écrit dans une transaction annulée → jamais publié ; transaction validée → job créé une seule fois, même après deux passages du relais.
-- [ ] **P0-12** `worker.ts` + `WorkerModule` :
+- [x] **P0-12** `worker.ts` + `WorkerModule` :
   - `NestFactory.createApplicationContext` ;
   - importe les mêmes modules que l'API, plus les `*.jobs.module.ts` ;
   - arrêt propre (`worker.close()`).
 
 **0.C : Identité et boutique [UC-01, UC-02, UC-03]**
-- [ ] **P0-13** Module `identity` :
+- [x] **P0-13** Module `identity` :
   - `ClerkAuthGuard`, `TenantGuard`, `RolesGuard` ;
   - décorateurs `@Public()`, `@NoStoreRequired()`, `@Roles()`, `@CurrentUser()`, `@CurrentStore()` ;
   - création des utilisateurs à la volée ;
   - `ClerkWebhooksController` (svix) ;
   - port `IdentityProviderPort` (`createOrganization`, `deleteOrganization`, `updateOrganization`) avec l'adapter Clerk (`createClerkClient`).
-- [ ] **P0-14** Module `stores` :
+- [x] **P0-14** Module `stores` :
   - agrégat `Store` (Slug, devise, pays) ;
   - `CreateStoreUseCase` :
     1. vérifier que le slug est libre ;
@@ -1158,13 +1176,13 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
   - `api/revalidate/route.ts`.
 
 **0.E : Qualité et CI**
-- [ ] **P0-17** `.dependency-cruiser.cjs` avec les règles suivantes :
+- [x] **P0-17** `.dependency-cruiser.cjs` avec les règles suivantes :
   - `no-cross-module-internals` ;
   - `domain-is-pure` : `modules/*/domain` et `shared/domain` n'importent ni `@nestjs/*`, ni `@prisma/*`, ni `generated/`, ni `infrastructure` ;
   - `no-circular` ;
   - `contracts-no-app-imports`.
-- [ ] **P0-18** `.github/workflows/ci.yml` (§9.1) et protection de la branche `main`.
-- [ ] **P0-19** `README.md` racine : prérequis, démarrage (§4.1), scripts, liens vers la documentation.
+- [x] **P0-18** `.github/workflows/ci.yml` (§9.1) et protection de la branche `main`. *(protection de la branche `main` : à activer dans les réglages GitHub)*
+- [x] **P0-19** `README.md` racine : prérequis, démarrage (§4.1), scripts, liens vers la documentation.
 
 **DoD phase 0**
 - `npm run infra:up && npm run dev` démarre l'API, le worker, le dashboard et le storefront sans erreur.
@@ -1180,9 +1198,9 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
 **Objectif** : gérer marques, produits (variantes, images) et catalogues depuis le dashboard.
 
 **Back**
-- [ ] **P1-01** Contrats Zod (`packages/contracts/src/catalog.ts`) : marques, produits (création et mise à jour avec options + variantes), filtres de liste, catalogues, ordre des produits.
-- [ ] **P1-02** Migration `catalog` (§5.2) + SQL (§5.1).
-- [ ] **P1-03** Domaine :
+- [x] **P1-01** Contrats Zod (`packages/contracts/src/catalog.ts`) : marques, produits (création et mise à jour avec options + variantes), filtres de liste, catalogues, ordre des produits.
+- [x] **P1-02** Migration `catalog` (§5.2) + SQL (§5.1).
+- [x] **P1-03** Domaine :
   - **`Brand`**.
   - **`Product`** :
     - contient des `ProductVariant` et les options ;
@@ -1193,24 +1211,24 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
     - VO `Sku`, `Slug`.
   - **`Collection`** : liste ordonnée d'identifiants de produits, sans doublons.
   - **Événements** : `catalog.product.created`, `.updated`, `.published`, `.unpublished`, `.archived` et `catalog.collection.updated`.
-- [ ] **P1-04** Module `media` [UC-13] :
+- [x] **P1-04** Module `media` [UC-13] :
   - `StoragePort` + `S3StorageAdapter` (`forcePathStyle` en dev, R2 en prod) ;
   - `POST /api/v1/media/upload-url` : vérifie le type MIME (jpeg, png, webp, avif) et la taille (≤ 10 Mo), crée un `Media` en PENDING, renvoie une URL `PUT` pré-signée (5 min) ;
   - `POST /api/v1/media/:id/complete` : `HeadObject` puis job `media.process` ;
   - le job (`sharp`) génère des versions webp en 400, 800 et 1600 px, remplit `renditions`, `width` et `height`, puis passe le média en READY ;
   - script `media:init` (bucket + politique de lecture publique en dev).
-- [ ] **P1-05** Use cases :
+- [x] **P1-05** Use cases :
   - **marques** : `CreateBrand`, `UpdateBrand`, `ArchiveBrand` ;
   - **produits** : `CreateProduct`, `UpdateProduct` (vérifie `version`, sinon `CONCURRENT_MODIFICATION`), `PublishProduct`, `UnpublishProduct`, `ArchiveProduct`, `DuplicateProduct`, `SetProductMedia` (ordre) ;
   - **catalogues** : `CreateCollection`, `UpdateCollection`, `DeleteCollection`, `SetCollectionProducts`.
 
   `CreateProduct` accepte déjà `initialQuantity` par variante, mais il ne sera branché sur le stock qu'en P2-04.
-- [ ] **P1-06** Queries :
+- [x] **P1-06** Queries :
   - `ListProducts` : filtres `q` (trigram sur le titre, ou SKU exact), `status`, `brandId`, `collectionId` ; tri ; pagination par curseur `(updatedAt, id)` ;
   - `GetProduct` (variantes, médias, catalogues) ;
   - `ListBrands`, `ListCollections`, `GetCollection`.
-- [ ] **P1-07** Controllers admin (`/api/v1/brands`, `/products`, `/collections`, `/media`) + Swagger.
-- [ ] **P1-08** `CatalogFacade` :
+- [x] **P1-07** Controllers admin (`/api/v1/brands`, `/products`, `/collections`, `/media`) + Swagger.
+- [x] **P1-08** `CatalogFacade` :
   - `snapshotLines(variantIds)` → `{ variantId, productTitle, variantTitle, sku, unitPrice, isSellable }` (pour les commandes) ;
   - lectures « publiées » pour le storefront (P4).
 
@@ -1238,8 +1256,8 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
 ### Phase 2 : Inventaire [UC-20 à UC-22]
 **Objectif** : un stock fiable, sans jamais de survente.
 
-- [ ] **P2-01** Migration `inventory` + contrainte `stock_consistent` (§5.1).
-- [ ] **P2-02** Domaine :
+- [x] **P2-01** Migration `inventory` + contrainte `stock_consistent` (§5.1).
+- [x] **P2-02** Domaine :
   - **`InventoryLevel`** :
     - `adjust(delta, type, reason)` : produit un `StockMovement` et refuse de passer sous le réservé (`STOCK_BELOW_RESERVED`) ;
     - `available = onHand - reserved` ;
@@ -1248,7 +1266,7 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
     - `inventory.stock.adjusted` ;
     - `inventory.stock.low`, émis **au franchissement** du seuil uniquement ;
     - `inventory.stock.out` et `inventory.stock.back`, qui déclenchent la revalidation du site en P4.
-- [ ] **P2-03** `InventoryFacade` :
+- [x] **P2-03** `InventoryFacade` :
   - `initialize(lines)` ;
   - `reserve(lines)` : un `UPDATE … WHERE on_hand - reserved >= q` **par ligne**, dans la transaction courante. Si 0 ligne est modifiée : `INSUFFICIENT_STOCK` avec `{ variantId, requested, available }`, et l'exception annule toute la transaction [R5] ;
   - `release(lines)` ;
@@ -1256,8 +1274,8 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
   - `getAvailability(variantIds)`.
 
   Les variantes avec `trackInventory = false` sont ignorées par ces opérations.
-- [ ] **P2-04** Brancher `CreateProduct` et l'ajout de variantes sur `InventoryFacade.initialize` (mouvement `INITIAL`, même transaction).
-- [ ] **P2-05** Use case `AdjustStock` [UC-20] :
+- [x] **P2-04** Brancher `CreateProduct` et l'ajout de variantes sur `InventoryFacade.initialize` (mouvement `INITIAL`, même transaction).
+- [x] **P2-05** Use case `AdjustStock` [UC-20] :
   - types `RECEIPT`, `ADJUSTMENT`, `LOSS`, `RETURN` ;
   - motif obligatoire pour `LOSS` et `ADJUSTMENT` ;
   - `actorUserId`.
@@ -1265,7 +1283,7 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
   Queries :
   - `ListInventory` (filtres `lowStock`, `outOfStock`, `q` ; joint le titre de variante via `CatalogFacade`, jamais par `include` direct) ;
   - `ListStockMovements` [UC-21].
-- [ ] **P2-06** Route `inventory.stock.low` vers `inventory-alerts` : pour l'instant un simple log, plus un compteur exposé à l'accueil du dashboard. L'e-mail arrive en P3.
+- [x] **P2-06** Route `inventory.stock.low` vers `inventory-alerts` : pour l'instant un simple log, plus un compteur exposé à l'accueil du dashboard. L'e-mail arrive en P3.
 - [ ] **P2-07** Dashboard `features/inventory` :
   - tableau : variante, SKU, en main, réservé, disponible, seuil ; badges « Stock bas » et « Rupture » ;
   - dialogue d'ajustement (type, quantité, motif) avec **mise à jour optimiste** ;
@@ -1283,8 +1301,8 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
 ### Phase 3 : Commandes et clients [UC-30 à UC-36, UC-51]
 **Objectif** : l'ERP est utilisable. On crée, passe, encaisse, expédie ou annule des commandes, et les clients reçoivent leurs e-mails.
 
-- [ ] **P3-01** Migration `orders` + SQL (§5.1).
-- [ ] **P3-02** Domaine :
+- [x] **P3-01** Migration `orders` + SQL (§5.1).
+- [x] **P3-02** Domaine :
   - **`Order`** :
     - pattern **State** : `DraftState`, `PlacedState`, `FulfilledState`, `CancelledState` (§5.5 de l'architecture) ;
     - lignes (VO instantané) ;
@@ -1294,8 +1312,8 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
   - **`Customer`** : e-mail normalisé, upsert par `(storeId, email)`.
   - **Paiement** : `markPaid()`, valable seulement si l'état est `PLACED` ou `FULFILLED`.
   - **Événements** : `orders.order.placed`, `.paid`, `.fulfilled`, `.cancelled`.
-- [ ] **P3-03** Numérotation [R8] : `UPDATE store_counters SET order_seq = order_seq + 1 WHERE store_id = $1 RETURNING order_seq`, dans la transaction de passage.
-- [ ] **P3-04** Use cases :
+- [x] **P3-03** Numérotation [R8] : `UPDATE store_counters SET order_seq = order_seq + 1 WHERE store_id = $1 RETURNING order_seq`, dans la transaction de passage.
+- [x] **P3-04** Use cases :
   - `CreateDraftOrder` [UC-30] et `UpdateDraftOrder` (lignes, client, adresse, livraison, note) ;
   - **`PlaceOrder`** [UC-31] (§5.5 de l'architecture) :
     1. instantané des lignes via `CatalogFacade` (refus si la variante n'est pas vendable) ;
@@ -1313,12 +1331,12 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
   - clé Redis `idem:{storeId}:{route}:{key}` posée avec `SET NX` (TTL 24 h) ;
   - si la requête identique est déjà en cours : `409 IDEMPOTENCY_IN_PROGRESS` ;
   - si elle est déjà terminée : la réponse stockée est rejouée.
-- [ ] **P3-05** Queries :
+- [x] **P3-05** Queries :
   - `ListOrders` (filtres statut, paiement, période, client, `q` sur numéro ou e-mail) ;
   - `GetOrder` (avec une chronologie construite depuis les horodatages) ;
   - `ListCustomers` (nombre de commandes et total dépensé calculés en SQL) ;
   - `GetCustomer` (avec son historique) [UC-35, UC-36].
-- [ ] **P3-06** Module `notifications` (Bridge : `Notification` × `Channel`) :
+- [x] **P3-06** Module `notifications` (Bridge : `Notification` × `Channel`) :
   - `EmailPort` avec deux adapters, `SmtpEmailAdapter` (nodemailer → Mailpit, en dev) et `ResendEmailAdapter` (prod), choisis par `EMAIL_PROVIDER` ;
   - `packages/emails` : templates React Email `order-confirmation`, `merchant-new-order`, `low-stock-alert`, `order-shipped` ;
   - processors abonnés via les routes de l'outbox, idempotents (clé `jobId`).
@@ -1345,7 +1363,7 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
 **Objectif** : « Générer mon site » met en ligne une boutique fonctionnelle, avec panier et checkout invité.
 
 **Contrat de template**
-- [ ] **P4-01** `packages/contracts/src/templates/` :
+- [x] **P4-01** `packages/contracts/src/templates/` :
   - `themeBaseSchema` : `colors` (primary, background, foreground, accent), `fonts` (`heading` et `body` choisies dans une liste de Google Fonts), `logoMediaId`, `announcement` ;
   - `sections` : union discriminée par `type`, parmi `hero`, `featured-collection`, `product-grid`, `brand-strip`, `rich-text`, `newsletter` (désactivée en MVP) ;
   - `default.ts` : `settingsSchema` + `defaultSettings` + `manifest` (`id: 'default'`, `version: '1.0.0'`).
@@ -1353,8 +1371,8 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
   Ce code, sans React, est utilisé par l'API (validation) et par le dashboard (éditeur).
 
 **Back**
-- [ ] **P4-02** Migration `sites`.
-- [ ] **P4-03** Module `sites` :
+- [x] **P4-02** Migration `sites`.
+- [x] **P4-03** Module `sites` :
   - agrégat `Site` (State `DRAFT → PUBLISHED ⇄ UNPUBLISHED`) ;
   - **`GenerateSiteUseCase`** [UC-40] :
     1. `structuredClone(template.defaultSettings)` (Prototype) ;
@@ -1371,7 +1389,7 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
   - `PublishSite` et `UnpublishSite` [UC-42] ;
   - `GetSite` ;
   - `CreatePreviewToken` (JWT HS256 via `jose`, 30 min).
-- [ ] **P4-04** Revalidation [UC-46] :
+- [x] **P4-04** Revalidation [UC-46] :
   - routes d'événements vers `site-publishing` :
 
     | Événement | Tags revalidés |
@@ -1382,14 +1400,14 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
     | `inventory.stock.out` / `.back` | `product:{id}` |
   - le processor appelle `POST {STOREFRONT_INTERNAL_URL}/api/revalidate` ;
   - après une publication : **préchauffage** (GET de l'accueil et des 5 premiers catalogues).
-- [ ] **P4-05** API storefront (`/storefront/v1`, `StorefrontGuard`, throttling par IP transmise dans `X-Forwarded-For`) :
+- [x] **P4-05** API storefront (`/storefront/v1`, `StorefrontGuard`, throttling par IP transmise dans `X-Forwarded-For`) :
   - `GET /store` : boutique + thème + navigation (catalogues publiés) ;
   - `GET /products` (actifs seulement, pagination, filtres par catalogue et par marque) ;
   - `GET /products/:slug` ;
   - `GET /collections` et `GET /collections/:slug` ;
   - `GET /availability?variantIds=` ;
   - `GET /orders/:publicToken` (confirmation acheteur, données minimales).
-- [ ] **P4-06** Module `checkout` :
+- [x] **P4-06** Module `checkout` :
   - **Panier** :
     - agrégat `Cart` : lignes `variantId` + quantité, maximum 50 lignes et 99 unités par ligne ;
     - `RedisCartRepository` : JSON, TTL de 7 jours prolongé à chaque accès ;
@@ -1444,7 +1462,7 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
 ---
 
 ### Phase 5 : Tableau de bord, analytics, durcissement, production [UC-50]
-- [ ] **P5-01** Module `reporting` : `GET /api/v1/reporting/overview?period=7d|30d|90d` renvoie les indicateurs suivants, calculés en SQL agrégé avec `::bigint` puis convertis :
+- [x] **P5-01** Module `reporting` : `GET /api/v1/reporting/overview?period=7d|30d|90d` renvoie les indicateurs suivants, calculés en SQL agrégé avec `::bigint` puis convertis :
   - CA = somme des `total_amount` des commandes `PLACED` et `FULFILLED` ;
   - nombre de commandes ;
   - panier moyen ;
@@ -1453,11 +1471,11 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
   - top 5 des produits ;
   - série journalière.
 - [ ] **P5-02** Accueil du dashboard : cartes KPI, graphique (shadcn charts / recharts), listes « À expédier » et « Stock bas », checklist d'onboarding (1er produit → 1er catalogue → site généré → 1re commande).
-- [ ] **P5-03** PostHog :
+- [ ] **P5-03** PostHog : *(API faite : file `analytics` et PostHog côté serveur ; restent le dashboard et le suivi d’erreurs des fronts)*
   - **dashboard** : `identify(userId)`, `group('store', storeId)`, événements d'activation, feature flag `template-picker` (préparation de la V2) ;
   - **API** : `AnalyticsPort` + `PostHogAnalyticsAdapter` (posthog-node) branchés sur la file `analytics` pour `order_placed`, `site_published` et `product_created` ;
   - error tracking activé sur les deux fronts.
-- [ ] **P5-04** Sécurité :
+- [x] **P5-04** Sécurité :
   - throttling renforcé sur le checkout et les paniers (10 requêtes/min par IP pour le checkout) ;
   - revue de la configuration helmet et CORS ;
   - revue des rôles : actions destructrices réservées à `ADMIN`/`OWNER` ;
@@ -1467,11 +1485,11 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
 - [ ] **P5-05** Tests e2e Playwright (`@clerk/testing` pour l'authentification) :
   - parcours complet : onboarding → produit → catalogue → génération du site → checkout invité → expédition ;
   - suites d'isolation et de concurrence dans la CI.
-- [ ] **P5-06** Observabilité :
+- [ ] **P5-06** Observabilité : *(logs JSON faits, `@nestjs/observe` branché s’il est configuré ; alertes à définir avec l’hébergeur)*
   - logs JSON en prod ;
   - `@nestjs/observe` (si retenu) ou OpenTelemetry ;
   - alertes : 5xx, jobs en échec > N, file `outbox` en retard > 1 min, `/health/ready` KO.
-- [ ] **P5-07** Déploiement (§9.2) : Dockerfile multi-étapes (une image, deux commandes : `api` et `worker`), environnements staging et production, migrations, DNS wildcard, e-mails vérifiés (SPF/DKIM), sauvegardes Postgres (PITR) avec **test de restauration**.
+- [ ] **P5-07** Déploiement (§9.2) : Dockerfile multi-étapes (une image, deux commandes : `api` et `worker`), environnements staging et production, migrations, DNS wildcard, e-mails vérifiés (SPF/DKIM), sauvegardes Postgres (PITR) avec **test de restauration**. *(Dockerfile fait et testé : image API/worker + cible `migrate` ; restent les environnements, le DNS et les sauvegardes)*
 - [ ] **P5-08** Runbooks `docs/runbooks/` : déploiement, rollback, restauration, rejeu d'une dead-letter, rotation des secrets.
 
 **DoD phase 5 = MVP en production**

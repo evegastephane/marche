@@ -1,0 +1,163 @@
+/* Couche « clerk » avant les utilitaires : nos classes Tailwind priment sur les styles de Clerk. */
+@layer theme, base, clerk, components, utilities;
+@import 'tailwindcss';
+@import '@fontsource-variable/archivo/standard.css';
+
+/*
+ * Monde « Enseigne peinte » : mur chaulé, planches peintes à filet double,
+ * vert Baobab en aplat, peintures de car rapide pour les états.
+ */
+@theme {
+  --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --color-chaux: #eff1e9;
+  --color-chaux-2: #e5e9df;
+  --color-planche: #fbfcf8;
+  --color-encre: #14201a;
+  --color-encre-2: #45554b;
+  --color-encre-3: #5f6f66;
+  --color-filet: #cfd8ce;
+  --color-filet-fort: #aebbb0;
+
+  --color-baobab: #034f32;
+  --color-baobab-900: #023a25;
+  --color-baobab-700: #0b6341;
+  --color-baobab-100: #d3e4d8;
+  --color-baobab-50: #e6efe8;
+
+  --color-jaune: #f2b31b;
+  --color-jaune-900: #6b4a00;
+  --color-jaune-50: #fcf0cf;
+  --color-bleu: #1d6fb8;
+  --color-bleu-50: #e1edf8;
+  --color-rouge: #c8372a;
+  --color-rouge-50: #f9e2df;
+
+  --ease-pinceau: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --shadow-flottant: 0 18px 40px -18px rgb(20 32 26 / 0.45), 0 3px 8px -2px rgb(20 32 26 / 0.14);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    min-height: 100dvh;
+    background: var(--color-chaux);
+    color: var(--color-encre);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    font-variation-settings: normal;
+    -webkit-font-smoothing: antialiased;
+    caret-color: var(--color-baobab);
+    scrollbar-color: var(--color-filet-fort) transparent;
+  }
+
+  ::selection {
+    background: var(--color-jaune);
+    color: var(--color-encre);
+  }
+
+  :focus-visible {
+    outline: 2.5px solid var(--color-baobab);
+    outline-offset: 2px;
+  }
+
+  /* Sur les planches vertes, l'anneau de focus est peint en jaune. */
+  .sur-vert :focus-visible {
+    outline-color: var(--color-jaune);
+  }
+
+  a {
+    text-underline-offset: 0.22em;
+    text-decoration-thickness: 1.5px;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+  }
+
+  ::placeholder {
+    color: var(--color-encre-3);
+    opacity: 1;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-filet-fort);
+    border-radius: 999px;
+    border: 3px solid var(--color-chaux);
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  /* Lettrage d'enseigne : capitales très condensées, réservées aux titres et aux chiffres. */
+  .lettrage {
+    font-stretch: 62%;
+    font-weight: 800;
+    text-transform: uppercase;
+    line-height: 0.92;
+    letter-spacing: 0.004em;
+  }
+
+  .titre {
+    font-stretch: 72%;
+    font-weight: 780;
+    text-transform: uppercase;
+    line-height: 1;
+    letter-spacing: 0.006em;
+  }
+
+  .chiffres {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  /* Planche peinte : aplat clair cerné d'un filet double. */
+  .planche {
+    background: var(--color-planche);
+    border-radius: 12px;
+    box-shadow:
+      0 0 0 1.5px var(--color-baobab),
+      inset 0 0 0 3px var(--color-planche),
+      inset 0 0 0 4px rgb(3 79 50 / 0.32);
+  }
+
+  /* Enseigne : grande planche verte, double filet blanc comme l'anneau de l'emblème. */
+  .enseigne {
+    position: relative;
+    isolation: isolate;
+    background: var(--color-baobab);
+    color: #fff;
+    border-radius: 16px;
+  }
+  .enseigne::before,
+  .enseigne::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    z-index: -1;
+  }
+  .enseigne::before {
+    inset: 7px;
+    border: 1.5px solid rgb(255 255 255 / 0.92);
+    border-radius: 11px;
+  }
+  .enseigne::after {
+    inset: 11px;
+    border: 1px solid rgb(255 255 255 / 0.4);
+    border-radius: 8px;
+  }
+}

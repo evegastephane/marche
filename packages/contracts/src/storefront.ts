@@ -30,6 +30,8 @@ export const availabilityQuerySchema = z.object({
 export type AvailabilityQuery = z.infer<typeof availabilityQuerySchema>;
 
 export interface StorefrontStoreDto {
+  /** Identifiant de la boutique : sert aux tags de cache (store:{id}, catalog:{id}). */
+  id: string;
   name: string;
   slug: string;
   currency: Currency;

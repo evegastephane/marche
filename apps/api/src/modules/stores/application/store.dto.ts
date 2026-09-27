@@ -5,6 +5,7 @@ export function toStoreDto(store: Store): StoreDto {
   const s = store.snapshot();
   return {
     id: store.id,
+    clerkOrgId: store.clerkOrgId,
     name: s.name,
     slug: s.slug,
     currency: s.currency,

@@ -8,7 +8,7 @@ import { ForbiddenError } from '../../../shared/domain/domain-error.js';
 import { Store } from '../domain/store.aggregate.js';
 import { StoreSlugTakenError } from '../domain/store.errors.js';
 import { StoreMembershipRepository, StoreRepository } from '../domain/store.repository.js';
-import { OrganizationDirectory, OrganizationSlugTakenError } from './organization-directory.port.js';
+import { OrganizationDirectory } from './organization-directory.port.js';
 import { StoreCacheInvalidator } from './store-cache.port.js';
 import { toStoreDto } from './store.dto.js';
 
@@ -41,17 +41,11 @@ export class CreateStoreUseCase {
       throw new StoreSlugTakenError(input.slug);
     }
 
-    let clerkOrgId: string;
-    try {
-      ({ clerkOrgId } = await this.directory.createOrganization({
-        name: input.name,
-        slug: input.slug,
-        createdByClerkUserId: clerkUserId,
-      }));
-    } catch (error) {
-      if (error instanceof OrganizationSlugTakenError) throw new StoreSlugTakenError(input.slug);
-      throw error;
-    }
+    const { clerkOrgId } = await this.directory.createOrganization({
+      name: input.name,
+      slug: input.slug,
+      createdByClerkUserId: clerkUserId,
+    });
 
     try {
       const store = Store.create({ ...input, clerkOrgId }, this.clock.now());

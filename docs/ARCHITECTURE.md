@@ -430,7 +430,7 @@ flowchart TB
 | **Command** | Chaque use case reçoit une commande (`PlaceOrderCommand`). Un job BullMQ est une commande sérialisée | Actions explicites, traçables et rejouables |
 | **Chain of Responsibility** | Pipeline Nest (middleware → guards → interceptors → pipes → filters) ; chaîne de validations du checkout (`StoreOpen → ItemsActive → StockAvailable → PriceUnchanged`) | Enchaîner des contrôles indépendants |
 | **Template Method** | `BaseJobProcessor` : ouvre le contexte tenant, journalise, gère les erreurs, puis appelle `handle()` | Factoriser le squelette commun à tous les jobs |
-| **Mediator** | Bus d'événements interne (`@nestjs/event-emitter`) entre modules | Les modules ne se connaissent pas directement |
+| **Mediator** | Bus d'événements interne entre modules : outbox, puis BullMQ, puis handlers `@OnDomainEvent` | Les modules ne se connaissent pas directement |
 | **Specification** (DDD) | `IsPublishable`, `IsLowStock`, filtres réutilisables | Encapsuler des règles combinables |
 
 ### 5.4 Patterns architecturaux et d'entreprise
@@ -532,10 +532,10 @@ export interface StorefrontTemplate<S extends ThemeSettings = ThemeSettings> {
 | Storefront | **Next.js** (App Router, RSC, ISR) | Sites générés, SEO |
 | UI | **Tailwind CSS v4**, **shadcn/ui**, **Motion** | Design system et animations |
 | Médias | Cloudflare R2 / S3 (URL pré-signées) + `sharp` *(recommandé)* | Images produits |
-| E-mail | Resend + React Email *(recommandé)* | Transactionnel |
+| E-mail | Resend (Mailpit en dev) + gabarits HTML typés (`packages/emails`) | Transactionnel |
 | Tests | **Vitest** (déjà en place), Testcontainers, Supertest, Testing Library, Playwright | Pyramide de tests |
 | Qualité | oxlint (déjà en place), Prettier, dependency-cruiser | Lint, frontières de modules |
-| Logs / monitoring | nestjs-pino, `@nestjs/terminus` (health), `@nestjs/observe` ou OpenTelemetry | Observabilité |
+| Logs / monitoring | nestjs-pino, `/health/live` et `/health/ready` (Postgres, Redis), `@nestjs/observe` ou OpenTelemetry | Observabilité |
 
 **Rôle de Redis**
 

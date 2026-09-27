@@ -5,6 +5,7 @@ node_modules/
 dist/
 build/
 .next/
+next-env.d.ts
 out/
 *.tsbuildinfo
 
@@ -43,6 +44,10 @@ pids/
 # OS
 .DS_Store
 Thumbs.db
+
+# Skills d'agents : les sources sont dans .agents/skills (voir skills-lock.json) ;
+# .claude/skills ne contient que des liens absolus propres à chaque poste.
+.claude/skills/
 
 # IDE
 .idea/

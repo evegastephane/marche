@@ -1,6 +1,6 @@
 import { defaultTemplateSettings, getTemplate } from '@marche/contracts';
 import { describe, expect, it } from 'vitest';
-import { parseThemeSettings, prefillSettings } from '../application/site.use-cases.js';
+import { parseThemeSettings, prefillSettings, welcomeTitle } from '../application/site.use-cases.js';
 import { Site } from './site.aggregate.js';
 
 const now = new Date('2026-09-27T10:00:00Z');
@@ -12,11 +12,16 @@ describe('prefillSettings (Prototype + préremplissage)', () => {
       { name: 'Chez Awa', logoMediaId: null },
       { id: '0190f3a0-0000-7000-8000-000000000001', title: 'Été' },
     );
-    expect(settings.sections.find((s) => s.type === 'hero')).toMatchObject({ title: 'Bienvenue chez Chez Awa' });
+    expect(settings.sections.find((s) => s.type === 'hero')).toMatchObject({ title: 'Bienvenue chez Awa' });
     expect(settings.sections.find((s) => s.type === 'featured-collection')).toMatchObject({ title: 'Été', enabled: true });
     expect(defaultTemplateSettings.sections.find((s) => s.type === 'hero')).toMatchObject({
       title: 'Bienvenue dans notre boutique',
     });
+  });
+
+  it('formule le titre d’accueil selon le nom de la boutique', () => {
+    expect(welcomeTitle('Chez Aloys')).toBe('Bienvenue chez Aloys');
+    expect(welcomeTitle('Maison Lumière')).toBe('Bienvenue chez Maison Lumière');
   });
 
   it('désactive la section « à la une » sans catalogue publié', () => {

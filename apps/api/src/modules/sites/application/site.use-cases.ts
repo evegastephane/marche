@@ -35,6 +35,13 @@ export function parseThemeSettings(template: TemplateDefinition, settings: unkno
   return result.data;
 }
 
+/** « Chez Awa » → « Bienvenue chez Awa » ; « Maison Lumière » → « Bienvenue chez Maison Lumière ». */
+export function welcomeTitle(storeName: string): string {
+  const name = storeName.trim();
+  const title = /^chez\s+/i.test(name) ? `Bienvenue ${name.replace(/^chez/i, 'chez')}` : `Bienvenue chez ${name}`;
+  return title.slice(0, 120);
+}
+
 /**
  * Préremplissage du preset (pattern Prototype : on part d'une copie du preset du template)
  * avec l'identité de la boutique et son premier catalogue publié.
@@ -47,7 +54,7 @@ export function prefillSettings(
   const settings = structuredClone(preset);
   settings.logoMediaId = store.logoMediaId;
   settings.sections = settings.sections.map((section) => {
-    if (section.type === 'hero') return { ...section, title: `Bienvenue chez ${store.name}`.slice(0, 120) };
+    if (section.type === 'hero') return { ...section, title: welcomeTitle(store.name) };
     if (section.type === 'featured-collection') {
       return featured
         ? { ...section, collectionId: featured.id, title: featured.title.slice(0, 120) }

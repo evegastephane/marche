@@ -1,0 +1,57 @@
+@import 'tailwindcss';
+
+/*
+ * Template « default », habillage provisoire : tout vient du thème du marchand
+ * (couleurs, polices), injecté en variables CSS par s/[site]/layout.tsx.
+ * La maquette définitive remplacera ces styles sans changer le contrat.
+ */
+@theme inline {
+  --color-primary: var(--sf-primary, #1f2937);
+  --color-on-primary: var(--sf-on-primary, #ffffff);
+  --color-accent: var(--sf-accent, #f59e0b);
+  --color-on-accent: var(--sf-on-accent, #111111);
+  --color-bg: var(--sf-bg, #ffffff);
+  --color-fg: var(--sf-fg, #111827);
+  --color-muted: color-mix(in oklab, var(--sf-fg, #111827) 64%, var(--sf-bg, #ffffff));
+  --color-line: color-mix(in oklab, var(--sf-fg, #111827) 13%, var(--sf-bg, #ffffff));
+  --color-soft: color-mix(in oklab, var(--sf-fg, #111827) 5%, var(--sf-bg, #ffffff));
+  --font-heading: var(--sf-font-heading, ui-sans-serif, system-ui, sans-serif);
+  --font-body: var(--sf-font-body, ui-sans-serif, system-ui, sans-serif);
+}
+
+@layer base {
+  body {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  a {
+    text-underline-offset: 0.2em;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

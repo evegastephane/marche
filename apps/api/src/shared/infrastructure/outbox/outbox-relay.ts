@@ -23,7 +23,7 @@ const MAX_BATCHES_PER_RUN = 20;
 
 /** Identifiant de job déterministe : un ré-envoi ne crée pas de doublon (BullMQ refuse « : »). */
 export function jobIdFor(eventId: string, jobName: string): string {
-  return `${eventId}__${jobName}`;
+  return `${eventId}__${jobName}`.replace(/:/g, '-');
 }
 
 /**

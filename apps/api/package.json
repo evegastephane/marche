@@ -29,7 +29,9 @@
     "start:worker": "node dist/worker",
     "predev": "prisma generate",
     "prelint": "prisma generate",
-    "pretest:e2e": "prisma generate"
+    "pretest:e2e": "prisma generate",
+    "db:seed": "prisma db seed",
+    "media:init": "tsx scripts/init-media-bucket.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1141.0",

@@ -22,7 +22,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "infra:up": "docker compose up -d",
-    "infra:down": "docker compose down"
+    "infra:down": "docker compose down",
+    "depcruise": "depcruise apps/api/src packages/contracts/src --config .dependency-cruiser.cjs --output-type err-long"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",

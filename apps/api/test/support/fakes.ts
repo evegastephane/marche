@@ -4,6 +4,7 @@ import { UserDirectory } from '../../src/modules/identity/application/identity.p
 import type { UserProfile } from '../../src/modules/identity/domain/user.repository.js';
 import { ObjectStorage, type PresignedUpload } from '../../src/modules/media/application/media.ports.js';
 import { EmailSender, type OutgoingEmail } from '../../src/modules/notifications/application/email.port.js';
+import { StorefrontRevalidator } from '../../src/modules/sites/application/sites.ports.js';
 
 /** Annuaire Clerk simulé : les organisations sont créées en mémoire. */
 export class FakeOrganizationDirectory extends OrganizationDirectory {
@@ -81,5 +82,18 @@ export class InMemoryEmailSender extends EmailSender {
 
   async send(email: OutgoingEmail): Promise<void> {
     this.sent.push(email);
+  }
+}
+
+/** Revalidations demandées au storefront (enregistrées au lieu d'un appel HTTP). */
+export class RecordingRevalidator extends StorefrontRevalidator {
+  readonly calls: { tags: string[]; immediate: boolean }[] = [];
+
+  async revalidate(tags: readonly string[], options: { immediate: boolean }): Promise<void> {
+    this.calls.push({ tags: [...tags], immediate: options.immediate });
+  }
+
+  tags(): string[] {
+    return this.calls.flatMap((call) => call.tags);
   }
 }

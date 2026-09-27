@@ -66,7 +66,7 @@ function scopedData(data: unknown, storeId: string): Args {
 
 /** Fonction pure (testée unitairement) : ajoute le périmètre boutique aux arguments d'une opération. */
 export function scopeArgs(operation: string, args: Args | undefined, storeId: string): Args {
-  const scoped: Args = { ...(args ?? {}) };
+  const scoped: Args = { ...args };
   if (WHERE_OPERATIONS.has(operation)) {
     scoped.where = scopedWhere(scoped.where, storeId);
     return scoped;

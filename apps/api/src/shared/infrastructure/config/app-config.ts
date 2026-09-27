@@ -56,6 +56,7 @@ export const envSchema = z
     REVALIDATE_SECRET: secret,
     PREVIEW_TOKEN_SECRET: secret,
     PLATFORM_ROOT_DOMAIN: z.string().min(1),
+    DASHBOARD_URL: z.url().default('http://localhost:5173'),
     SITE_URL_SCHEME: z.enum(['http', 'https']).default('https'),
 
     RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
@@ -138,6 +139,7 @@ export interface AppConfig {
     urlScheme: 'http' | 'https';
   };
   rateLimit: { perMinute: number };
+  dashboard: { url: string };
   bullBoard: { user: string; password: string } | null;
   observe: { appKey: string; appSecret: string } | null;
 }
@@ -200,6 +202,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       urlScheme: env.SITE_URL_SCHEME,
     },
     rateLimit: { perMinute: env.RATE_LIMIT_PER_MINUTE },
+    dashboard: { url: env.DASHBOARD_URL.replace(/\/+$/, '') },
     bullBoard:
       env.BULL_BOARD_USER && env.BULL_BOARD_PASSWORD
         ? { user: env.BULL_BOARD_USER, password: env.BULL_BOARD_PASSWORD }

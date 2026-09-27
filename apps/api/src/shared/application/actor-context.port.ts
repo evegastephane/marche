@@ -1,4 +1,6 @@
-export type MemberRole = 'OWNER' | 'ADMIN' | 'STAFF';
+import type { MemberRole } from '../domain/member-role.js';
+
+export type { MemberRole };
 
 /**
  * Qui agit, pour quelle boutique. Renseigné par les guards (HTTP) ou par le worker (jobs).

@@ -67,9 +67,12 @@ export function toProblem(exception: unknown): ProblemResponse {
     return problem(422, exception.code, exception.message, { errors: exception.errors });
   }
   if (exception instanceof DomainError) {
-    return problem(STATUS_BY_KIND[exception.kind], exception.code, exception.message, {
-      ...(exception.details !== undefined ? { details: exception.details } : {}),
-    });
+    return problem(
+      STATUS_BY_KIND[exception.kind],
+      exception.code,
+      exception.message,
+      exception.details !== undefined ? { details: exception.details } : {},
+    );
   }
   if (exception instanceof HttpException) {
     const status = exception.getStatus();

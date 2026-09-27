@@ -6,6 +6,8 @@ import { exportSPKI, generateKeyPair, SignJWT } from 'jose';
 import request from 'supertest';
 import { inject } from 'vitest';
 import { AppModule } from '../../src/app.module.js';
+import { WorkerModule } from '../../src/worker.module.js';
+import { StorefrontRevalidator } from '../../src/modules/sites/application/sites.ports.js';
 import { UserDirectory } from '../../src/modules/identity/application/identity.ports.js';
 import { ObjectStorage } from '../../src/modules/media/application/media.ports.js';
 import { EmailSender } from '../../src/modules/notifications/application/email.port.js';
@@ -17,6 +19,7 @@ import {
   FakeUserDirectory,
   InMemoryEmailSender,
   InMemoryObjectStorage,
+  RecordingRevalidator,
 } from './fakes.js';
 
 export const AUTHORIZED_PARTY = 'http://localhost:5173';
@@ -90,7 +93,8 @@ export async function createTestApp(envOverrides: Record<string, string> = {}): 
 
   const app = moduleRef.createNestApplication<NestExpressApplication>({ rawBody: true, logger: false });
   configureHttpApp(app, config);
-  await app.init();
+  // Écoute réelle : supertest réutilise le port au lieu d'en ouvrir un par requête.
+  await app.listen(0, '127.0.0.1');
 
   return {
     app,
@@ -145,4 +149,84 @@ export async function createStoreFor(
 
 export function uniqueSlug(prefix: string): string {
   return `${prefix}-${randomBytes(4).toString('hex')}`;
+}
+
+export interface TestWorker {
+  moduleRef: TestingModule;
+  emails: InMemoryEmailSender;
+  revalidator: RecordingRevalidator;
+  close(): Promise<void>;
+}
+
+/**
+ * Worker de test (relais de l'outbox + files BullMQ) partageant la configuration
+ * et le stockage de l'API de test.
+ */
+export async function createTestWorker(api: TestApp): Promise<TestWorker> {
+  const emails = new InMemoryEmailSender();
+  const revalidator = new RecordingRevalidator();
+  const moduleRef = await Test.createTestingModule({ imports: [WorkerModule.forRoot(api.config)] })
+    .overrideProvider(OrganizationDirectory)
+    .useValue(api.organizations)
+    .overrideProvider(UserDirectory)
+    .useValue(new FakeUserDirectory())
+    .overrideProvider(ObjectStorage)
+    .useValue(api.storage)
+    .overrideProvider(EmailSender)
+    .useValue(emails)
+    .overrideProvider(StorefrontRevalidator)
+    .useValue(revalidator)
+    .compile();
+  moduleRef.useLogger(false);
+  await moduleRef.init();
+  return { moduleRef, emails, revalidator, close: () => moduleRef.close() };
+}
+
+/** Attend qu'une condition devienne vraie (jobs asynchrones du worker). */
+export async function eventually<T>(
+  probe: () => T | Promise<T>,
+  timeoutMs = 15_000,
+): Promise<NonNullable<T>> {
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    try {
+      const value = await probe();
+      if (value) return value as NonNullable<T>;
+    } catch (error) {
+      lastError = error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error(`Condition non atteinte en ${timeoutMs} ms${lastError instanceof Error ? ` : ${lastError.message}` : ''}`);
+}
+
+/** Crée et publie un produit simple (une variante) ; renvoie ses identifiants. */
+export async function createPublishedProduct(
+  t: TestApp,
+  token: string,
+  input: { title: string; sku: string; priceAmount: number; stock?: number; trackInventory?: boolean },
+): Promise<{ productId: string; variantId: string; slug: string }> {
+  const created = await t
+    .http()
+    .post('/api/v1/products')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      title: input.title,
+      variants: [
+        {
+          sku: input.sku,
+          priceAmount: input.priceAmount,
+          initialQuantity: input.stock ?? 0,
+          trackInventory: input.trackInventory ?? true,
+        },
+      ],
+    });
+  if (created.status !== 201) throw new Error(`Produit non créé : ${JSON.stringify(created.body)}`);
+  const published = await t
+    .http()
+    .post(`/api/v1/products/${created.body.id}/publish`)
+    .set('Authorization', `Bearer ${token}`);
+  if (published.status !== 200) throw new Error(`Produit non publié : ${JSON.stringify(published.body)}`);
+  return { productId: created.body.id, variantId: created.body.variants[0].id, slug: created.body.slug };
 }

@@ -1,4 +1,4 @@
-import type { MemberRole } from '../../../shared/application/actor-context.port.js';
+import type { MemberRole } from '../../../shared/domain/member-role.js';
 
 export interface UserProfile {
   clerkUserId: string;

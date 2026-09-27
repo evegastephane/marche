@@ -42,15 +42,15 @@ Les données de l'ERP **sont** le site : « Générer mon site » publie immédi
 
 ## Brand Commitments
 
-- **Nom de marque : Baobab.** « Marché » n'est que le nom de code technique (dépôt, paquets `@marche/*`). *Déduit du logo fourni le 2026-09-27, à confirmer.*
-- **Logo fourni** (`docs/brand/`) :
-  - `baobab-embleme.jpeg` : baobab dessiné au trait blanc, dans un cercle vert profond cerné d'un anneau blanc ;
-  - `baobab-logo.jpeg` : wordmark « BAOBAB » en capitales grasses vert profond, dont le O est l'emblème.
-- **Vert de marque** mesuré sur les fichiers : environ `#034F32`.
+- **Nom de marque : Upsell** (logo fourni le 2026-09-27). « Marché » n'est que le nom de code technique (dépôt, paquets `@marche/*`).
+- **Logo** (`docs/brand/upsell-logo.jpg`) : chariot bleu dont la poignée monte en flèche, deux articles orange et jaune, roues orange ; wordmark « Upsell » en marine. Redessiné en SVG animable dans `apps/dashboard/src/shared/ui/brand.tsx` (copie dans `apps/storefront/src/components/upsell-mark.tsx`).
+- **Palette** : bleu `#0B57F0` (action), marine `#0C1A3C` (encre), orange `#FF5A2B` et jaune `#FDB52A` (signaux). Thème clair et sombre sur le dashboard.
+- **Typographie** : Plus Jakarta Sans.
+- **Mouvement** : Motion (Framer Motion) fait partie du design : entrées qui montent comme la flèche du logo, ressorts amortis, transitions partagées (onglets, navigation), chiffres qui défilent, emblème qui se dessine. Jamais plus d'un tiers de seconde pour un changement d'état.
 
 ## Evidence on Hand
 
-- Logo et emblème (JPEG 1080 px, fond blanc) dans `docs/brand/`.
+- Logo Upsell (JPEG, fond blanc) dans `docs/brand/`.
 - Boutiques de démonstration du seed (données synthétiques).
 - Aucun témoignage, client réel, chiffre d'usage, tarif ou partenariat : ne rien inventer de tel.
 

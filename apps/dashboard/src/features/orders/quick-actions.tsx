@@ -27,7 +27,7 @@ export function OrderQuickActions({ order, compact = false }: { order: OrderList
       {order.paymentStatus === 'UNPAID' && (
         <Button
           size="sm"
-          variant="secondaire"
+          variant="secondary"
           icon={<Banknote />}
           loading={pending === 'mark-paid'}
           disabled={action.isPending}

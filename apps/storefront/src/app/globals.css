@@ -1,20 +1,20 @@
 @import 'tailwindcss';
 
 /*
- * Template « default », habillage provisoire : tout vient du thème du marchand
- * (couleurs, polices), injecté en variables CSS par s/[site]/layout.tsx.
- * La maquette définitive remplacera ces styles sans changer le contrat.
+ * Template « default » : épuré, tout vient du thème du marchand (couleurs, polices),
+ * injecté en variables CSS par s/[site]/layout.tsx. Par défaut, la palette Upsell.
  */
 @theme inline {
-  --color-primary: var(--sf-primary, #1f2937);
+  --color-primary: var(--sf-primary, #0b57f0);
   --color-on-primary: var(--sf-on-primary, #ffffff);
-  --color-accent: var(--sf-accent, #f59e0b);
+  --color-accent: var(--sf-accent, #fdb52a);
   --color-on-accent: var(--sf-on-accent, #111111);
   --color-bg: var(--sf-bg, #ffffff);
-  --color-fg: var(--sf-fg, #111827);
-  --color-muted: color-mix(in oklab, var(--sf-fg, #111827) 64%, var(--sf-bg, #ffffff));
-  --color-line: color-mix(in oklab, var(--sf-fg, #111827) 13%, var(--sf-bg, #ffffff));
-  --color-soft: color-mix(in oklab, var(--sf-fg, #111827) 5%, var(--sf-bg, #ffffff));
+  --color-fg: var(--sf-fg, #0c1a3c);
+  --color-muted: color-mix(in oklab, var(--sf-fg, #0c1a3c) 64%, var(--sf-bg, #ffffff));
+  --color-line: color-mix(in oklab, var(--sf-fg, #0c1a3c) 11%, var(--sf-bg, #ffffff));
+  --color-soft: color-mix(in oklab, var(--sf-fg, #0c1a3c) 4.5%, var(--sf-bg, #ffffff));
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --font-heading: var(--sf-font-heading, ui-sans-serif, system-ui, sans-serif);
   --font-body: var(--sf-font-body, ui-sans-serif, system-ui, sans-serif);
 }
@@ -53,5 +53,27 @@
 @layer utilities {
   .tabular {
     font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * Entrée du haut de page en CSS pur : elle joue dès le premier affichage,
+   * sans attendre le JavaScript (connexions lentes). Motion prend le relais plus bas.
+   */
+  .sf-rise {
+    animation: sf-rise 0.7s var(--ease-out-soft) both;
+    animation-delay: var(--sf-delay, 0ms);
+  }
+
+  @keyframes sf-rise {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sf-rise {
+      animation: none;
+    }
   }
 }

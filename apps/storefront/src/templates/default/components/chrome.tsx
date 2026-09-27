@@ -2,13 +2,19 @@ import type { StorefrontStoreDto } from '@marche/contracts';
 import { ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 import { imageProps } from './media';
+import { CartCount } from './motion';
+import { UpsellMark } from '@/components/upsell-mark';
+
+/** Lien du menu : un trait se déroule sous le libellé au survol. */
+const navLink =
+  "relative text-fg/75 no-underline transition-colors duration-200 after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:scale-x-0 after:rounded-full after:bg-primary after:transition-transform after:duration-300 after:ease-out-soft after:content-[''] hover:text-fg hover:after:scale-x-100";
 
 /** En-tête : annonce, nom ou logo de la boutique, catalogues, panier avec son compteur. */
 export function Header({ store, cartCount }: { store: StorefrontStoreDto; cartCount: number }) {
   const { announcement } = store.theme;
   const collections = store.navigation.collections.slice(0, 5);
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-bg/92 backdrop-blur supports-[backdrop-filter]:bg-bg/80">
+    <header className="sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur-xl supports-[backdrop-filter]:bg-bg/75">
       {announcement.enabled && announcement.text && (
         <p className="bg-accent px-4 py-2 text-center text-sm font-semibold text-on-accent">{announcement.text}</p>
       )}
@@ -21,30 +27,32 @@ export function Header({ store, cartCount }: { store: StorefrontStoreDto; cartCo
           )}
         </Link>
         <nav aria-label="Catalogues" className="hidden flex-1 items-center gap-5 text-sm md:flex">
-          <Link href="/collections" className="text-fg/80 no-underline hover:text-fg">
+          <Link href="/collections" className={navLink}>
             Tous les produits
           </Link>
           {collections.map((c) => (
-            <Link key={c.slug} href={`/collections/${c.slug}`} className="text-fg/80 no-underline hover:text-fg">
+            <Link key={c.slug} href={`/collections/${c.slug}`} className={navLink}>
               {c.title}
             </Link>
           ))}
         </nav>
         <Link
           href="/cart"
-          className="relative ml-auto inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-fg no-underline hover:bg-soft"
+          className="group relative ml-auto inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-fg no-underline transition-colors duration-200 hover:bg-soft"
         >
-          <ShoppingBag className="size-5" aria-hidden />
+          <ShoppingBag
+            className="size-5 transition-transform duration-300 ease-out-soft group-hover:-translate-y-0.5"
+            aria-hidden
+          />
           <span className="max-sm:sr-only">Panier</span>
-          {cartCount > 0 && (
-            <span className="tabular inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-bold text-on-primary">
-              {cartCount}
-            </span>
-          )}
+          <CartCount count={cartCount} />
         </Link>
       </div>
       {collections.length > 0 && (
-        <nav aria-label="Catalogues" className="flex gap-4 overflow-x-auto border-t border-line px-4 py-2.5 text-sm md:hidden">
+        <nav
+          aria-label="Catalogues"
+          className="flex gap-4 overflow-x-auto border-t border-line px-4 py-2.5 text-sm [scrollbar-width:none] md:hidden"
+        >
           <Link href="/collections" className="shrink-0 text-fg/80 no-underline">
             Tous les produits
           </Link>
@@ -67,13 +75,25 @@ export function Footer({ store }: { store: StorefrontStoreDto }) {
           <span className="font-heading text-lg font-bold">{store.name}</span>
           {(store.contactEmail || store.phone) && (
             <p className="flex flex-col text-sm text-muted">
-              {store.contactEmail && <a href={`mailto:${store.contactEmail}`} className="text-muted">{store.contactEmail}</a>}
-              {store.phone && <a href={`tel:${store.phone}`} className="text-muted">{store.phone}</a>}
+              {store.contactEmail && (
+                <a href={`mailto:${store.contactEmail}`} className="text-muted">
+                  {store.contactEmail}
+                </a>
+              )}
+              {store.phone && (
+                <a href={`tel:${store.phone}`} className="text-muted">
+                  {store.phone}
+                </a>
+              )}
             </p>
           )}
         </div>
-        <p className="text-sm text-muted">
-          Boutique propulsée par <span className="font-semibold text-fg">Baobab</span>
+        <p className="inline-flex items-center gap-2 text-sm text-muted">
+          Boutique propulsée par
+          <span className="inline-flex items-center gap-1.5 font-semibold text-fg">
+            <UpsellMark className="h-4 w-auto" />
+            Upsell
+          </span>
         </p>
       </div>
     </footer>

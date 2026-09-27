@@ -22,7 +22,10 @@ export default async function CartPage({ params }: { params: Promise<{ site: str
       {!cart || lines.length === 0 ? (
         <div className="flex flex-col items-start gap-5">
           <p className="text-lg text-muted">Votre panier est vide.</p>
-          <Link href="/collections" className="rounded-full bg-primary px-6 py-3 font-semibold text-on-primary no-underline">
+          <Link
+            href="/collections"
+            className="rounded-full bg-primary px-6 py-3 font-semibold text-on-primary no-underline transition-transform duration-300 hover:-translate-y-0.5 active:scale-[0.97]"
+          >
             Voir les produits
           </Link>
         </div>
@@ -30,7 +33,10 @@ export default async function CartPage({ params }: { params: Promise<{ site: str
         <>
           <ul className="flex flex-col divide-y divide-line border-y border-line">
             {lines.map((line) => (
-              <li key={line.variantId} className="grid grid-cols-[4.5rem_1fr] gap-4 py-5 sm:grid-cols-[5.5rem_1fr_auto]">
+              <li
+                key={line.variantId}
+                className="grid grid-cols-[4.5rem_1fr] gap-4 py-5 sm:grid-cols-[5.5rem_1fr_auto]"
+              >
                 <div className="aspect-square overflow-hidden rounded-lg bg-soft">
                   {line.imageUrl && <img src={line.imageUrl} alt="" className="size-full object-cover" />}
                 </div>
@@ -42,10 +48,16 @@ export default async function CartPage({ params }: { params: Promise<{ site: str
                   ) : (
                     <span className="font-semibold">{line.productTitle}</span>
                   )}
-                  {line.variantTitle !== 'Par défaut' && <span className="text-sm text-muted">{line.variantTitle}</span>}
-                  <span className="tabular text-sm text-muted">{formatMoney(line.unitPriceAmount, cart.currency)} l’unité</span>
+                  {line.variantTitle !== 'Par défaut' && (
+                    <span className="text-sm text-muted">{line.variantTitle}</span>
+                  )}
+                  <span className="tabular text-sm text-muted">
+                    {formatMoney(line.unitPriceAmount, cart.currency)} l’unité
+                  </span>
                   {!line.isSellable ? (
-                    <span className="text-sm font-semibold text-red-700">Plus disponible : retirez-le pour commander.</span>
+                    <span className="text-sm font-semibold text-red-700">
+                      Plus disponible : retirez-le pour commander.
+                    </span>
                   ) : (
                     line.available != null &&
                     line.available < line.quantity && (
@@ -53,12 +65,22 @@ export default async function CartPage({ params }: { params: Promise<{ site: str
                     )
                   )}
                   <div className="mt-2 sm:hidden">
-                    <CartLineControls variantId={line.variantId} quantity={line.quantity} max={line.available} title={line.productTitle} />
+                    <CartLineControls
+                      variantId={line.variantId}
+                      quantity={line.quantity}
+                      max={line.available}
+                      title={line.productTitle}
+                    />
                   </div>
                 </div>
                 <div className="hidden flex-col items-end gap-3 sm:flex">
                   <span className="tabular font-semibold">{formatMoney(line.lineTotalAmount, cart.currency)}</span>
-                  <CartLineControls variantId={line.variantId} quantity={line.quantity} max={line.available} title={line.productTitle} />
+                  <CartLineControls
+                    variantId={line.variantId}
+                    quantity={line.quantity}
+                    max={line.available}
+                    title={line.productTitle}
+                  />
                 </div>
               </li>
             ))}
@@ -80,9 +102,14 @@ export default async function CartPage({ params }: { params: Promise<{ site: str
               </div>
             </dl>
             {blocked ? (
-              <p className="rounded-lg bg-soft px-4 py-3 text-sm font-semibold">Ajustez les articles signalés pour commander.</p>
+              <p className="rounded-lg bg-soft px-4 py-3 text-sm font-semibold">
+                Ajustez les articles signalés pour commander.
+              </p>
             ) : (
-              <Link href="/checkout" className="rounded-full bg-primary px-6 py-3.5 text-center font-semibold text-on-primary no-underline">
+              <Link
+                href="/checkout"
+                className="rounded-full bg-primary px-6 py-3.5 text-center font-semibold text-on-primary no-underline transition-transform duration-300 hover:-translate-y-0.5 active:scale-[0.97]"
+              >
                 Passer commande
               </Link>
             )}

@@ -1,6 +1,7 @@
 import type { Currency, ProductListItemDto } from '@marche/contracts';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { PackagePlus, Plus, SearchX } from 'lucide-react';
+import { motion } from 'motion/react';
 import { z } from 'zod';
 import { useProductList } from '@/features/products/api';
 import { PRODUCT_FILTERS, PRODUCT_STATUS } from '@/features/products/status';
@@ -8,11 +9,13 @@ import { Thumbnail } from '@/features/products/thumbnail';
 import { useCurrentStore } from '@/features/shell/use-current-store';
 import { errorMessage } from '@/shared/api/client';
 import { formatMoney, formatRelative, plural } from '@/shared/lib/format';
+import { Badge } from '@/shared/ui/badge';
 import { Button, buttonClasses } from '@/shared/ui/button';
+import { Card } from '@/shared/ui/card';
 import { EmptyState, LoadError, PageHeader, Skeleton } from '@/shared/ui/feedback';
-import { Onglets } from '@/shared/ui/onglets';
-import { Plaque } from '@/shared/ui/plaque';
+import { EASE_OUT, riseIn, snappy } from '@/shared/ui/motion';
 import { SearchInput } from '@/shared/ui/search';
+import { Tabs } from '@/shared/ui/tabs';
 
 const searchSchema = z.object({
   status: z.enum(['all', 'ACTIVE', 'DRAFT', 'ARCHIVED']).catch('all').default('all'),
@@ -38,32 +41,46 @@ function Produits() {
   const products = list.data?.pages.flatMap((page) => page.items) ?? [];
 
   const newButton = (
-    <Link to="/products/new" className={buttonClasses('primaire')}>
-      <Plus /> Nouveau produit
+    <Link to="/products/new" className={buttonClasses('primary', 'md', 'group')}>
+      <Plus className="transition-transform duration-300 group-hover:rotate-90" /> Nouveau produit
     </Link>
   );
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Produits" subtitle="Ce qui est en vente apparaît aussitôt sur votre site." actions={newButton} />
+      <PageHeader
+        title="Produits"
+        subtitle="Ce qui est en vente apparaît aussitôt sur votre site."
+        actions={newButton}
+      />
 
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <Onglets
+      <motion.div variants={riseIn} className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <Tabs
           label="Filtrer les produits"
           items={PRODUCT_FILTERS}
           value={status}
-          onChange={(value) => void navigate({ search: (prev) => ({ ...prev, status: value }), replace: true })}
+          onChange={(value) =>
+            void navigate({
+              search: (prev) => ({ ...prev, status: value }),
+              replace: true,
+            })
+          }
         />
         <SearchInput
           label="Rechercher un produit"
           placeholder="Nom du produit"
           value={q ?? ''}
-          onChange={(value) => void navigate({ search: (prev) => ({ ...prev, q: value || undefined }), replace: true })}
+          onChange={(value) =>
+            void navigate({
+              search: (prev) => ({ ...prev, q: value || undefined }),
+              replace: true,
+            })
+          }
           className="md:w-72"
         />
-      </div>
+      </motion.div>
 
-      <section className="planche overflow-hidden">
+      <Card className="overflow-hidden">
         {list.isPending ? (
           <div className="flex flex-col gap-3 p-5">
             {[0, 1, 2, 3].map((i) => (
@@ -93,7 +110,7 @@ function Produits() {
           <>
             <table className="w-full border-collapse text-left max-md:hidden">
               <thead>
-                <tr className="text-[0.75rem] font-bold tracking-[0.05em] text-encre-2 uppercase">
+                <tr className="eyebrow">
                   <th className="px-5 pt-4 pb-3 font-bold">Produit</th>
                   <th className="px-3 pt-4 pb-3 font-bold">Déclinaisons</th>
                   <th className="px-3 pt-4 pb-3 text-right font-bold">Prix</th>
@@ -101,62 +118,95 @@ function Produits() {
                   <th className="px-5 pt-4 pb-3 text-right font-bold">Modifié</th>
                 </tr>
               </thead>
-              <tbody className="chiffres">
-                {products.map((product) => (
-                  <tr key={product.id} className="relative border-t border-filet transition-colors duration-150 hover:bg-baobab-50">
+              <tbody className="tabular">
+                {products.map((product, index) => (
+                  <motion.tr
+                    key={product.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.35,
+                      ease: EASE_OUT,
+                      delay: Math.min(index, 12) * 0.03,
+                    }}
+                    className="group relative border-t border-line transition-colors duration-200 hover:bg-surface-2"
+                  >
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3.5">
-                        <Thumbnail media={product.thumbnail} alt={product.title} />
+                        <Thumbnail
+                          media={product.thumbnail}
+                          alt={product.title}
+                          className="transition-transform duration-300 ease-out-soft group-hover:scale-105"
+                        />
                         <div className="min-w-0">
                           <Link
                             to="/products/$productId"
                             params={{ productId: product.id }}
-                            className="block truncate font-[660] text-encre no-underline after:absolute after:inset-0 after:content-['']"
+                            className="block truncate font-[660] text-ink no-underline after:absolute after:inset-0 after:content-['']"
                           >
                             {product.title}
                           </Link>
-                          {product.brand && <span className="block truncate text-[0.8125rem] text-encre-2">{product.brand.name}</span>}
+                          {product.brand && (
+                            <span className="block truncate text-[0.8125rem] text-ink-2">{product.brand.name}</span>
+                          )}
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-encre-2">{plural(product.variantsCount, 'déclinaison', 'déclinaisons')}</td>
-                    <td className="px-3 py-3 text-right font-[640] whitespace-nowrap">{priceRange(product, currency)}</td>
-                    <td className="px-3 py-3">
-                      <Plaque tone={PRODUCT_STATUS[product.status].tone}>{PRODUCT_STATUS[product.status].label}</Plaque>
+                    <td className="px-3 py-3 text-ink-2">
+                      {plural(product.variantsCount, 'déclinaison', 'déclinaisons')}
                     </td>
-                    <td className="px-5 py-3 text-right whitespace-nowrap text-encre-2">{formatRelative(product.updatedAt)}</td>
-                  </tr>
+                    <td className="px-3 py-3 text-right font-[640] whitespace-nowrap">
+                      {priceRange(product, currency)}
+                    </td>
+                    <td className="px-3 py-3">
+                      <Badge tone={PRODUCT_STATUS[product.status].tone}>{PRODUCT_STATUS[product.status].label}</Badge>
+                    </td>
+                    <td className="px-5 py-3 text-right whitespace-nowrap text-ink-2">
+                      {formatRelative(product.updatedAt)}
+                    </td>
+                  </motion.tr>
                 ))}
               </tbody>
             </table>
 
-            <ul className="divide-y divide-filet md:hidden">
-              {products.map((product) => (
-                <li key={product.id} className="relative flex items-center gap-3.5 px-4 py-3.5">
+            <ul className="divide-y divide-line md:hidden">
+              {products.map((product, index) => (
+                <motion.li
+                  key={product.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...snappy, delay: Math.min(index, 10) * 0.035 }}
+                  className="relative flex items-center gap-3.5 px-4 py-3.5 active:bg-surface-2"
+                >
                   <Thumbnail media={product.thumbnail} alt={product.title} className="size-14" />
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <Link
                       to="/products/$productId"
                       params={{ productId: product.id }}
-                      className="truncate font-[660] text-encre no-underline after:absolute after:inset-0 after:content-['']"
+                      className="truncate font-[660] text-ink no-underline after:absolute after:inset-0 after:content-['']"
                     >
                       {product.title}
                     </Link>
-                    <span className="chiffres text-[0.875rem] font-[620]">{priceRange(product, currency)}</span>
-                    <span className="flex items-center gap-2 text-[0.8125rem] text-encre-2">
-                      <Plaque tone={PRODUCT_STATUS[product.status].tone}>{PRODUCT_STATUS[product.status].label}</Plaque>
+                    <span className="tabular text-[0.875rem] font-[620]">{priceRange(product, currency)}</span>
+                    <span className="flex items-center gap-2 text-[0.8125rem] text-ink-2">
+                      <Badge tone={PRODUCT_STATUS[product.status].tone}>{PRODUCT_STATUS[product.status].label}</Badge>
                       {plural(product.variantsCount, 'déclinaison', 'déclinaisons')}
                     </span>
                   </div>
-                </li>
+                </motion.li>
               ))}
             </ul>
           </>
         )}
-      </section>
+      </Card>
 
       {list.hasNextPage && (
-        <Button variant="secondaire" className="self-center" loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>
+        <Button
+          variant="secondary"
+          className="self-center"
+          loading={list.isFetchingNextPage}
+          onClick={() => void list.fetchNextPage()}
+        >
           Voir plus de produits
         </Button>
       )}

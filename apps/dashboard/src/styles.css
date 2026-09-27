@@ -1,41 +1,130 @@
 /* Couche « clerk » avant les utilitaires : nos classes Tailwind priment sur les styles de Clerk. */
 @layer theme, base, clerk, components, utilities;
 @import 'tailwindcss';
-@import '@fontsource-variable/archivo/standard.css';
+@import '@fontsource-variable/plus-jakarta-sans/wght.css';
+
+/* Thème sombre piloté par la classe .dark sur <html> (voir shared/ui/theme.tsx). */
+@custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Monde « Enseigne peinte » : mur chaulé, planches peintes à filet double,
- * vert Baobab en aplat, peintures de car rapide pour les états.
+ * Upsell : blanc aéré, encre marine, bleu de marque pour l'action,
+ * orange et jaune du logo réservés aux signaux. Tout passe par des variables
+ * qui basculent entre clair et sombre ; les composants ne connaissent que les rôles.
  */
-@theme {
-  --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
+:root {
+  --canvas: #f6f7fb;
+  --surface: #ffffff;
+  --surface-2: #eff2f8;
+  --surface-3: #e5e9f2;
+  --ink: #0c1a3c;
+  --ink-2: #4a5572;
+  --ink-3: #626d88;
+  --line: #e3e7f0;
+  --line-strong: #c9d0de;
 
-  --color-chaux: #eff1e9;
-  --color-chaux-2: #e5e9df;
-  --color-planche: #fbfcf8;
-  --color-encre: #14201a;
-  --color-encre-2: #45554b;
-  --color-encre-3: #5f6f66;
-  --color-filet: #cfd8ce;
-  --color-filet-fort: #aebbb0;
+  --brand: #0b57f0;
+  --brand-strong: #0846c7;
+  --brand-soft: #e8effe;
+  --brand-ink: #0a47c4;
+  --on-brand: #ffffff;
 
-  --color-baobab: #034f32;
-  --color-baobab-900: #023a25;
-  --color-baobab-700: #0b6341;
-  --color-baobab-100: #d3e4d8;
-  --color-baobab-50: #e6efe8;
+  --accent: #ff5a2b;
+  --accent-soft: #fff0ea;
+  --accent-ink: #b8380f;
 
-  --color-jaune: #f2b31b;
-  --color-jaune-900: #6b4a00;
-  --color-jaune-50: #fcf0cf;
-  --color-bleu: #1d6fb8;
-  --color-bleu-50: #e1edf8;
-  --color-rouge: #c8372a;
-  --color-rouge-50: #f9e2df;
+  --sun: #fdb52a;
+  --sun-soft: #fff6e0;
+  --sun-ink: #7a5200;
 
-  --ease-pinceau: cubic-bezier(0.16, 1, 0.3, 1);
+  --success: #13a15a;
+  --success-soft: #e6f6ed;
+  --success-ink: #0b6a3a;
 
-  --shadow-flottant: 0 18px 40px -18px rgb(20 32 26 / 0.45), 0 3px 8px -2px rgb(20 32 26 / 0.14);
+  --danger: #dc2644;
+  --danger-soft: #fdebee;
+  --danger-ink: #a3182f;
+
+  --overlay: rgb(12 26 60 / 0.42);
+  --shadow-color: 222 60% 20%;
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: #070c1a;
+  --surface: #0e1528;
+  --surface-2: #151e36;
+  --surface-3: #1d2744;
+  --ink: #edf1fa;
+  --ink-2: #a8b2c9;
+  --ink-3: #7f8aa5;
+  --line: #1e2842;
+  --line-strong: #2f3b5e;
+
+  --brand: #2e6af5;
+  --brand-strong: #2255dd;
+  --brand-soft: rgb(74 128 255 / 0.16);
+  --brand-ink: #8cb2ff;
+  --on-brand: #ffffff;
+
+  --accent: #ff6b40;
+  --accent-soft: rgb(255 107 64 / 0.14);
+  --accent-ink: #ff9a7a;
+
+  --sun: #fdb52a;
+  --sun-soft: rgb(253 181 42 / 0.14);
+  --sun-ink: #ffd27a;
+
+  --success: #25c16f;
+  --success-soft: rgb(37 193 111 / 0.14);
+  --success-ink: #6fe0a4;
+
+  --danger: #ff5470;
+  --danger-soft: rgb(255 84 112 / 0.14);
+  --danger-ink: #ff95a6;
+
+  --overlay: rgb(2 5 14 / 0.66);
+  --shadow-color: 228 70% 2%;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-ink: var(--brand-ink);
+  --color-on-brand: var(--on-brand);
+
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-sun: var(--sun);
+  --color-sun-soft: var(--sun-soft);
+  --color-sun-ink: var(--sun-ink);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-ink: var(--success-ink);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-ink: var(--danger-ink);
+  --color-overlay: var(--overlay);
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --shadow-card: 0 1px 2px hsl(var(--shadow-color) / 0.05), 0 1px 1px hsl(var(--shadow-color) / 0.03);
+  --shadow-lift: 0 12px 32px -12px hsl(var(--shadow-color) / 0.22), 0 2px 6px -2px hsl(var(--shadow-color) / 0.08);
+  --shadow-float: 0 24px 60px -20px hsl(var(--shadow-color) / 0.35), 0 4px 12px -4px hsl(var(--shadow-color) / 0.12);
 }
 
 @layer base {
@@ -46,30 +135,33 @@
 
   body {
     min-height: 100dvh;
-    background: var(--color-chaux);
-    color: var(--color-encre);
+    background: var(--color-canvas);
+    color: var(--color-ink);
     font-family: var(--font-sans);
     font-size: 0.9375rem;
-    line-height: 1.5;
-    font-variation-settings: normal;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
-    caret-color: var(--color-baobab);
-    scrollbar-color: var(--color-filet-fort) transparent;
+    caret-color: var(--color-brand);
+    scrollbar-color: var(--color-line-strong) transparent;
+    transition:
+      background-color 0.3s var(--ease-out-soft),
+      color 0.3s var(--ease-out-soft);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
   }
 
   ::selection {
-    background: var(--color-jaune);
-    color: var(--color-encre);
+    background: var(--color-brand);
+    color: var(--color-on-brand);
   }
 
   :focus-visible {
-    outline: 2.5px solid var(--color-baobab);
+    outline: 2px solid var(--color-brand);
     outline-offset: 2px;
-  }
-
-  /* Sur les planches vertes, l'anneau de focus est peint en jaune. */
-  .sur-vert :focus-visible {
-    outline-color: var(--color-jaune);
   }
 
   a {
@@ -85,7 +177,7 @@
   }
 
   ::placeholder {
-    color: var(--color-encre-3);
+    color: var(--color-ink-3);
     opacity: 1;
   }
 
@@ -94,9 +186,9 @@
     height: 10px;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--color-filet-fort);
+    background: var(--color-line-strong);
     border-radius: 999px;
-    border: 3px solid var(--color-chaux);
+    border: 3px solid var(--color-canvas);
   }
   ::-webkit-scrollbar-track {
     background: transparent;
@@ -104,60 +196,67 @@
 }
 
 @layer components {
-  /* Lettrage d'enseigne : capitales très condensées, réservées aux titres et aux chiffres. */
-  .lettrage {
-    font-stretch: 62%;
-    font-weight: 800;
-    text-transform: uppercase;
-    line-height: 0.92;
-    letter-spacing: 0.004em;
-  }
-
-  .titre {
-    font-stretch: 72%;
+  /* Titres d'écran : serrés, gras, sans capitales forcées. */
+  .display {
     font-weight: 780;
-    text-transform: uppercase;
-    line-height: 1;
-    letter-spacing: 0.006em;
+    letter-spacing: -0.035em;
+    line-height: 1.02;
   }
 
-  .chiffres {
+  .heading {
+    font-weight: 720;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+  }
+
+  .tabular {
     font-variant-numeric: tabular-nums lining-nums;
   }
 
-  /* Planche peinte : aplat clair cerné d'un filet double. */
-  .planche {
-    background: var(--color-planche);
-    border-radius: 12px;
+  /* Carte : surface blanche, filet fin, ombre à peine posée. */
+  .card {
+    background: var(--color-surface);
+    border-radius: 1rem;
     box-shadow:
-      0 0 0 1.5px var(--color-baobab),
-      inset 0 0 0 3px var(--color-planche),
-      inset 0 0 0 4px rgb(3 79 50 / 0.32);
+      0 0 0 1px var(--color-line),
+      var(--shadow-card);
   }
 
-  /* Enseigne : grande planche verte, double filet blanc comme l'anneau de l'emblème. */
-  .enseigne {
-    position: relative;
-    isolation: isolate;
-    background: var(--color-baobab);
-    color: #fff;
-    border-radius: 16px;
+  /* Reflet de chargement : une bande claire traverse le bloc. */
+  .shimmer {
+    background: linear-gradient(
+      100deg,
+      var(--color-surface-2) 30%,
+      var(--color-surface-3) 50%,
+      var(--color-surface-2) 70%
+    );
+    background-size: 220% 100%;
+    animation: shimmer 1.4s var(--ease-out-soft) infinite;
   }
-  .enseigne::before,
-  .enseigne::after {
-    content: '';
-    position: absolute;
-    pointer-events: none;
-    z-index: -1;
+
+  @keyframes shimmer {
+    from {
+      background-position: 120% 0;
+    }
+    to {
+      background-position: -120% 0;
+    }
   }
-  .enseigne::before {
-    inset: 7px;
-    border: 1.5px solid rgb(255 255 255 / 0.92);
-    border-radius: 11px;
-  }
-  .enseigne::after {
-    inset: 11px;
-    border: 1px solid rgb(255 255 255 / 0.4);
-    border-radius: 8px;
+
+  @media (prefers-reduced-motion: reduce) {
+    .shimmer {
+      animation: none;
+    }
+    body {
+      transition: none;
+    }
   }
 }

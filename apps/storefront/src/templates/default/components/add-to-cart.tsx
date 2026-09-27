@@ -66,7 +66,12 @@ export function AddToCart({
   return (
     <div className="flex flex-col gap-6">
       {variant && (
-        <Price amount={variant.priceAmount} compareAt={variant.compareAtAmount} currency={currency} className="text-2xl" />
+        <Price
+          amount={variant.priceAmount}
+          compareAt={variant.compareAtAmount}
+          currency={currency}
+          className="text-2xl"
+        />
       )}
 
       {options.map((option, optionIndex) => (
@@ -91,12 +96,24 @@ export function AddToCart({
                     setMessage(null);
                   }}
                   className={cn(
-                    'min-h-11 rounded-full border px-4 text-sm font-medium transition-colors duration-150',
-                    selected ? 'border-fg bg-fg text-bg' : 'border-line hover:border-fg',
+                    'relative min-h-11 rounded-full border px-4 text-sm font-medium transition-colors duration-200',
+                    selected ? 'border-fg text-bg' : 'border-line hover:border-fg',
                     !inStock && 'text-muted line-through decoration-1',
                   )}
                 >
-                  {value}
+                  {selected && (
+                    <motion.span
+                      layoutId={`option-${optionIndex}`}
+                      aria-hidden
+                      className="absolute inset-0 rounded-full bg-fg"
+                      transition={{
+                        type: 'spring',
+                        bounce: 0.18,
+                        duration: 0.38,
+                      }}
+                    />
+                  )}
+                  <span className="relative">{value}</span>
                 </button>
               );
             })}
@@ -125,8 +142,21 @@ export function AddToCart({
           >
             <Minus className="size-4" />
           </button>
-          <span className="tabular w-8 text-center font-semibold" aria-live="polite">
-            {quantity}
+          <span
+            className="tabular relative inline-flex h-11 w-8 items-center justify-center overflow-hidden font-semibold"
+            aria-live="polite"
+          >
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={quantity}
+                initial={{ y: 14, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -14, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 520, damping: 30 }}
+              >
+                {quantity}
+              </motion.span>
+            </AnimatePresence>
           </span>
           <button
             type="button"
@@ -138,11 +168,14 @@ export function AddToCart({
             <Plus className="size-4" />
           </button>
         </div>
-        <button
+        <motion.button
           type="button"
           onClick={add}
           disabled={soldOut || pending}
-          className="relative inline-flex min-h-11 flex-1 items-center justify-center gap-2 overflow-hidden rounded-full bg-primary px-6 font-semibold text-on-primary transition-opacity duration-150 disabled:opacity-50 sm:flex-none"
+          whileTap={{ scale: 0.96 }}
+          whileHover={soldOut ? undefined : { y: -1 }}
+          transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+          className="relative inline-flex min-h-11 flex-1 items-center justify-center gap-2 overflow-hidden rounded-full bg-primary px-7 font-semibold text-on-primary shadow-[0_10px_24px_-12px_var(--color-primary)] transition-opacity duration-150 disabled:opacity-50 sm:flex-none"
         >
           <AnimatePresence mode="wait" initial={false}>
             <motion.span
@@ -157,16 +190,38 @@ export function AddToCart({
               {soldOut ? 'Épuisé' : message?.ok ? 'Ajouté' : pending ? 'Ajout…' : 'Ajouter au panier'}
             </motion.span>
           </AnimatePresence>
-        </button>
+        </motion.button>
       </div>
 
       <div aria-live="polite" className="min-h-6 text-sm">
-        {message && !message.ok && <p className="font-semibold text-red-700">{message.text}</p>}
-        {message?.ok && (
-          <a href="/cart" className="font-semibold text-fg">
-            Voir le panier →
-          </a>
-        )}
+        <AnimatePresence mode="wait">
+          {message && !message.ok && (
+            <motion.p
+              key="erreur"
+              className="font-semibold text-red-700"
+              initial={{ opacity: 0, x: -6 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              {message.text}
+            </motion.p>
+          )}
+          {message?.ok && (
+            <motion.a
+              key="ok"
+              href="/cart"
+              className="group inline-flex items-center gap-1 font-semibold text-fg"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              Voir le panier{' '}
+              <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
+                →
+              </span>
+            </motion.a>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -1,11 +1,13 @@
 ---
 version: 1
-slug: "apps-dashboard"
-primary_target: "apps/dashboard"
+slug: 'apps-dashboard'
+primary_target: 'apps/dashboard'
 related_targets: []
 ---
 
-# Dashboard marchand Baobab
+# Dashboard marchand Upsell
+
+> **2026-09-27 : direction remplacée.** La marque devient Upsell (voir PRODUCT.md, Brand Commitments) : design épuré clair/sombre, palette du logo, Plus Jakarta Sans, Motion intégré au langage visuel. Le contrat « Enseigne peinte » ci-dessous est historique.
 
 **Mode** : Operate. **Portée de ce lot** : connexion et inscription (Clerk), création de boutique, Accueil, Produits (liste, création avec variantes), Commandes (liste, détail, paiement, expédition, annulation), Site en un clic (génération, thème, publication). Le reste du dashboard (marques, catalogues, stock, clients, paramètres) viendra ensuite dans le même monde.
 

@@ -4,8 +4,8 @@ import type { ReactNode } from 'react';
 import { fontClassNames } from '@/lib/theme';
 
 export const metadata: Metadata = {
-  title: 'Baobab',
-  description: 'Boutiques en ligne propulsées par Baobab.',
+  title: 'Upsell',
+  description: 'Boutiques en ligne propulsées par Upsell.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

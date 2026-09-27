@@ -1,0 +1,8 @@
+{
+  "extends": "@marche/config/tsconfig.nest.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": ".",
+    "types": ["vitest/globals", "node"]
+  }
+}

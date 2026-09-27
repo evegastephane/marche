@@ -1,0 +1,60 @@
+# Dépendances
+node_modules/
+
+# Builds
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Client Prisma généré
+apps/api/src/generated/
+
+# Turborepo
+.turbo/
+
+# Tests
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Variables d'environnement (les .env.example restent versionnés)
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Temporaires
+.temp/
+.tmp/
+pids/
+*.pid
+*.pid.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json

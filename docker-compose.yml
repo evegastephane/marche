@@ -1,0 +1,57 @@
+# Infrastructure locale de Marché (docs/PLAN-CODE.md §4.2)
+# Démarrage : pnpm infra:up · Arrêt : pnpm infra:down
+name: marche
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: marche
+      POSTGRES_PASSWORD: marche
+      POSTGRES_DB: marche
+    ports:
+      - "5432:5432"
+    volumes:
+      # PostgreSQL 18 : le point de montage est /var/lib/postgresql
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marche -d marche"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    # noeviction est obligatoire pour BullMQ ; appendonly pour survivre aux redémarrages
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  s3:
+    # Stockage compatible S3 (remplace MinIO, plus publié sur Docker Hub).
+    # Identifiants par défaut : rustfsadmin / rustfsadmin
+    image: rustfs/rustfs:1.0.0
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - s3data:/data
+
+  mailpit:
+    # Boîte mail de développement : UI http://localhost:8025, SMTP localhost:1025
+    image: axllent/mailpit:v1.31
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+volumes:
+  pgdata: {}
+  redisdata: {}
+  s3data: {}

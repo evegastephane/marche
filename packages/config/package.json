@@ -1,0 +1,12 @@
+{
+  "name": "@marche/config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Configurations partagées (TypeScript) du monorepo Marché",
+  "files": [
+    "tsconfig.base.json",
+    "tsconfig.nest.json",
+    "tsconfig.lib.json",
+    "tsconfig.react.json"
+  ]
+}

@@ -518,7 +518,7 @@ export interface StorefrontTemplate<S extends ThemeSettings = ThemeSettings> {
 
 | Couche | Technologie | Rôle |
 |---|---|---|
-| Monorepo | **pnpm workspaces + Turborepo** *(recommandé)* | Apps et packages partagés, builds en cache |
+| Monorepo | **npm workspaces + Turborepo** | Apps et packages partagés, builds en cache |
 | Back-end | **NestJS 12** (ESM, déjà en place) | API REST + worker |
 | Validation / contrats | **Zod** (pipe de validation maison + `z.toJSONSchema()` pour OpenAPI ; `nestjs-zod` n'est pas compatible Nest 12), package `contracts` partagé | Une seule source de vérité front ↔ back |
 | Doc API | `@nestjs/swagger` (OpenAPI) | Documentation et client typé |
@@ -644,7 +644,7 @@ Marche/
 ├─ prisma/ (dans apps/api)    # schema.prisma, migrations, seed
 ├─ docs/                      # ARCHITECTURE.md, PLAN-CODE.md, adr/
 ├─ docker-compose.yml         # postgres, redis, rustfs (S3), mailpit
-├─ turbo.json · pnpm-workspace.yaml
+├─ turbo.json · package.json (workspaces npm)
 ```
 
 ---
@@ -681,7 +681,7 @@ Marche/
 ## 11. Roadmap de réalisation
 | Phase | Contenu | Résultat |
 |---|---|---|
-| **0. Fondations** | Monorepo pnpm + Turborepo (déplacement de `backend/` vers `apps/api`, `.git` remonté à la racine), Docker Compose, CI, config Zod, Prisma, `shared` kernel, CLS tenant, Clerk (guard + webhooks), outbox + BullMQ, squelettes dashboard et storefront | On se connecte et on crée sa boutique |
+| **0. Fondations** | Monorepo npm workspaces + Turborepo (déplacement de `backend/` vers `apps/api`, `.git` remonté à la racine), Docker Compose, CI, config Zod, Prisma, `shared` kernel, CLS tenant, Clerk (guard + webhooks), outbox + BullMQ, squelettes dashboard et storefront | On se connecte et on crée sa boutique |
 | **1. Catalogue** | Marques, produits, variantes, médias, catalogues + écrans du dashboard | Catalogue complet |
 | **2. Inventaire** | Niveaux, ajustements, historique, alertes | Stock fiable |
 | **3. Commandes** | Brouillon, passage, paiement, expédition, annulation, clients, e-mails | ERP utilisable |

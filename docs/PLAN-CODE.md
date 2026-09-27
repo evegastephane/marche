@@ -43,24 +43,29 @@ Les versions publiées ont été vérifiées le 2026-09-27, ce qui entraîne les
 | Sujet | Architecture | Plan de code | Raison |
 |---|---|---|---|
 | Validation Nest | `nestjs-zod` | **Pipe Zod maison** (≈30 lignes) + `z.toJSONSchema()` pour Swagger | `nestjs-zod@5.5` n'accepte en peer que Nest 10/11 et Swagger ≤ 11. Nous sommes en Nest 12 |
-| Prisma | « Prisma 7 » | **Épingler `7.10.0`** (prisma, @prisma/client, @prisma/adapter-pg) | Le tag npm `latest` de `prisma` pointe sur `8.0.0-rc.17`. Un `pnpm add prisma` sans version installerait une RC |
+| Prisma | « Prisma 7 » | **Épingler `7.10.0`** (prisma, @prisma/client, @prisma/adapter-pg) | Le tag npm `latest` de `prisma` pointe sur `8.0.0-rc.17`. Un `npm i prisma` sans version installerait une RC |
 | TypeScript | – | **Rester en 6.x** (celle du scaffold) | TS 7.0 est sorti, mais `@nestjs/swagger@12` n'accepte que `^5.5 \|\| ^6` |
 | Stockage objet local | MinIO | **RustFS** (compatible S3) | L'image `minio/minio` n'est plus publiée sur Docker Hub |
 | Files BullMQ | 5 files | **+ file `analytics`** | Isoler les envois PostHog côté serveur, avec leurs propres retries |
 | Site | `themeSettings` | **+ `draftThemeSettings`** | L'éditeur de thème travaille sur un brouillon. « Publier » le copie vers le thème en ligne, comme Shopify |
 | Tableaux | TanStack Table | **v8 (`8.21.x`)** | La v9 vient de sortir, alors que les exemples shadcn (data-table) sont en v8 |
-| pnpm | – | **Installer via `npm i -g pnpm`** | Node 26 n'embarque plus corepack |
+| Gestionnaire de paquets | pnpm workspaces | **npm workspaces** (npm 12, livré avec Node 26) | Choix du porteur du projet (2026-09-27) : aucun outil supplémentaire à installer |
+| `@nestjs/mau` | – | **Retiré** | Outil de déploiement propriétaire de Nest, inutilisé ; il apportait 5 vulnérabilités (`npm audit`) |
 
 ---
 
 ## 1. Versions de référence
 
-Toutes les dépendances partagées sont centralisées dans le **catalog pnpm** (`pnpm-workspace.yaml`) : un seul endroit à mettre à jour.
+Ce tableau est **la référence des versions**. npm n'a pas d'équivalent du « catalog » de pnpm. On applique donc ces règles :
+- **Outils partagés** (TypeScript, Vitest et sa couverture, oxlint + oxlint-tsgolint, Prettier, Turbo, `@types/node`) : déclarés **une seule fois**, dans le `package.json` racine. Les workspaces les utilisent grâce au hissage (hoisting) npm.
+- **Dépendances d'exécution** (zod, Nest, Prisma, React…) : déclarées dans le `package.json` du workspace qui les utilise, **avec la plage de ce tableau**. Si plusieurs workspaces en dépendent, la plage est identique partout ; on le vérifie avec `npm ls <paquet>` (une seule version attendue).
+- **Paquets internes** : référencés par `"*"` (par exemple `"@marche/contracts": "*"`). npm ne connaît pas le protocole `workspace:`.
+- **Versions exactes** quand c'est nécessaire, sans `^` (Prisma).
 
 | Domaine | Paquets | Version |
 |---|---|---|
 | Runtime | Node | 26.x (`.nvmrc`) |
-| Gestionnaire | pnpm / Turborepo | 12.6 / 2.11 |
+| Gestionnaire | npm (workspaces) / Turborepo | 12 / 2.11 |
 | Langage | TypeScript | ^6.0.2 |
 | Back | @nestjs/common, core, platform-express, testing, config, swagger, event-emitter, terminus, bullmq | ^12 |
 | Back | nestjs-cls / @nestjs-cls/transactional / adapter-prisma | ^7.0 / ^4.0 / ^2.0 |
@@ -84,23 +89,26 @@ Toutes les dépendances partagées sont centralisées dans le **catalog pnpm** (
 | Qualité | oxlint (+ oxlint-tsgolint) / prettier / dependency-cruiser | ^1.58 / ^3.4 / ^18.4 |
 | Outils | tsx / dotenv | ^4.23 / ^18.0 |
 
-Extrait du `pnpm-workspace.yaml` :
-```yaml
-packages:
-  - apps/*
-  - packages/*
-catalog:
-  typescript: ^6.0.2
-  zod: ^4.6.5
-  prisma: 7.10.0
-  "@prisma/client": 7.10.0
-  "@prisma/adapter-pg": 7.10.0
-  react: ^19.3.0
-  react-dom: ^19.3.0
-  vitest: ^4.1.11
-  # … (toutes les lignes du tableau ci-dessus)
+Extrait du `package.json` racine :
+```json
+{
+  "packageManager": "npm@12.0.1",
+  "workspaces": ["packages/*", "apps/*"],
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@vitest/coverage-v8": "^4.1.11",
+    "oxlint": "^1.58.0",
+    "oxlint-tsgolint": "^7.0.2001",
+    "prettier": "^3.4.2",
+    "turbo": "^2.11.4",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.11"
+  }
+}
 ```
-Dans chaque `package.json`, on écrit `"zod": "catalog:"`.
+Commandes utiles :
+- ajouter une dépendance à un workspace : `npm i zod@^4.6.5 -w @marche/contracts` ;
+- lancer un script d'un workspace : `npm run db:migrate -w @marche/api`.
 
 ---
 
@@ -177,8 +185,8 @@ Dans chaque `package.json`, on écrit `"zod": "catalog:"`.
 
 ```
 Marche/
-├─ package.json                 # scripts racine (turbo), "packageManager": "pnpm@12.6.0"
-├─ pnpm-workspace.yaml          # workspaces + catalog
+├─ package.json                 # workspaces npm, scripts racine (turbo), outils partagés
+├─ package-lock.json
 ├─ turbo.json
 ├─ docker-compose.yml
 ├─ .nvmrc · .editorconfig · .gitignore · .prettierrc · .oxlintrc.json
@@ -258,22 +266,19 @@ Marche/
 
 ### 4.1 Démarrage (une fois la phase 0 livrée)
 ```bash
-npm i -g --allow-scripts=pnpm pnpm@12
+npm run infra:up
 ```
 ```bash
-docker compose up -d
+npm install
 ```
 ```bash
-pnpm install
+npm run db:migrate -w @marche/api
 ```
 ```bash
-pnpm --filter @marche/api db:migrate
+npm run db:seed -w @marche/api
 ```
 ```bash
-pnpm --filter @marche/api db:seed
-```
-```bash
-pnpm dev
+npm run dev
 ```
 
 Scripts de `apps/api/package.json` :
@@ -1067,12 +1072,12 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
 **Objectif** : un marchand se connecte, crée sa boutique, et l'infrastructure (BD, files, outbox, CI) tourne de bout en bout.
 
 **0.A : Monorepo et outillage**
-- [x] **P0-01** Installer pnpm et fixer `.nvmrc` (26). npm 12 bloque les scripts d'installation : il faut `npm i -g --allow-scripts=pnpm pnpm@12`, sinon le binaire natif manque et Turbo échoue. Il faut aussi supprimer les anciens raccourcis corepack `pnpm*` de `C:\Program Files\nodejs`, qui passent avant dans le PATH.
+- [x] **P0-01** Gestionnaire de paquets : **npm 12**, livré avec Node 26 (pnpm abandonné le 2026-09-27, à la demande du porteur du projet). Fixer `.nvmrc` (26).
 - [x] **P0-02** Créer le monorepo :
   - supprimer `backend/.git` (aucun commit) et faire `git init` à la racine ;
   - déplacer `backend/` vers `apps/api` et le renommer `@marche/api` ;
-  - supprimer `package-lock.json` ;
-  - créer `package.json` racine, `pnpm-workspace.yaml` (+ catalog), `turbo.json` (tâches `dev` persistante, `build` avec `dependsOn: ["^build"]`, `lint`, `typecheck`, `test`, `test:int`, `test:e2e`) ;
+  - remplacer le `package-lock.json` du scaffold par un lockfile unique à la racine ;
+  - créer le `package.json` racine (workspaces npm + outils partagés, §1) et `turbo.json` (tâches `dev` persistante, `build` avec `dependsOn: ["^build"]`, `lint`, `typecheck`, `test`, `test:int`, `test:e2e`) ;
   - remonter `.prettierrc` et `.oxlintrc.json` à la racine, et passer la règle `typescript/no-explicit-any` à `error` (elle est désactivée dans le scaffold) ;
   - fusionner `.gitignore`, ajouter `.editorconfig`.
 - [x] **P0-03** `packages/config` : `tsconfig.base.json` (strict, ES2023), `tsconfig.nest.json` (nodenext + décorateurs, repris du scaffold), `tsconfig.lib.json` (packages compilés, `noUncheckedIndexedAccess`), `tsconfig.react.json` (bundler, jsx). `apps/api/tsconfig.json` étend `tsconfig.nest.json`.
@@ -1088,9 +1093,10 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
   - `ObserveModule` activé seulement si `OBSERVE_APP_KEY` est défini (les clés en dur du scaffold sont supprimées) ;
   - `main.ts` : `rawBody: true`, helmet, CORS en liste blanche, `enableShutdownHooks`, Swagger sur `/docs` hors production.
 - [ ] **P0-07** Prisma :
-  - installer `prisma`, `@prisma/client`, `@prisma/adapter-pg` en **7.10.0** (via le catalog), plus `dotenv` et `tsx` ;
+  - installer `prisma`, `@prisma/client`, `@prisma/adapter-pg` en **version exacte `7.10.0`** (`npm i -E … -w @marche/api`), plus `dotenv` et `tsx` ;
   - `prisma.config.ts` + migration P0 (§5.2) + index partiel de l'outbox ;
-  - `src/generated/` dans `.gitignore` ; `prisma generate` exécuté par `build` et `postinstall`.
+  - `src/generated/` dans `.gitignore` ;
+  - `prisma generate` exécuté par `build` (`prebuild`) et par le script `db:generate`, pas par `postinstall` : npm 12 bloque par défaut les scripts d'installation.
 - [ ] **P0-08** Noyau de domaine `shared/domain` (§6.1) avec tests unitaires (`Money`, `Slug`, `Email`, `AggregateRoot`).
 - [ ] **P0-09** Infrastructure partagée :
   - CLS + `TenantContext` + extension tenant + Transactional (§6.2) ;
@@ -1161,7 +1167,7 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
 - [ ] **P0-19** `README.md` racine : prérequis, démarrage (§4.1), scripts, liens vers la documentation.
 
 **DoD phase 0**
-- `docker compose up -d && pnpm dev` démarre l'API, le worker, le dashboard et le storefront sans erreur.
+- `npm run infra:up && npm run dev` démarre l'API, le worker, le dashboard et le storefront sans erreur.
 - Parcours complet : inscription Clerk → onboarding → la boutique est créée (organisation Clerk + ligne `stores`) → l'accueil du dashboard affiche son nom. `GET /api/v1/stores/current` la renvoie.
 - L'événement `stores.store.created` est journalisé par le worker (route de démonstration), une seule fois.
 - `http://ma-boutique.localhost:3001` affiche « Bientôt disponible ».
@@ -1455,7 +1461,7 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
   - throttling renforcé sur le checkout et les paniers (10 requêtes/min par IP pour le checkout) ;
   - revue de la configuration helmet et CORS ;
   - revue des rôles : actions destructrices réservées à `ADMIN`/`OWNER` ;
-  - audit des dépendances (`pnpm audit`) ;
+  - audit des dépendances (`npm audit`, bloquant en CI au niveau `high`) ;
   - revue du SQL brut (filtre `store_id`) ;
   - rotation des secrets documentée.
 - [ ] **P5-05** Tests e2e Playwright (`@clerk/testing` pour l'authentification) :
@@ -1481,12 +1487,12 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
 
 | Niveau | Cible | Outils | Emplacement | Commande |
 |---|---|---|---|---|
-| Unitaire domaine | Agrégats, VO, stratégies, états | Vitest | `modules/*/domain/*.spec.ts` | `pnpm test` |
-| Unitaire application | Use cases avec **repositories en mémoire** (`test/fakes/`) | Vitest | `modules/*/application/**/*.spec.ts` | `pnpm test` |
-| Intégration | Repositories Prisma, extension tenant, outbox, réservation concurrente, Redis | Vitest + Testcontainers (Postgres 18, Redis 8) | `*.int-spec.ts` | `pnpm test:int` |
-| E2E API | Controllers + guards + filtres ; Clerk simulé par une clé JWT de test (`CLERK_JWT_KEY`) | Vitest + Supertest + Testcontainers | `apps/api/test/*.e2e-spec.ts` | `pnpm test:e2e` |
-| Front composants | Formulaires, éditeur de variantes, panier | Vitest + Testing Library | `*.test.tsx` | `pnpm test` |
-| E2E navigateur | Parcours marchand et acheteur | Playwright + `@clerk/testing` | `e2e/` (racine) | `pnpm e2e` |
+| Unitaire domaine | Agrégats, VO, stratégies, états | Vitest | `modules/*/domain/*.spec.ts` | `npm test` |
+| Unitaire application | Use cases avec **repositories en mémoire** (`test/fakes/`) | Vitest | `modules/*/application/**/*.spec.ts` | `npm test` |
+| Intégration | Repositories Prisma, extension tenant, outbox, réservation concurrente, Redis | Vitest + Testcontainers (Postgres 18, Redis 8) | `*.int-spec.ts` | `npm run test:int` |
+| E2E API | Controllers + guards + filtres ; Clerk simulé par une clé JWT de test (`CLERK_JWT_KEY`) | Vitest + Supertest + Testcontainers | `apps/api/test/*.e2e-spec.ts` | `npm run test:e2e` |
+| Front composants | Formulaires, éditeur de variantes, panier | Vitest + Testing Library | `*.test.tsx` | `npm test` |
+| E2E navigateur | Parcours marchand et acheteur | Playwright + `@clerk/testing` | `e2e/` (racine) | `npm run e2e` |
 
 **Objectifs** :
 - couverture ≥ 90 % sur `domain/`, ≥ 80 % sur `application/` ;
@@ -1507,16 +1513,16 @@ Quand l'organisation active change (`OrganizationSwitcher`), on appelle `queryCl
 ## 9. CI/CD et déploiement
 
 ### 9.1 `ci.yml` (PR et `main`)
-1. Checkout, installation de pnpm, `actions/setup-node` (Node 26, cache pnpm), `pnpm install --frozen-lockfile`.
-2. `pnpm turbo run lint typecheck test build` (avec cache Turbo).
-3. `pnpm depcruise` (frontières).
-4. `pnpm turbo run test:int test:e2e` (Testcontainers ; Docker est disponible sur `ubuntu-latest`).
+1. Checkout, `actions/setup-node` (Node 26, `cache: npm`), `npm ci`.
+2. `npx turbo run lint typecheck test build` (avec cache Turbo) et `npm audit --audit-level=high`.
+3. `npm run depcruise` (frontières).
+4. `npx turbo run test:int test:e2e` (Testcontainers ; Docker est disponible sur `ubuntu-latest`).
 5. Sur `main` uniquement : Playwright contre l'environnement éphémère ou staging (à partir de P5).
 
 ### 9.2 `deploy.yml` (sur `main`, après la CI)
 | Cible | Hébergement recommandé | Étapes |
 |---|---|---|
-| API + worker | Railway (ou Render / Fly.io), région UE | Build de l'image `apps/api/Dockerfile` (`pnpm deploy --filter @marche/api --prod`), push sur GHCR, **`prisma migrate deploy`** (job de pré-déploiement), déploiement du service `api` (`node dist/main.js`) et du service `worker` (`node dist/worker.js`) |
+| API + worker | Railway (ou Render / Fly.io), région UE | Build de l'image `apps/api/Dockerfile` (`npx turbo prune @marche/api --docker`, puis `npm ci`, build et `npm prune --omit=dev` dans l'image), push sur GHCR, **`prisma migrate deploy`** (job de pré-déploiement), déploiement du service `api` (`node dist/main.js`) et du service `worker` (`node dist/worker.js`) |
 | Postgres / Redis | Services managés Railway (Redis en `noeviction`) | Sauvegardes quotidiennes + PITR |
 | Storefront | Vercel (projet `apps/storefront`) | Domaine wildcard `*.<domaine>` + domaine racine ; variables d'env ; `REVALIDATE_SECRET` |
 | Dashboard | Vercel (statique, projet `apps/dashboard`) | `app.<domaine>` ; réécriture SPA vers `index.html` |
@@ -1563,8 +1569,9 @@ Le chemin critique passe par P0, P1, P2, P3 puis P4. Deux travaux peuvent avance
 | Fuite de données entre boutiques | Critique | Extension Prisma qui **échoue** sans tenant, SQL brut revu, tests d'isolation par module, RLS en V2 |
 | Survente sous forte concurrence | Élevé | `UPDATE` conditionnel + contrainte `CHECK` + test de concurrence en CI |
 | Effets de bord perdus ou en double (e-mails) | Moyen | Outbox transactionnelle + `jobId` déterministe + handlers idempotents |
-| Écosystème Nest 12 encore jeune (peer deps) | Moyen | Dépendances vérifiées (§0.2), pipe Zod maison, mises à jour pilotées par le catalog |
-| Prisma 8 (RC) installé par erreur | Moyen | Version exacte `7.10.0` dans le catalog, `--frozen-lockfile` en CI |
+| Écosystème Nest 12 encore jeune (peer deps) | Moyen | Dépendances vérifiées (§0.2), pipe Zod maison, mises à jour pilotées par la table des versions (§1) |
+| Prisma 8 (RC) installé par erreur | Moyen | Version exacte `7.10.0` (sans `^`) dans `apps/api/package.json`, `npm ci` en CI (respect strict du lockfile) |
+| Dérive de versions entre workspaces (pas de « catalog » avec npm) | Faible | Outils partagés déclarés à la racine, plages identiques pour les dépendances communes, contrôle avec `npm ls <paquet>` |
 | Cache storefront périmé | Moyen | Tags fins, revalidation événementielle, prix et stock revérifiés au checkout (`PriceUnchanged`, `StockAvailable`) |
 | Webhooks Clerk indisponibles en local | Faible | Création des utilisateurs à la volée ; tunnel (`cloudflared`) seulement pour tester les webhooks |
 | Dérive des frontières de modules | Moyen | `dependency-cruiser` bloquant en CI, façades explicites, revue de PR |

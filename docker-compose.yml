@@ -1,5 +1,5 @@
 # Infrastructure locale de Marché (docs/PLAN-CODE.md §4.2)
-# Démarrage : pnpm infra:up · Arrêt : pnpm infra:down
+# Démarrage : npm run infra:up · Arrêt : npm run infra:down
 name: marche
 
 services:

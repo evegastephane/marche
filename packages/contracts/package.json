@@ -21,12 +21,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "zod": "catalog:"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@marche/config": "workspace:*",
-    "oxlint": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "@marche/config": "*"
   }
 }

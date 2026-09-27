@@ -64,6 +64,9 @@ export default async function CartPage({ params }: { params: Promise<{ site: str
                       <span className="text-sm font-semibold text-red-700">Il n’en reste que {line.available}.</span>
                     )
                   )}
+                  <span className="tabular font-semibold sm:hidden">
+                    {formatMoney(line.lineTotalAmount, cart.currency)}
+                  </span>
                   <div className="mt-2 sm:hidden">
                     <CartLineControls
                       variantId={line.variantId}

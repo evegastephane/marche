@@ -64,7 +64,7 @@ export function Dialog({
                     {description && <D.Description className="text-ink-2">{description}</D.Description>}
                   </div>
                   <D.Close
-                    className="-m-1 rounded-full p-1.5 text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+                    className="-m-2 inline-flex size-10 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
                     aria-label="Fermer"
                   >
                     <X className="size-5" />

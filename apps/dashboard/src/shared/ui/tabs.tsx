@@ -13,6 +13,7 @@ export interface TabItem<T extends string> {
 /**
  * Filtres en onglets : la pastille blanche glisse d'un onglet à l'autre
  * sur un rail gris. Défilement horizontal au téléphone.
+ * Ce sont des boutons bascule (aria-pressed) : ils filtrent une liste, sans panneaux d'onglets.
  */
 export function Tabs<T extends string>({
   items,
@@ -30,7 +31,7 @@ export function Tabs<T extends string>({
   const group = useId();
   return (
     <div
-      role="tablist"
+      role="group"
       aria-label={label}
       className={cn(
         'flex max-w-full gap-0.5 overflow-x-auto rounded-full bg-surface-2 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
@@ -43,11 +44,10 @@ export function Tabs<T extends string>({
           <button
             key={item.value}
             type="button"
-            role="tab"
-            aria-selected={active}
+            aria-pressed={active}
             onClick={() => onChange(item.value)}
             className={cn(
-              'relative inline-flex h-8 shrink-0 items-center gap-2 rounded-full px-3.5 text-[0.8125rem] font-[640] transition-colors duration-200',
+              'relative inline-flex h-8 shrink-0 max-md:h-10 items-center gap-2 rounded-full px-3.5 text-[0.8125rem] font-[640] transition-colors duration-200',
               active ? 'text-ink' : 'text-ink-2 hover:text-ink',
             )}
           >

@@ -7,13 +7,14 @@ import { type KeyboardEvent, type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 import { ApiError } from '@/shared/api/client';
 import { cn } from '@/shared/lib/cn';
-import { currencyLabel } from '@/shared/lib/format';
+import { currencyLabel, plural } from '@/shared/lib/format';
 import { AnimatedNumber } from '@/shared/ui/animated-number';
 import { Button } from '@/shared/ui/button';
 import { Card, CardHeader } from '@/shared/ui/card';
 import { PageHeader } from '@/shared/ui/feedback';
 import { Field, Input, InputWithSuffix, Select, Textarea } from '@/shared/ui/field';
 import { snappy } from '@/shared/ui/motion';
+import { Switch } from '@/shared/ui/switch';
 import { useBrands, useSaveProduct } from './api';
 import {
   type DraftErrors,
@@ -338,29 +339,6 @@ function PublishChoice({
   );
 }
 
-/** Interrupteur : le curseur glisse sur un ressort, la piste se colore. */
-function Switch({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
-  return (
-    <span className="relative mt-0.5 inline-flex shrink-0">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="peer absolute inset-0 z-10 cursor-pointer opacity-0"
-      />
-      <span
-        aria-hidden
-        className={cn(
-          'flex h-6 w-10 items-center rounded-full p-0.5 transition-colors duration-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand',
-          checked ? 'justify-end bg-brand' : 'justify-start bg-line-strong',
-        )}
-      >
-        <motion.span layout transition={snappy} className="size-5 rounded-full bg-white shadow-lift" />
-      </span>
-    </span>
-  );
-}
-
 function OptionEditor({
   option,
   onChange,
@@ -433,7 +411,7 @@ function OptionEditor({
                         values: option.values.filter((v) => v !== value),
                       })
                     }
-                    className="rounded-full p-0.5 text-white/80 hover:bg-white/20 hover:text-white"
+                    className="-my-1 inline-flex size-7 items-center justify-center rounded-full text-white/80 hover:bg-white/20 hover:text-white"
                   >
                     <X className="size-3.5" />
                   </button>
@@ -455,8 +433,7 @@ function OptionEditor({
       {onRemove && (
         <Button
           variant="ghost"
-          size="sm"
-          className="self-start sm:mt-6"
+          className="w-10 self-start px-0 max-md:w-11 max-sm:justify-self-end sm:mt-6"
           onClick={onRemove}
           aria-label={`Retirer l’option ${option.name}`}
         >
@@ -570,10 +547,7 @@ function VariantTable({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="heading text-[1rem]">
-          {draft.variants.length} déclinaison
-          {draft.variants.length > 1 ? 's' : ''}
-        </p>
+        <p className="heading text-[1rem]">{plural(draft.variants.length, 'déclinaison', 'déclinaisons')}</p>
         {isEdit && <p className="text-[0.8125rem] text-ink-2">Retirer une valeur archive ses déclinaisons.</p>}
       </div>
       <div

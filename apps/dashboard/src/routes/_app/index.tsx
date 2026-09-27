@@ -126,8 +126,12 @@ function AExpedier({ currency, total }: { currency: Currency | undefined; total:
                       <span className="font-semibold text-ink">
                         {formatMoney(order.totalAmount, currency ?? order.currency)}
                       </span>
-                      <span aria-hidden>·</span>
-                      <span>{order.placedAt ? formatRelative(order.placedAt) : ''}</span>
+                      {order.placedAt && (
+                        <>
+                          <span aria-hidden>·</span>
+                          <span>{formatRelative(order.placedAt)}</span>
+                        </>
+                      )}
                       {order.paymentStatus === 'UNPAID' && (
                         <Badge tone={PAYMENT_STATUS.UNPAID.tone} className="ml-1">
                           {PAYMENT_STATUS.UNPAID.label}

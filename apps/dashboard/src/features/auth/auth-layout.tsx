@@ -9,21 +9,21 @@ const CHIPS = [
   {
     icon: PackageCheck,
     label: 'Stock à jour',
-    className: 'top-[18%] right-[10%]',
+    className: 'top-[6%] right-[6%]',
     delay: 0.9,
     float: 7,
   },
   {
     icon: Globe,
     label: 'Site en ligne',
-    className: 'top-[36%] left-[8%]',
+    className: 'top-[40%] left-0',
     delay: 1.05,
     float: 9,
   },
   {
     icon: ReceiptText,
     label: 'Nouvelle commande',
-    className: 'top-[52%] right-[16%]',
+    className: 'bottom-[6%] right-[14%]',
     delay: 1.2,
     float: 6,
   },
@@ -61,36 +61,39 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           </motion.span>
         </div>
 
-        {CHIPS.map((chip) => (
-          <motion.span
-            key={chip.label}
-            aria-hidden
-            className={`absolute ${chip.className} inline-flex items-center gap-2.5 rounded-2xl border border-white/12 bg-white/8 py-2 pr-4 pl-2 text-[0.875rem] font-[650] backdrop-blur-md`}
-            initial={{ opacity: 0, y: 24, scale: 0.9 }}
-            animate={{ opacity: 1, y: [0, -chip.float, 0], scale: 1 }}
-            transition={{
-              opacity: { duration: 0.5, delay: chip.delay },
-              scale: {
-                type: 'spring',
-                stiffness: 300,
-                damping: 20,
-                delay: chip.delay,
-              },
-              y: {
-                duration: 5 + chip.float / 3,
-                repeat: Infinity,
-                ease: 'easeInOut',
-                delay: chip.delay,
-              },
-            }}
-          >
-            <span className="inline-flex size-8 items-center justify-center rounded-xl bg-white text-[#0b57f0]">
-              <chip.icon className="size-4" strokeWidth={2.3} />
-            </span>
-            {chip.label}
-            <Check className="size-4 text-[#25c16f]" strokeWidth={3} />
-          </motion.span>
-        ))}
+        {/* Bande centrale extensible : les pastilles y flottent sans jamais chevaucher le titre. */}
+        <div aria-hidden className="relative my-6 min-h-40 flex-1">
+          {CHIPS.map((chip) => (
+            <motion.span
+              key={chip.label}
+              aria-hidden
+              className={`absolute ${chip.className} inline-flex items-center gap-2.5 rounded-2xl border border-white/12 bg-white/8 py-2 pr-4 pl-2 text-[0.875rem] font-[650] backdrop-blur-md`}
+              initial={{ opacity: 0, y: 24, scale: 0.9 }}
+              animate={{ opacity: 1, y: [0, -chip.float, 0], scale: 1 }}
+              transition={{
+                opacity: { duration: 0.5, delay: chip.delay },
+                scale: {
+                  type: 'spring',
+                  stiffness: 300,
+                  damping: 20,
+                  delay: chip.delay,
+                },
+                y: {
+                  duration: 5 + chip.float / 3,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  delay: chip.delay,
+                },
+              }}
+            >
+              <span className="inline-flex size-8 items-center justify-center rounded-xl bg-white text-[#0b57f0]">
+                <chip.icon className="size-4" strokeWidth={2.3} />
+              </span>
+              {chip.label}
+              <Check className="size-4 text-[#25c16f]" strokeWidth={3} />
+            </motion.span>
+          ))}
+        </div>
 
         <div className="relative flex flex-col gap-5">
           <Reveal delay={0.3}>

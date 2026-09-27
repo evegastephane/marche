@@ -297,7 +297,7 @@ services:
   postgres:
     image: postgres:18-alpine
     environment: { POSTGRES_USER: marche, POSTGRES_PASSWORD: marche, POSTGRES_DB: marche }
-    ports: ["5432:5432"]
+    ports: ["5434:5432"]         # 5432 et 5433 sont déjà pris sur le poste de dev
     volumes: ["pgdata:/var/lib/postgresql"]   # PG 18 : point de montage /var/lib/postgresql
     healthcheck: { test: ["CMD-SHELL", "pg_isready -U marche"], interval: 5s, retries: 10 }
   redis:
@@ -322,7 +322,7 @@ Chaque app a un `.env.example` versionné. Les `.env` restent hors git. L'API **
 | Variable | Exemple local | Rôle |
 |---|---|---|
 | `NODE_ENV` / `PORT` | `development` / `3000` | |
-| `DATABASE_URL` | `postgresql://marche:marche@localhost:5432/marche` | Prisma |
+| `DATABASE_URL` | `postgresql://marche:marche@localhost:5434/marche` | Prisma |
 | `REDIS_URL` | `redis://localhost:6379` | BullMQ, cache, paniers |
 | `CLERK_SECRET_KEY` | `sk_test_…` | Backend API Clerk |
 | `CLERK_JWT_KEY` | *(optionnel)* PEM | Vérification JWT sans réseau |
@@ -366,7 +366,7 @@ Chaque app a un `.env.example` versionné. Les `.env` restent hors git. L'API **
 | API (+ `/docs` Swagger, `/admin/queues` Bull Board) | 3000 |
 | Storefront (`{slug}.localhost:3001`) | 3001 |
 | Dashboard | 5173 |
-| PostgreSQL / Redis | 5432 / 6379 |
+| PostgreSQL / Redis | 5434 (5432 dans le conteneur) / 6379 |
 | RustFS (S3 / console) | 9000 / 9001 |
 | Mailpit (UI / SMTP) | 8025 / 1025 |
 

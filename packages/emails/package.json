@@ -1,0 +1,29 @@
+{
+  "name": "@marche/emails",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Templates d'e-mails transactionnels (HTML typé, sans dépendance)",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "lint": "oxlint -c ../../.oxlintrc.json src/",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@marche/contracts": "*"
+  },
+  "devDependencies": {
+    "@marche/config": "*"
+  }
+}

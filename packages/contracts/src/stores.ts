@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { countrySchema, currencySchema, timezoneSchema } from './common.js';
+import {
+  amountSchema,
+  countrySchema,
+  currencySchema,
+  timezoneSchema,
+} from './common.js';
 
 /** Sous-domaines réservés à la plateforme : interdits comme slug de boutique. */
 export const RESERVED_STORE_SLUGS = [
@@ -34,6 +39,25 @@ export const storeSlugSchema = z
     { error: 'Cette adresse est réservée' },
   );
 
+/** Calcul des frais de livraison (pattern Strategy côté API). */
+export const shippingSettingsSchema = z.discriminatedUnion('strategy', [
+  z.object({
+    strategy: z.literal('FLAT_RATE'),
+    flatRateAmount: amountSchema,
+  }),
+  z.object({
+    strategy: z.literal('FREE_OVER_THRESHOLD'),
+    flatRateAmount: amountSchema,
+    thresholdAmount: amountSchema,
+  }),
+]);
+export type ShippingSettings = z.infer<typeof shippingSettingsSchema>;
+
+export const DEFAULT_SHIPPING_SETTINGS: ShippingSettings = {
+  strategy: 'FLAT_RATE',
+  flatRateAmount: 0,
+};
+
 export const createStoreSchema = z.object({
   name: z.string().trim().min(2).max(80),
   slug: storeSlugSchema,
@@ -50,6 +74,8 @@ export const updateStoreSchema = z
     phone: z.string().trim().max(30).nullable(),
     timezone: timezoneSchema,
     logoMediaId: z.uuid().nullable(),
+    shippingSettings: shippingSettingsSchema,
+    lowStockDefault: z.number().int().min(0).max(1_000_000),
   })
   .partial()
   .refine((input) => Object.keys(input).length > 0, {
@@ -67,6 +93,8 @@ export const storeSchema = z.object({
   contactEmail: z.string().nullable(),
   phone: z.string().nullable(),
   logoMediaId: z.uuid().nullable(),
+  shippingSettings: shippingSettingsSchema,
+  lowStockDefault: z.number().int(),
   createdAt: z.iso.datetime(),
 });
 export type StoreDto = z.infer<typeof storeSchema>;

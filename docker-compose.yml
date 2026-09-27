@@ -10,7 +10,8 @@ services:
       POSTGRES_PASSWORD: marche
       POSTGRES_DB: marche
     ports:
-      - "5432:5432"
+      # 5434 côté hôte : 5432 et 5433 sont déjà pris sur le poste de dev
+      - "5434:5432"
     volumes:
       # PostgreSQL 18 : le point de montage est /var/lib/postgresql
       - pgdata:/var/lib/postgresql

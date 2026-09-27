@@ -27,11 +27,22 @@
   "devDependencies": {
     "@types/node": "^26.6.3",
     "@vitest/coverage-v8": "^4.1.11",
+    "dependency-cruiser": "^18.4.0",
     "oxlint": "^1.58.0",
     "oxlint-tsgolint": "^7.0.2001",
     "prettier": "^3.4.2",
     "turbo": "^2.11.4",
     "typescript": "^6.0.2",
     "vitest": "^4.1.11"
+  },
+  "allowScripts": {
+    "@prisma/engines": false,
+    "@scarf/scarf": false,
+    "cpu-features": false,
+    "esbuild": false,
+    "msgpackr-extract": false,
+    "prisma": false,
+    "protobufjs": false,
+    "ssh2": false
   }
 }

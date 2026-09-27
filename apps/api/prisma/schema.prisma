@@ -1,0 +1,410 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js" // imports compatibles "nodenext"
+}
+
+datasource db {
+  provider = "postgresql" // l'URL est dans prisma.config.ts (Prisma 7)
+}
+
+// ───────────── Enums ─────────────
+enum MemberRole {
+  OWNER
+  ADMIN
+  STAFF
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum MediaStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+enum StockMovementType {
+  INITIAL
+  RECEIPT
+  ADJUSTMENT
+  LOSS
+  SALE
+  RETURN
+}
+
+enum OrderStatus {
+  DRAFT
+  PLACED
+  FULFILLED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+}
+
+enum OrderSource {
+  ADMIN
+  STOREFRONT
+}
+
+enum SiteStatus {
+  DRAFT
+  PUBLISHED
+  UNPUBLISHED
+}
+
+// ───────────── identity / stores ─────────────
+model User {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  clerkUserId String        @unique @map("clerk_user_id")
+  email       String
+  firstName   String?       @map("first_name")
+  lastName    String?       @map("last_name")
+  imageUrl    String?       @map("image_url")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  deletedAt   DateTime?     @map("deleted_at")
+  memberships StoreMember[]
+
+  @@map("users")
+}
+
+model Store {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  clerkOrgId       String    @unique @map("clerk_org_id")
+  name             String
+  slug             String    @unique // = sous-domaine
+  currency         String    @db.Char(3) // ISO 4217
+  country          String    @db.Char(2) // ISO 3166-1
+  timezone         String    @default("Europe/Paris")
+  contactEmail     String?   @map("contact_email")
+  phone            String?
+  logoMediaId      String?   @map("logo_media_id") @db.Uuid
+  shippingSettings Json      @default("{\"strategy\":\"FLAT_RATE\",\"flatRateAmount\":0}") @map("shipping_settings")
+  lowStockDefault  Int       @default(5) @map("low_stock_default")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  archivedAt       DateTime? @map("archived_at")
+
+  members     StoreMember[]
+  counter     StoreCounter?
+  brands      Brand[]
+  products    Product[]
+  variants    ProductVariant[]
+  media       Media[]
+  collections Collection[]
+  customers   Customer[]
+  orders      Order[]
+  site        Site?
+
+  @@map("stores")
+}
+
+model StoreMember {
+  storeId   String     @map("store_id") @db.Uuid
+  userId    String     @map("user_id") @db.Uuid
+  role      MemberRole
+  createdAt DateTime   @default(now()) @map("created_at")
+  store     Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([storeId, userId])
+  @@index([userId])
+  @@map("store_members")
+}
+
+model StoreCounter {
+  storeId  String @id @map("store_id") @db.Uuid
+  orderSeq Int    @default(1000) @map("order_seq") // 1re commande = #1001
+  store    Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("store_counters")
+}
+
+// ───────────── catalog ─────────────
+model Brand {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  storeId     String    @map("store_id") @db.Uuid
+  name        String
+  slug        String
+  description String?
+  logoMediaId String?   @map("logo_media_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  archivedAt  DateTime? @map("archived_at")
+  store       Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products    Product[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, name])
+  @@map("brands")
+}
+
+model Product {
+  id             String              @id @default(uuid(7)) @db.Uuid
+  storeId        String              @map("store_id") @db.Uuid
+  brandId        String?             @map("brand_id") @db.Uuid
+  title          String
+  slug           String
+  description    String? // Markdown
+  status         ProductStatus       @default(DRAFT)
+  options        Json                @default("[]") // [{ "name": "Taille", "values": ["S","M"] }]
+  seoTitle       String?             @map("seo_title")
+  seoDescription String?             @map("seo_description")
+  publishedAt    DateTime?           @map("published_at")
+  version        Int                 @default(0)
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  archivedAt     DateTime?           @map("archived_at")
+  store          Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  brand          Brand?              @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  variants       ProductVariant[]
+  media          ProductMedia[]
+  collections    CollectionProduct[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, status, updatedAt(sort: Desc)])
+  @@index([storeId, brandId])
+  @@map("products")
+}
+
+model ProductVariant {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  storeId         String          @map("store_id") @db.Uuid
+  productId       String          @map("product_id") @db.Uuid
+  sku             String
+  title           String // "M / Rouge" ou "Par défaut"
+  optionValues    Json            @default("[]") @map("option_values") // ["M","Rouge"]
+  priceAmount     Int             @map("price_amount") // unités mineures, devise de la boutique
+  compareAtAmount Int?            @map("compare_at_amount")
+  position        Int             @default(0)
+  trackInventory  Boolean         @default(true) @map("track_inventory")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  archivedAt      DateTime?       @map("archived_at")
+  store           Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product         Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  inventory       InventoryLevel?
+  movements       StockMovement[]
+  orderLines      OrderLine[]
+
+  @@unique([storeId, sku])
+  @@index([productId, position])
+  @@map("product_variants")
+}
+
+model Media {
+  id         String         @id @default(uuid(7)) @db.Uuid
+  storeId    String         @map("store_id") @db.Uuid
+  key        String         @unique // clé d'objet S3 : {storeId}/{mediaId}/original.{ext}
+  mimeType   String         @map("mime_type")
+  sizeBytes  Int            @map("size_bytes")
+  width      Int?
+  height     Int?
+  alt        String?
+  status     MediaStatus    @default(PENDING)
+  renditions Json           @default("{}") // { "400": "…webp", "800": "…", "1600": "…" }
+  createdAt  DateTime       @default(now()) @map("created_at")
+  store      Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products   ProductMedia[]
+
+  @@index([storeId, createdAt(sort: Desc)])
+  @@map("media")
+}
+
+model ProductMedia {
+  storeId   String  @map("store_id") @db.Uuid
+  productId String  @map("product_id") @db.Uuid
+  mediaId   String  @map("media_id") @db.Uuid
+  position  Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  media     Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([productId, mediaId])
+  @@index([productId, position])
+  @@map("product_media")
+}
+
+model Collection {
+  id           String              @id @default(uuid(7)) @db.Uuid
+  storeId      String              @map("store_id") @db.Uuid
+  title        String
+  slug         String
+  description  String?
+  imageMediaId String?             @map("image_media_id") @db.Uuid
+  isPublished  Boolean             @default(true) @map("is_published")
+  position     Int                 @default(0) // ordre dans la navigation du site
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+  store        Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products     CollectionProduct[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, position])
+  @@map("collections")
+}
+
+model CollectionProduct {
+  storeId      String     @map("store_id") @db.Uuid
+  collectionId String     @map("collection_id") @db.Uuid
+  productId    String     @map("product_id") @db.Uuid
+  position     Int
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, productId])
+  @@index([collectionId, position])
+  @@index([productId])
+  @@map("collection_products")
+}
+
+// ───────────── inventory ─────────────
+model InventoryLevel {
+  variantId         String         @id @map("variant_id") @db.Uuid
+  storeId           String         @map("store_id") @db.Uuid
+  onHand            Int            @default(0) @map("on_hand")
+  reserved          Int            @default(0)
+  lowStockThreshold Int?           @map("low_stock_threshold") // null ⇒ Store.lowStockDefault
+  version           Int            @default(0)
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+  variant           ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@map("inventory_levels")
+}
+
+model StockMovement {
+  id          String            @id @default(uuid(7)) @db.Uuid
+  storeId     String            @map("store_id") @db.Uuid
+  variantId   String            @map("variant_id") @db.Uuid
+  type        StockMovementType
+  quantity    Int // signé : +10, -3
+  onHandAfter Int               @map("on_hand_after")
+  reason      String?
+  orderId     String?           @map("order_id") @db.Uuid
+  actorUserId String?           @map("actor_user_id") @db.Uuid
+  createdAt   DateTime          @default(now()) @map("created_at")
+  variant     ProductVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, variantId, createdAt(sort: Desc)])
+  @@map("stock_movements")
+}
+
+// ───────────── orders ─────────────
+model Customer {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  storeId        String   @map("store_id") @db.Uuid
+  email          String // normalisé en minuscules
+  firstName      String?  @map("first_name")
+  lastName       String?  @map("last_name")
+  phone          String?
+  defaultAddress Json?    @map("default_address")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  store          Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders         Order[]
+
+  @@unique([storeId, email])
+  @@index([storeId, lastName])
+  @@map("customers")
+}
+
+model Order {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  storeId         String        @map("store_id") @db.Uuid
+  number          Int? // attribué au passage (DRAFT ⇒ null)
+  publicToken     String        @unique @map("public_token") // lien de suivi acheteur (32 octets base64url)
+  customerId      String?       @map("customer_id") @db.Uuid
+  email           String? // instantané
+  status          OrderStatus   @default(DRAFT)
+  paymentStatus   PaymentStatus @default(UNPAID) @map("payment_status")
+  source          OrderSource
+  currency        String        @db.Char(3)
+  subtotalAmount  Int           @default(0) @map("subtotal_amount")
+  shippingAmount  Int           @default(0) @map("shipping_amount")
+  totalAmount     Int           @default(0) @map("total_amount")
+  shippingAddress Json?         @map("shipping_address")
+  shippingMethod  String?       @map("shipping_method")
+  note            String?
+  cancelReason    String?       @map("cancel_reason")
+  placedAt        DateTime?     @map("placed_at")
+  paidAt          DateTime?     @map("paid_at")
+  fulfilledAt     DateTime?     @map("fulfilled_at")
+  cancelledAt     DateTime?     @map("cancelled_at")
+  version         Int           @default(0)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer        Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  lines           OrderLine[]
+
+  @@unique([storeId, number])
+  @@index([storeId, status, createdAt(sort: Desc)])
+  @@index([storeId, customerId])
+  @@map("orders")
+}
+
+model OrderLine {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  storeId         String          @map("store_id") @db.Uuid
+  orderId         String          @map("order_id") @db.Uuid
+  variantId       String?         @map("variant_id") @db.Uuid
+  productTitle    String          @map("product_title") // instantané [R6]
+  variantTitle    String          @map("variant_title")
+  sku             String
+  unitPriceAmount Int             @map("unit_price_amount")
+  quantity        Int
+  lineTotalAmount Int             @map("line_total_amount")
+  tracksInventory Boolean         @default(true) @map("tracks_inventory") // la ligne a réservé du stock
+  position        Int
+  order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant         ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, position])
+  @@index([storeId, variantId])
+  @@map("order_lines")
+}
+
+// ───────────── sites ─────────────
+model Site {
+  id                 String     @id @default(uuid(7)) @db.Uuid
+  storeId            String     @unique @map("store_id") @db.Uuid
+  subdomain          String     @unique
+  templateId         String     @default("default") @map("template_id")
+  templateVersion    String     @map("template_version")
+  themeSettings      Json       @map("theme_settings") // en ligne
+  draftThemeSettings Json       @map("draft_theme_settings") // en cours d'édition
+  status             SiteStatus @default(DRAFT)
+  publishedAt        DateTime?  @map("published_at")
+  customDomain       String?    @unique @map("custom_domain") // V2
+  version            Int        @default(0)
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+  store              Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("sites")
+}
+
+// ───────────── outbox ─────────────
+model OutboxEvent {
+  id          String    @id @db.Uuid // = id de l'événement de domaine
+  storeId     String?   @map("store_id") @db.Uuid
+  type        String
+  aggregateId String    @map("aggregate_id")
+  payload     Json
+  occurredAt  DateTime  @map("occurred_at")
+  publishedAt DateTime? @map("published_at")
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+
+  @@index([occurredAt])
+  @@map("outbox_events")
+}

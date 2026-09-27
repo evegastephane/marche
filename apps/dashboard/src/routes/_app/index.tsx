@@ -1,9 +1,10 @@
 import type { Currency, ReportingPeriod } from '@marche/contracts';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Check, PackagePlus, ReceiptText, Store, Truck, Warehouse } from 'lucide-react';
+import { ArrowRight, Check, PackagePlus, ReceiptText, Store, Truck, Warehouse } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
-import { EnseigneBoutique } from '@/features/home/enseigne-boutique';
 import { useLowStock, useOverview } from '@/features/home/api';
+import { StoreOverview } from '@/features/home/store-overview';
 import { useOrderPreview } from '@/features/orders/api';
 import { OrderQuickActions } from '@/features/orders/quick-actions';
 import { PAYMENT_STATUS } from '@/features/orders/status';
@@ -13,10 +14,19 @@ import { useSite } from '@/features/site/api';
 import { errorMessage } from '@/shared/api/client';
 import { cn } from '@/shared/lib/cn';
 import { formatMoney, formatRelative, orderNumber, plural } from '@/shared/lib/format';
-import { EmptyState, LoadError, PlancheHeader, Skeleton } from '@/shared/ui/feedback';
-import { Plaque } from '@/shared/ui/plaque';
+import { Badge } from '@/shared/ui/badge';
+import { Card, CardHeader } from '@/shared/ui/card';
+import { EmptyState, LoadError, Skeleton } from '@/shared/ui/feedback';
+import { EASE_OUT, riseIn, snappy } from '@/shared/ui/motion';
 
 export const Route = createFileRoute('/_app/')({ component: Accueil });
+
+/** Une ligne qui quitte une liste (commande expédiée) glisse vers la droite et la liste se resserre. */
+const rowExit = {
+  opacity: 0,
+  x: 48,
+  transition: { duration: 0.28, ease: EASE_OUT },
+};
 
 function Accueil() {
   const [period, setPeriod] = useState<ReportingPeriod>('30d');
@@ -26,7 +36,7 @@ function Accueil() {
 
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
-      <EnseigneBoutique
+      <StoreOverview
         store={store.data}
         site={site.data}
         overview={overview.data}
@@ -34,13 +44,16 @@ function Accueil() {
         onPeriodChange={setPeriod}
       />
       {overview.error && <LoadError message={errorMessage(overview.error)} onRetry={() => void overview.refetch()} />}
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] lg:gap-8">
+      <motion.div
+        variants={riseIn}
+        className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] lg:gap-8"
+      >
         <AExpedier currency={store.data?.currency} total={overview.data?.ordersToFulfill} />
         <div className="flex flex-col gap-6 lg:gap-8">
           <Demarrage hasSite={Boolean(site.data)} siteOnline={site.data?.status === 'PUBLISHED'} />
           <StockBas />
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -50,13 +63,18 @@ function AExpedier({ currency, total }: { currency: Currency | undefined; total:
   const items = orders.data?.items ?? [];
 
   return (
-    <section className="planche overflow-hidden">
-      <PlancheHeader
+    <Card className="overflow-hidden">
+      <CardHeader
         title="À expédier"
         count={total}
         actions={
-          <Link to="/orders" search={{ filter: 'to-ship' }} className="text-[0.875rem] font-semibold text-baobab">
+          <Link
+            to="/orders"
+            search={{ filter: 'to-ship' }}
+            className="group inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-ink no-underline"
+          >
             Toutes les commandes
+            <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
           </Link>
         }
       />
@@ -77,41 +95,56 @@ function AExpedier({ currency, total }: { currency: Currency | undefined; total:
           Les commandes passées sur votre site ou saisies ici arrivent dans cette liste, jusqu’à leur départ.
         </EmptyState>
       ) : (
-        <ul className="divide-y divide-filet border-t border-filet">
-          {items.map((order) => (
-            <li key={order.id}>
-              <div className="relative grid grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors duration-150 hover:bg-baobab-50 max-sm:grid-cols-[auto_1fr]">
-                <Link
-                  to="/orders/$orderId"
-                  params={{ orderId: order.id }}
-                  className="lettrage chiffres text-[1.75rem] text-baobab no-underline after:absolute after:inset-0 after:content-['']"
-                >
-                  {orderNumber(order.number)}
-                </Link>
-                <div className="flex min-w-0 flex-col">
-                  <span className="truncate font-[640]">{order.customerName ?? order.email ?? 'Client'}</span>
-                  <span className="chiffres flex flex-wrap items-center gap-x-2 text-[0.8125rem] text-encre-2">
-                    <span>{plural(order.itemsCount, 'article', 'articles')}</span>
-                    <span aria-hidden>·</span>
-                    <span className="font-semibold text-encre">{formatMoney(order.totalAmount, currency ?? order.currency)}</span>
-                    <span aria-hidden>·</span>
-                    <span>{order.placedAt ? formatRelative(order.placedAt) : ''}</span>
-                    {order.paymentStatus === 'UNPAID' && (
-                      <Plaque tone={PAYMENT_STATUS.UNPAID.tone} className="ml-1">
-                        {PAYMENT_STATUS.UNPAID.label}
-                      </Plaque>
-                    )}
-                  </span>
+        <ul className="border-t border-line">
+          <AnimatePresence initial={false}>
+            {items.map((order, index) => (
+              <motion.li
+                key={order.id}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  transition: { ...snappy, delay: index * 0.04 },
+                }}
+                exit={rowExit}
+                className="border-b border-line last:border-b-0"
+              >
+                <div className="relative grid grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors duration-200 hover:bg-surface-2 max-sm:grid-cols-[auto_1fr]">
+                  <Link
+                    to="/orders/$orderId"
+                    params={{ orderId: order.id }}
+                    className="tabular inline-flex h-10 min-w-14 items-center justify-center rounded-xl bg-brand-soft px-2.5 text-[0.9375rem] font-[750] text-brand-ink no-underline after:absolute after:inset-0 after:content-['']"
+                  >
+                    {orderNumber(order.number)}
+                  </Link>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate font-[650]">{order.customerName ?? order.email ?? 'Client'}</span>
+                    <span className="tabular flex flex-wrap items-center gap-x-2 text-[0.8125rem] text-ink-2">
+                      <span>{plural(order.itemsCount, 'article', 'articles')}</span>
+                      <span aria-hidden>·</span>
+                      <span className="font-semibold text-ink">
+                        {formatMoney(order.totalAmount, currency ?? order.currency)}
+                      </span>
+                      <span aria-hidden>·</span>
+                      <span>{order.placedAt ? formatRelative(order.placedAt) : ''}</span>
+                      {order.paymentStatus === 'UNPAID' && (
+                        <Badge tone={PAYMENT_STATUS.UNPAID.tone} className="ml-1">
+                          {PAYMENT_STATUS.UNPAID.label}
+                        </Badge>
+                      )}
+                    </span>
+                  </div>
+                  <div className="relative z-10 max-sm:col-span-2 max-sm:justify-self-end">
+                    <OrderQuickActions order={order} />
+                  </div>
                 </div>
-                <div className="relative z-10 max-sm:col-span-2 max-sm:justify-self-end">
-                  <OrderQuickActions order={order} />
-                </div>
-              </div>
-            </li>
-          ))}
+              </motion.li>
+            ))}
+          </AnimatePresence>
         </ul>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -119,8 +152,8 @@ function StockBas() {
   const low = useLowStock(6);
   const items = low.data?.items ?? [];
   return (
-    <section className="planche overflow-hidden">
-      <PlancheHeader title="Stock bas" count={low.data ? items.length : undefined} />
+    <Card className="overflow-hidden">
+      <CardHeader title="Stock bas" count={low.data ? items.length : undefined} />
       {low.isPending ? (
         <div className="flex flex-col gap-2 px-5 pb-5">
           <Skeleton className="h-10" />
@@ -135,33 +168,37 @@ function StockBas() {
           Un article apparaît ici dès que sa quantité disponible passe sous son seuil d’alerte.
         </EmptyState>
       ) : (
-        <ul className="divide-y divide-filet border-t border-filet">
-          {items.map((item) => (
-            <li key={item.variantId}>
+        <ul className="border-t border-line">
+          {items.map((item, index) => (
+            <motion.li
+              key={item.variantId}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ ...snappy, delay: 0.1 + index * 0.04 }}
+              className="border-b border-line last:border-b-0"
+            >
               <Link
                 to="/products/$productId"
                 params={{ productId: item.productId }}
-                className="flex items-center justify-between gap-4 px-5 py-3 text-encre no-underline transition-colors duration-150 hover:bg-baobab-50"
+                className="flex items-center justify-between gap-4 px-5 py-3 text-ink no-underline transition-colors duration-200 hover:bg-surface-2"
               >
                 <span className="flex min-w-0 flex-col">
-                  <span className="truncate font-[640]">{item.productTitle}</span>
-                  <span className="truncate text-[0.8125rem] text-encre-2">
+                  <span className="truncate font-[650]">{item.productTitle}</span>
+                  <span className="truncate text-[0.8125rem] text-ink-2">
                     {item.variantTitle} · {item.sku}
                   </span>
                 </span>
                 {item.isOut ? (
-                  <Plaque tone="rouge">Rupture</Plaque>
+                  <Badge tone="danger">Rupture</Badge>
                 ) : (
-                  <span className="chiffres shrink-0 text-[0.875rem] font-bold text-jaune-900">
-                    Plus que {item.available}
-                  </span>
+                  <Badge tone="accent">Plus que {item.available}</Badge>
                 )}
               </Link>
-            </li>
+            </motion.li>
           ))}
         </ul>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -195,40 +232,85 @@ function Demarrage({ hasSite, siteOnline }: { hasSite: boolean; siteOnline: bool
     },
   ];
   if (steps.every((s) => s.done)) return null;
+  const doneCount = steps.filter((s) => s.done).length;
 
   return (
-    <section className="planche overflow-hidden">
-      <PlancheHeader title="Démarrage" />
+    <motion.section
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.42, ease: EASE_OUT }}
+      className="card overflow-hidden"
+    >
+      <CardHeader
+        title="Démarrage"
+        actions={
+          <span className="tabular text-[0.8125rem] font-semibold text-ink-2">
+            {doneCount}/{steps.length}
+          </span>
+        }
+      />
+      <div className="mx-5 mb-2 h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+        <motion.div
+          className="h-full rounded-full bg-linear-to-r from-brand to-[#ff5a2b]"
+          initial={{ width: 0 }}
+          animate={{ width: `${(doneCount / steps.length) * 100}%` }}
+          transition={{ duration: 0.9, ease: EASE_OUT, delay: 0.2 }}
+        />
+      </div>
       <ol className="flex flex-col px-3 pb-3">
-        {steps.map((step) => (
-          <li key={step.title}>
+        {steps.map((step, index) => (
+          <motion.li
+            key={step.title}
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ ...snappy, delay: 0.15 + index * 0.06 }}
+          >
             <Link
               to={step.to}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-2 py-2.5 no-underline transition-colors duration-150 hover:bg-baobab-50',
-                step.done ? 'text-encre-2' : 'text-encre',
+                'group flex items-center gap-3 rounded-xl px-2 py-2.5 no-underline transition-colors duration-200 hover:bg-surface-2',
+                step.done ? 'text-ink-2' : 'text-ink',
               )}
             >
               <span
                 className={cn(
                   'relative inline-flex size-8 shrink-0 items-center justify-center rounded-full',
-                  step.done ? 'bg-baobab text-white' : 'bg-chaux-2 text-baobab',
+                  step.done ? 'bg-success text-white' : 'bg-brand-soft text-brand-ink',
                 )}
                 aria-hidden
               >
-                {step.done ? <Check className="size-4" strokeWidth={3} /> : <step.icon className="size-4" strokeWidth={2.2} />}
+                {step.done ? (
+                  <motion.span
+                    initial={{ scale: 0, rotate: -45 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 500,
+                      damping: 18,
+                      delay: 0.3 + index * 0.06,
+                    }}
+                    className="inline-flex"
+                  >
+                    <Check className="size-4" strokeWidth={3} />
+                  </motion.span>
+                ) : (
+                  <step.icon className="size-4" strokeWidth={2.2} />
+                )}
               </span>
-              <span className="flex min-w-0 flex-col">
-                <span className={cn('font-[640]', step.done && 'line-through decoration-baobab/50')}>{step.title}</span>
-                {!step.done && <span className="text-[0.8125rem] text-encre-2">{step.detail}</span>}
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className={cn('font-[650]', step.done && 'line-through decoration-ink-3/50')}>{step.title}</span>
+                {!step.done && <span className="text-[0.8125rem] text-ink-2">{step.detail}</span>}
               </span>
+              {!step.done && (
+                <ArrowRight className="size-4 text-ink-3 transition-transform group-hover:translate-x-0.5 group-hover:text-ink" />
+              )}
             </Link>
-          </li>
+          </motion.li>
         ))}
       </ol>
       <p className="sr-only">
-        {steps.filter((s) => s.done).length} étape(s) sur {steps.length} terminée(s)
+        {doneCount} étape(s) sur {steps.length} terminée(s)
       </p>
-    </section>
+    </motion.section>
   );
 }

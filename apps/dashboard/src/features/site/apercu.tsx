@@ -1,4 +1,6 @@
 import type { ThemeSettings } from '@marche/contracts';
+import { motion } from 'motion/react';
+import { snappy } from '@/shared/ui/motion';
 
 const SERIF = new Set(['Playfair Display', 'Lora']);
 
@@ -10,7 +12,15 @@ function family(font: string): string {
  * Aperçu schématique de l'accueil du site, dessiné à partir des réglages du thème :
  * il suit chaque modification avant même l'enregistrement.
  */
-export function ApercuSite({ settings, storeName, host }: { settings: ThemeSettings; storeName: string; host: string }) {
+export function ApercuSite({
+  settings,
+  storeName,
+  host,
+}: {
+  settings: ThemeSettings;
+  storeName: string;
+  host: string;
+}) {
   const { colors, fonts, announcement } = settings;
   const hero = settings.sections.find((s) => s.type === 'hero' && s.enabled);
   const featured = settings.sections.find((s) => s.type === 'featured-collection' && s.enabled);
@@ -18,20 +28,30 @@ export function ApercuSite({ settings, storeName, host }: { settings: ThemeSetti
 
   return (
     <figure className="flex flex-col gap-2">
-      <div className="overflow-hidden rounded-xl bg-white shadow-flottant ring-1 ring-encre/10">
-        <div className="flex items-center gap-2 bg-chaux-2 px-3 py-2">
+      <div className="overflow-hidden rounded-2xl bg-white shadow-float ring-1 ring-line">
+        <div className="flex items-center gap-2 bg-surface-2 px-3 py-2">
           <span className="flex gap-1" aria-hidden>
-            <span className="size-2.5 rounded-full bg-filet-fort" />
-            <span className="size-2.5 rounded-full bg-filet-fort" />
-            <span className="size-2.5 rounded-full bg-filet-fort" />
+            <span className="size-2.5 rounded-full bg-[#ff5a2b]" />
+            <span className="size-2.5 rounded-full bg-[#fdb52a]" />
+            <span className="size-2.5 rounded-full bg-[#13a15a]" />
           </span>
-          <span className="chiffres flex-1 truncate rounded-md bg-white px-2.5 py-0.5 text-center text-[0.75rem] text-encre-2">
+          <span className="tabular flex-1 truncate rounded-full bg-surface px-2.5 py-0.5 text-center text-[0.75rem] text-ink-2">
             {host}
           </span>
         </div>
-        <div style={{ background: colors.background, color: colors.foreground, fontFamily: family(fonts.body) }}>
+        <motion.div
+          animate={{
+            backgroundColor: colors.background,
+            color: colors.foreground,
+          }}
+          transition={{ duration: 0.3 }}
+          style={{ fontFamily: family(fonts.body) }}
+        >
           {announcement.enabled && announcement.text && (
-            <p className="px-4 py-1.5 text-center text-[0.6875rem] font-semibold" style={{ background: colors.accent, color: colors.foreground }}>
+            <p
+              className="px-4 py-1.5 text-center text-[0.6875rem] font-semibold"
+              style={{ background: colors.accent, color: colors.foreground }}
+            >
               {announcement.text}
             </p>
           )}
@@ -45,17 +65,28 @@ export function ApercuSite({ settings, storeName, host }: { settings: ThemeSetti
             </span>
           </div>
           {hero && hero.type === 'hero' && (
-            <div className="flex flex-col items-start gap-2 px-4 py-6" style={{ background: colors.primary, color: '#fff' }}>
+            <motion.div
+              className="flex flex-col items-start gap-2 px-4 py-6"
+              animate={{ backgroundColor: colors.primary }}
+              transition={{ duration: 0.3 }}
+              style={{ color: '#fff' }}
+            >
               <p className="text-[1.25rem] leading-tight font-bold" style={{ fontFamily: family(fonts.heading) }}>
                 {hero.title}
               </p>
               {hero.subtitle && <p className="text-[0.6875rem] opacity-85">{hero.subtitle}</p>}
               {hero.ctaLabel && (
-                <span className="mt-1 rounded-md px-2.5 py-1 text-[0.625rem] font-bold" style={{ background: colors.accent, color: colors.foreground }}>
+                <span
+                  className="mt-1 rounded-md px-2.5 py-1 text-[0.625rem] font-bold"
+                  style={{
+                    background: colors.accent,
+                    color: colors.foreground,
+                  }}
+                >
                   {hero.ctaLabel}
                 </span>
               )}
-            </div>
+            </motion.div>
           )}
           {[featured, grid].map(
             (section) =>
@@ -67,19 +98,40 @@ export function ApercuSite({ settings, storeName, host }: { settings: ThemeSetti
                   </p>
                   <div className="grid grid-cols-4 gap-2" aria-hidden>
                     {[0, 1, 2, 3].map((i) => (
-                      <div key={i} className="flex flex-col gap-1">
-                        <span className="aspect-[4/5] rounded-md" style={{ background: colors.foreground, opacity: 0.08 }} />
-                        <span className="h-1.5 w-3/4 rounded-full" style={{ background: colors.foreground, opacity: 0.2 }} />
-                        <span className="h-1.5 w-1/3 rounded-full" style={{ background: colors.primary, opacity: 0.6 }} />
-                      </div>
+                      <motion.div
+                        key={i}
+                        className="flex flex-col gap-1"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ ...snappy, delay: 0.2 + i * 0.05 }}
+                      >
+                        <span
+                          className="aspect-[4/5] rounded-md"
+                          style={{
+                            background: colors.foreground,
+                            opacity: 0.08,
+                          }}
+                        />
+                        <span
+                          className="h-1.5 w-3/4 rounded-full"
+                          style={{
+                            background: colors.foreground,
+                            opacity: 0.2,
+                          }}
+                        />
+                        <span
+                          className="h-1.5 w-1/3 rounded-full"
+                          style={{ background: colors.primary, opacity: 0.6 }}
+                        />
+                      </motion.div>
                     ))}
                   </div>
                 </div>
               ),
           )}
-        </div>
+        </motion.div>
       </div>
-      <figcaption className="text-[0.8125rem] text-encre-2">
+      <figcaption className="text-[0.8125rem] text-ink-2">
         Aperçu simplifié : les photos et les produits réels s’affichent sur le site.
       </figcaption>
     </figure>

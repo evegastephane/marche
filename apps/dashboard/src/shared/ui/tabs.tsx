@@ -1,25 +1,27 @@
 import { motion } from 'motion/react';
 import { useId } from 'react';
 import { cn } from '@/shared/lib/cn';
+import { AnimatedNumber } from './animated-number';
+import { snappy } from './motion';
 
-export interface Onglet<T extends string> {
+export interface TabItem<T extends string> {
   value: T;
   label: string;
   count?: number;
 }
 
 /**
- * Filtres en onglets peints : l'onglet actif est une plaque verte qui glisse
- * d'un onglet à l'autre. Défilement horizontal au téléphone.
+ * Filtres en onglets : la pastille blanche glisse d'un onglet à l'autre
+ * sur un rail gris. Défilement horizontal au téléphone.
  */
-export function Onglets<T extends string>({
+export function Tabs<T extends string>({
   items,
   value,
   onChange,
   label,
   className,
 }: {
-  items: Onglet<T>[];
+  items: TabItem<T>[];
   value: T;
   onChange: (value: T) => void;
   label: string;
@@ -31,7 +33,7 @@ export function Onglets<T extends string>({
       role="tablist"
       aria-label={label}
       className={cn(
-        '-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        'flex max-w-full gap-0.5 overflow-x-auto rounded-full bg-surface-2 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         className,
       )}
     >
@@ -45,26 +47,26 @@ export function Onglets<T extends string>({
             aria-selected={active}
             onClick={() => onChange(item.value)}
             className={cn(
-              'relative inline-flex h-9 shrink-0 items-center gap-2 rounded-md px-3.5 text-[0.875rem] font-[640] transition-colors duration-150',
-              active ? 'text-white' : 'text-encre-2 hover:bg-chaux-2 hover:text-encre',
+              'relative inline-flex h-8 shrink-0 items-center gap-2 rounded-full px-3.5 text-[0.8125rem] font-[640] transition-colors duration-200',
+              active ? 'text-ink' : 'text-ink-2 hover:text-ink',
             )}
           >
             {active && (
               <motion.span
-                layoutId={`onglet-${group}`}
-                className="absolute inset-0 rounded-md bg-baobab"
-                transition={{ type: 'spring', bounce: 0.12, duration: 0.32 }}
+                layoutId={`tab-${group}`}
+                className="absolute inset-0 rounded-full bg-surface shadow-lift"
+                transition={snappy}
               />
             )}
             <span className="relative">{item.label}</span>
             {item.count !== undefined && (
               <span
                 className={cn(
-                  'chiffres relative rounded-[4px] px-1.5 text-[0.75rem] leading-5 font-bold',
-                  active ? 'bg-white/18 text-white' : 'bg-chaux-2 text-encre-2',
+                  'relative rounded-full px-1.5 text-[0.6875rem] leading-[1.125rem] font-bold',
+                  active ? 'bg-brand text-on-brand' : 'bg-surface-3 text-ink-2',
                 )}
               >
-                {item.count}
+                <AnimatedNumber value={item.count} />
               </span>
             )}
           </button>

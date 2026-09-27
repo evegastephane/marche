@@ -27,14 +27,18 @@ function Input({
   error,
   className,
   ...props
-}: { name: string; label: string; error?: string } & InputHTMLAttributes<HTMLInputElement>) {
+}: {
+  name: string;
+  label: string;
+  error?: string;
+} & InputHTMLAttributes<HTMLInputElement>) {
   return (
     <label className={cn('flex flex-col gap-1.5 text-sm', className)}>
       <span className="font-semibold">{label}</span>
       <input
         name={name}
         aria-invalid={error ? true : undefined}
-        className="min-h-12 rounded-lg border border-line bg-bg px-3.5 text-base text-fg outline-none focus:border-fg aria-invalid:border-red-700"
+        className="min-h-12 rounded-xl border border-line bg-bg px-3.5 text-base text-fg outline-none transition-[border-color,box-shadow] duration-200 focus:border-fg focus:shadow-[0_0_0_4px_color-mix(in_oklab,var(--color-primary)_14%,transparent)] aria-invalid:border-red-700"
         {...props}
       />
       {error && <span className="font-semibold text-red-700">{error}</span>}
@@ -63,8 +67,20 @@ export function CheckoutForm({ defaultCountry }: { defaultCountry: string }) {
         <legend className="mb-4 font-heading text-xl font-bold">Livraison</legend>
         <Input name="firstName" label="Prénom" autoComplete="given-name" required error={errors.firstName} />
         <Input name="lastName" label="Nom" autoComplete="family-name" required error={errors.lastName} />
-        <Input name="line1" label="Adresse" autoComplete="address-line1" required error={errors.line1} className="sm:col-span-2" />
-        <Input name="line2" label="Complément (quartier, repère…)" autoComplete="address-line2" className="sm:col-span-2" />
+        <Input
+          name="line1"
+          label="Adresse"
+          autoComplete="address-line1"
+          required
+          error={errors.line1}
+          className="sm:col-span-2"
+        />
+        <Input
+          name="line2"
+          label="Complément (quartier, repère…)"
+          autoComplete="address-line2"
+          className="sm:col-span-2"
+        />
         <Input name="city" label="Ville" autoComplete="address-level2" required error={errors.city} />
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="font-semibold">Pays</span>
@@ -72,7 +88,7 @@ export function CheckoutForm({ defaultCountry }: { defaultCountry: string }) {
             name="country"
             defaultValue={defaultCountry}
             autoComplete="country"
-            className="min-h-12 rounded-lg border border-line bg-bg px-3 text-base text-fg outline-none focus:border-fg"
+            className="min-h-12 rounded-xl border border-line bg-bg px-3 text-base text-fg outline-none transition-[border-color,box-shadow] duration-200 focus:border-fg focus:shadow-[0_0_0_4px_color-mix(in_oklab,var(--color-primary)_14%,transparent)]"
           >
             {COUNTRIES.map(([code, name]) => (
               <option key={code} value={code}>
@@ -87,7 +103,7 @@ export function CheckoutForm({ defaultCountry }: { defaultCountry: string }) {
             name="note"
             rows={3}
             maxLength={500}
-            className="rounded-lg border border-line bg-bg px-3.5 py-3 text-base text-fg outline-none focus:border-fg"
+            className="rounded-xl border border-line bg-bg px-3.5 py-3 text-base text-fg outline-none transition-[border-color,box-shadow] duration-200 focus:border-fg focus:shadow-[0_0_0_4px_color-mix(in_oklab,var(--color-primary)_14%,transparent)]"
           />
         </label>
       </fieldset>
@@ -95,7 +111,10 @@ export function CheckoutForm({ defaultCountry }: { defaultCountry: string }) {
       {state.message && (
         <p
           role="alert"
-          className={cn('rounded-lg px-4 py-3 text-sm font-semibold', state.cartChanged ? 'bg-amber-100 text-amber-950' : 'bg-red-50 text-red-800')}
+          className={cn(
+            'rounded-lg px-4 py-3 text-sm font-semibold',
+            state.cartChanged ? 'bg-amber-100 text-amber-950' : 'bg-red-50 text-red-800',
+          )}
         >
           {state.message}{' '}
           {state.cartChanged && (
@@ -109,7 +128,7 @@ export function CheckoutForm({ defaultCountry }: { defaultCountry: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="min-h-12 rounded-full bg-primary px-6 text-base font-semibold text-on-primary transition-opacity disabled:opacity-60"
+        className="min-h-12 rounded-full bg-primary px-6 text-base font-semibold text-on-primary transition-[opacity,transform] duration-300 active:scale-[0.98] disabled:opacity-60"
       >
         {pending ? 'Envoi de la commande…' : 'Valider la commande'}
       </button>

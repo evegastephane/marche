@@ -39,13 +39,13 @@ createRoot(root).render(
           <RouterProvider router={router} />
           <Toaster
             position="bottom-center"
-            offset={{ bottom: 88 }}
+            offset={{ bottom: 96 }}
             toastOptions={{
               classNames: {
                 toast:
-                  '!rounded-lg !bg-encre !text-white !border-0 !shadow-flottant !font-sans !text-[0.9375rem] !gap-3',
-                description: '!text-white/75',
-                actionButton: '!bg-jaune !text-encre !font-bold',
+                  '!rounded-2xl !bg-ink !text-canvas !border-0 !shadow-float !font-sans !text-[0.9375rem] !font-[600] !gap-3',
+                description: '!opacity-75 !font-normal',
+                actionButton: '!bg-brand !text-on-brand !font-bold !rounded-full',
               },
             }}
           />

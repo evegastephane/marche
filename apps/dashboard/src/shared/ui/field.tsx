@@ -7,10 +7,12 @@ import {
   useId,
 } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/shared/lib/cn';
 
-const control =
-  'w-full rounded-lg bg-white text-encre shadow-[inset_0_0_0_1.5px_var(--color-filet-fort)] transition-shadow duration-150 placeholder:text-encre-3 hover:shadow-[inset_0_0_0_1.5px_var(--color-encre-3)] focus-visible:shadow-[inset_0_0_0_2px_var(--color-baobab)] focus-visible:outline-none aria-invalid:shadow-[inset_0_0_0_2px_var(--color-rouge)] disabled:bg-chaux disabled:text-encre-3';
+/** Contrôle : filet fin au repos, halo bleu au focus, rouge si invalide. */
+export const controlClasses =
+  'w-full rounded-xl bg-surface text-ink shadow-[inset_0_0_0_1px_var(--color-line-strong)] transition-[box-shadow,background-color] duration-200 ease-out-soft placeholder:text-ink-3 hover:shadow-[inset_0_0_0_1px_var(--color-ink-3)] focus-visible:shadow-[inset_0_0_0_1.5px_var(--color-brand),0_0_0_4px_var(--color-brand-soft)] focus-visible:outline-none aria-invalid:shadow-[inset_0_0_0_1.5px_var(--color-danger),0_0_0_4px_var(--color-danger-soft)] disabled:bg-surface-2 disabled:text-ink-3';
 
 export interface FieldProps {
   label: ReactNode;
@@ -26,19 +28,40 @@ export function Field({ label, hint, error, className, children }: FieldProps) {
   const describedBy = error ? `${id}-erreur` : hint ? `${id}-aide` : undefined;
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
-      <label htmlFor={id} className="text-[0.8125rem] font-[640] text-encre">
+      <label htmlFor={id} className="text-[0.8125rem] font-[650] text-ink">
         {label}
       </label>
-      {children({ id, 'aria-describedby': describedBy, 'aria-invalid': error ? true : undefined })}
-      {error ? (
-        <p id={`${id}-erreur`} className="text-[0.8125rem] font-medium text-rouge">
-          {error}
-        </p>
-      ) : hint ? (
-        <p id={`${id}-aide`} className="text-[0.8125rem] text-encre-2">
-          {hint}
-        </p>
-      ) : null}
+      {children({
+        id,
+        'aria-describedby': describedBy,
+        'aria-invalid': error ? true : undefined,
+      })}
+      <AnimatePresence mode="popLayout" initial={false}>
+        {error ? (
+          <motion.p
+            key="erreur"
+            id={`${id}-erreur`}
+            className="text-[0.8125rem] font-semibold text-danger-ink"
+            initial={{ opacity: 0, y: -4, x: 0 }}
+            animate={{ opacity: 1, y: 0, x: [0, -4, 4, -2, 0] }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.3 }}
+          >
+            {error}
+          </motion.p>
+        ) : hint ? (
+          <motion.p
+            key="aide"
+            id={`${id}-aide`}
+            className="text-[0.8125rem] text-ink-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {hint}
+          </motion.p>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
@@ -47,20 +70,23 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
   { className, ...props },
   ref,
 ) {
-  return <input ref={ref} className={cn(control, 'h-10 px-3 max-md:h-11 max-md:text-base', className)} {...props} />;
+  return (
+    <input ref={ref} className={cn(controlClasses, 'h-10 px-3.5 max-md:h-11 max-md:text-base', className)} {...props} />
+  );
 });
 
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(
-  function Textarea({ className, ...props }, ref) {
-    return (
-      <textarea
-        ref={ref}
-        className={cn(control, 'min-h-28 resize-y px-3 py-2.5 leading-relaxed max-md:text-base', className)}
-        {...props}
-      />
-    );
-  },
-);
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea(
+  { className, ...props },
+  ref,
+) {
+  return (
+    <textarea
+      ref={ref}
+      className={cn(controlClasses, 'min-h-28 resize-y px-3.5 py-2.5 leading-relaxed max-md:text-base', className)}
+      {...props}
+    />
+  );
+});
 
 /** Liste déroulante native : l'affordance du système, parfaite au téléphone. */
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select(
@@ -71,13 +97,13 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
     <div className="relative">
       <select
         ref={ref}
-        className={cn(control, 'h-10 appearance-none pr-9 pl-3 max-md:h-11 max-md:text-base', className)}
+        className={cn(controlClasses, 'h-10 appearance-none pr-9 pl-3.5 max-md:h-11 max-md:text-base', className)}
         {...props}
       >
         {children}
       </select>
       <ChevronDown
-        className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-encre-2"
+        className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-2"
         aria-hidden
       />
     </div>
@@ -91,8 +117,8 @@ export const InputWithSuffix = forwardRef<
 >(function InputWithSuffix({ suffix, className, ...props }, ref) {
   return (
     <div className="relative">
-      <Input ref={ref} className={cn('chiffres pr-16', className)} {...props} />
-      <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[0.8125rem] font-semibold text-encre-2">
+      <Input ref={ref} className={cn('tabular pr-16', className)} {...props} />
+      <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[0.8125rem] font-semibold text-ink-3">
         {suffix}
       </span>
     </div>

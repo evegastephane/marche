@@ -1,11 +1,12 @@
 import { OrganizationSwitcher, UserButton } from '@clerk/react';
 import { Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { House, type LucideIcon, Package, ReceiptText, Store } from 'lucide-react';
-import { motion, useReducedMotion } from 'motion/react';
-import emblemeTrait from '@/assets/brand/baobab-embleme-trait.png';
-import logoBlanc from '@/assets/brand/baobab-logo-blanc.png';
-import { onGreen } from '@/app/clerk-appearance';
+import { motion } from 'motion/react';
+import { shellAppearance } from '@/app/clerk-appearance';
 import { cn } from '@/shared/lib/cn';
+import { UpsellLogo, UpsellMark } from '@/shared/ui/brand';
+import { snappy, staggerParent } from '@/shared/ui/motion';
+import { ThemeSwitch, ThemeToggle } from '@/shared/ui/theme';
 
 interface NavItem {
   to: '/' | '/products' | '/orders' | '/site';
@@ -29,10 +30,10 @@ const switcherProps = {
 
 export function AppShell() {
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[16.5rem_1fr]">
+    <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
       <Sidebar />
       <MobileHeader />
-      <main className="min-w-0 px-4 pt-6 pb-28 sm:px-6 lg:px-10 lg:pt-10 lg:pb-16">
+      <main className="min-w-0 px-4 pt-5 pb-32 sm:px-6 lg:px-10 lg:pt-10 lg:pb-16">
         <PageTransition />
       </main>
       <BottomNav />
@@ -40,17 +41,19 @@ export function AppShell() {
   );
 }
 
-/** Le contenu de la page glisse à peine en arrivant : un changement d'état, pas une chorégraphie. */
+/**
+ * À chaque changement de page, le contenu repart de zéro : les blocs de la page
+ * (en-tête, cartes) montent l'un après l'autre grâce à leurs variantes `riseIn`.
+ */
 function PageTransition() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const reduce = useReducedMotion();
   return (
     <motion.div
       key={pathname}
-      className="mx-auto w-full max-w-[76rem]"
-      initial={reduce ? false : { opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+      className="mx-auto w-full max-w-[72rem]"
+      variants={staggerParent(0.06)}
+      initial="hidden"
+      animate="show"
     >
       <Outlet />
     </motion.div>
@@ -59,106 +62,116 @@ function PageTransition() {
 
 function Sidebar() {
   return (
-    <aside className="sur-vert sticky top-0 hidden h-dvh flex-col bg-baobab text-white lg:flex">
+    <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-surface lg:flex">
       <div className="px-6 pt-7 pb-6">
-        <img src={logoBlanc} alt="Baobab" className="h-8 w-auto" />
+        <UpsellLogo intro className="text-[1.375rem]" />
       </div>
-      <div className="mx-3 border-y border-white/15 py-2">
-        <OrganizationSwitcher {...switcherProps} appearance={onGreen} />
+      <div className="mx-3 border-b border-line pb-3">
+        <OrganizationSwitcher {...switcherProps} appearance={shellAppearance} />
       </div>
       <nav aria-label="Navigation principale" className="flex flex-1 flex-col gap-1 px-3 py-4">
-        {NAV.map((item) => (
-          <Link
+        {NAV.map((item, index) => (
+          <motion.div
             key={item.to}
-            to={item.to}
-            activeOptions={{ exact: item.to === '/' }}
-            className="group relative flex h-12 items-center gap-3 rounded-lg px-2 text-[0.9375rem] font-[620] text-white/88 no-underline transition-colors duration-150 hover:bg-white/8 hover:text-white"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ ...snappy, delay: 0.15 + index * 0.05 }}
           >
-            {({ isActive }) => (
-              <>
-                {isActive && (
-                  <motion.span
-                    layoutId="nav-actif"
-                    className="absolute inset-0 rounded-lg bg-jaune"
-                    transition={{ type: 'spring', bounce: 0.14, duration: 0.34 }}
+            <Link
+              to={item.to}
+              activeOptions={{ exact: item.to === '/' }}
+              className="group relative flex h-11 items-center gap-3 rounded-xl px-3 text-[0.9375rem] font-[620] text-ink-2 no-underline transition-colors duration-200 hover:text-ink"
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <motion.span
+                      layoutId="nav-active"
+                      className="absolute inset-0 rounded-xl bg-brand-soft"
+                      transition={snappy}
+                    />
+                  )}
+                  {isActive && (
+                    <motion.span
+                      layoutId="nav-active-bar"
+                      className="absolute top-2.5 bottom-2.5 -left-3 w-1 rounded-r-full bg-brand"
+                      transition={snappy}
+                    />
+                  )}
+                  <item.icon
+                    className={cn(
+                      'relative size-[1.15rem] transition-[color,transform] duration-200 group-hover:-translate-y-px',
+                      isActive ? 'text-brand-ink' : 'text-ink-3 group-hover:text-ink',
+                    )}
+                    strokeWidth={2.2}
                   />
-                )}
-                <NavDisc icon={item.icon} active={isActive} />
-                <span className={cn('relative', isActive && 'text-encre')}>{item.label}</span>
-              </>
-            )}
-          </Link>
+                  <span className={cn('relative', isActive && 'text-brand-ink')}>{item.label}</span>
+                </>
+              )}
+            </Link>
+          </motion.div>
         ))}
       </nav>
-      <div className="border-t border-white/15 px-4 py-4">
-        <UserButton showName appearance={onGreen} />
+      <div className="flex flex-col gap-3 border-t border-line px-4 py-4">
+        <ThemeSwitch className="self-start" />
+        <UserButton showName appearance={shellAppearance} />
       </div>
     </aside>
   );
 }
 
-function NavDisc({ icon: Icon, active }: { icon: LucideIcon; active: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        'relative inline-flex size-8 items-center justify-center rounded-full transition-colors duration-150',
-        active ? 'bg-baobab text-white' : 'bg-white/10 text-white',
-      )}
-    >
-      <span className="absolute inset-[2.5px] rounded-full border-[1.5px] border-white/80" />
-      <Icon className="size-4" strokeWidth={2.2} />
-    </span>
-  );
-}
-
 function MobileHeader() {
   return (
-    <header className="sur-vert sticky top-0 z-30 flex h-14 items-center gap-2 bg-baobab px-3 text-white lg:hidden">
-      <img src={emblemeTrait} alt="Baobab" className="size-9 shrink-0" />
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b border-line bg-surface/80 px-3 backdrop-blur-xl lg:hidden">
+      <UpsellMark intro className="h-7 w-auto shrink-0" title="Upsell" />
       <div className="min-w-0 flex-1">
-        <OrganizationSwitcher {...switcherProps} appearance={onGreen} />
+        <OrganizationSwitcher {...switcherProps} appearance={shellAppearance} />
       </div>
-      <UserButton appearance={onGreen} />
+      <ThemeToggle />
+      <UserButton appearance={shellAppearance} />
     </header>
   );
 }
 
+/** Barre d'onglets flottante du téléphone : la pastille bleue glisse sous l'onglet actif. */
 function BottomNav() {
   return (
-    <nav
+    <motion.nav
       aria-label="Navigation principale"
-      className="sur-vert fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 bg-baobab px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-white lg:hidden"
+      initial={{ y: 80, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 28, delay: 0.1 }}
+      className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 grid grid-cols-4 gap-1 rounded-[1.375rem] border border-line bg-surface/85 p-1.5 shadow-float backdrop-blur-xl lg:hidden"
     >
       {NAV.map((item) => (
         <Link
           key={item.to}
           to={item.to}
           activeOptions={{ exact: item.to === '/' }}
-          className="flex flex-col items-center gap-1 rounded-lg py-1 text-[0.75rem] font-[640] text-white/85 no-underline"
+          className="relative flex flex-col items-center gap-0.5 rounded-2xl py-1.5 text-[0.6875rem] font-[650] text-ink-3 no-underline"
         >
           {({ isActive }) => (
             <>
-              <span
-                aria-hidden
-                className={cn(
-                  'relative inline-flex size-9 items-center justify-center rounded-full transition-colors duration-150',
-                  isActive ? 'bg-jaune text-encre' : 'text-white',
-                )}
-              >
-                <span
-                  className={cn(
-                    'absolute inset-[2.5px] rounded-full border-[1.5px]',
-                    isActive ? 'border-encre/60' : 'border-white/70',
-                  )}
+              {isActive && (
+                <motion.span
+                  layoutId="bottom-active"
+                  className="absolute inset-0 rounded-2xl bg-brand-soft"
+                  transition={snappy}
                 />
-                <item.icon className="size-[1.05rem]" strokeWidth={2.2} />
-              </span>
-              <span className={cn(isActive && 'text-white')}>{item.label}</span>
+              )}
+              <motion.span
+                aria-hidden
+                className="relative inline-flex"
+                animate={isActive ? { y: [0, -3, 0], scale: [1, 1.12, 1] } : { y: 0, scale: 1 }}
+                transition={{ duration: 0.35 }}
+              >
+                <item.icon className={cn('size-5', isActive && 'text-brand-ink')} strokeWidth={2.2} />
+              </motion.span>
+              <span className={cn('relative', isActive && 'text-brand-ink')}>{item.label}</span>
             </>
           )}
         </Link>
       ))}
-    </nav>
+    </motion.nav>
   );
 }

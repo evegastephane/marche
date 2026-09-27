@@ -1,20 +1,23 @@
 import { FONT_CHOICES, type SiteDto, type StoreDto, type ThemeSettings } from '@marche/contracts';
 import { createFileRoute } from '@tanstack/react-router';
-import { ExternalLink, Globe, Paintbrush, PowerOff } from 'lucide-react';
-import { motion, useReducedMotion } from 'motion/react';
+import { ExternalLink, Globe, PowerOff, Rocket } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import emblemeTrait from '@/assets/brand/baobab-embleme-trait.png';
 import { useCurrentStore } from '@/features/shell/use-current-store';
 import { ApercuSite } from '@/features/site/apercu';
 import { useCollections, useSite, useSiteAction } from '@/features/site/api';
 import { errorMessage } from '@/shared/api/client';
 import { formatDateTime } from '@/shared/lib/format';
-import { Button } from '@/shared/ui/button';
-import { NomPeint, PlaqueAdresse } from '@/shared/ui/enseigne';
-import { LoadError, PageHeader, PlancheHeader, Skeleton } from '@/shared/ui/feedback';
+import { Badge } from '@/shared/ui/badge';
+import { UpsellMark } from '@/shared/ui/brand';
+import { Button, buttonClasses } from '@/shared/ui/button';
+import { Card, CardHeader } from '@/shared/ui/card';
+import { LoadError, PageHeader, Skeleton } from '@/shared/ui/feedback';
 import { Field, Input, Select } from '@/shared/ui/field';
-import { Plaque } from '@/shared/ui/plaque';
+import { LiveName } from '@/shared/ui/live-name';
+import { EASE_OUT, riseIn, snappy } from '@/shared/ui/motion';
+import { SiteAddress } from '@/shared/ui/site-address';
 
 export const Route = createFileRoute('/_app/site')({ component: SitePage });
 
@@ -35,23 +38,32 @@ function SitePage() {
   return site.data ? <SiteEditor site={site.data} store={store.data} /> : <SansSite store={store.data} />;
 }
 
-/** Pas encore de site : une enseigne vierge et un seul geste pour la peindre. */
+/** Pas encore de site : un seul geste pour le mettre en ligne. */
 function SansSite({ store }: { store: StoreDto }) {
   const action = useSiteAction();
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Site" />
-      <section className="sur-vert enseigne flex flex-col items-start gap-6 px-7 py-10 sm:px-12 sm:py-14">
-        <img src={emblemeTrait} alt="" className="size-16 opacity-90" />
-        <h2 className="lettrage max-w-[14ch] text-[3.25rem] sm:text-[4.5rem]">Votre boutique en ligne</h2>
+      <motion.section
+        variants={riseIn}
+        className="relative isolate flex flex-col items-start gap-6 overflow-hidden rounded-[1.75rem] bg-brand px-7 py-10 text-white shadow-float sm:px-12 sm:py-14"
+      >
+        <UpsellMark
+          mono="#ffffff"
+          className="pointer-events-none absolute -right-10 -bottom-12 -z-10 h-64 w-auto opacity-[0.12]"
+        />
+        <span className="inline-flex rounded-2xl bg-white p-3 shadow-lift">
+          <UpsellMark intro delay={0.2} className="h-10 w-auto" />
+        </span>
+        <h2 className="display max-w-[14ch] text-[2.5rem] sm:text-[3.5rem]">Votre boutique en ligne</h2>
         <p className="max-w-[52ch] text-[1.0625rem] text-white/85">
           Un clic suffit : le site reprend le nom de {store.name}, vos produits en vente et votre stock à jour. Vous
           réglerez ensuite couleurs et textes.
         </p>
         <Button
-          variant="jaune"
+          variant="accent"
           size="lg"
-          icon={<Paintbrush />}
+          icon={<Rocket />}
           loading={action.isPending}
           onClick={() =>
             action.mutate(
@@ -63,9 +75,9 @@ function SansSite({ store }: { store: StoreDto }) {
             )
           }
         >
-          Peindre mon site
+          Mettre mon site en ligne
         </Button>
-      </section>
+      </motion.section>
     </div>
   );
 }
@@ -73,7 +85,6 @@ function SansSite({ store }: { store: StoreDto }) {
 function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
   const action = useSiteAction();
   const collections = useCollections();
-  const reduce = useReducedMotion();
   const [settings, setSettings] = useState<ThemeSettings>(() => structuredClone(site.draftThemeSettings));
   const [dirty, setDirty] = useState(false);
   const online = site.status === 'PUBLISHED';
@@ -104,7 +115,10 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
         onSuccess: () => {
           setDirty(false);
           if (then) then();
-          else toast('Brouillon enregistré', { description: 'Publiez pour l’afficher sur le site.' });
+          else
+            toast('Brouillon enregistré', {
+              description: 'Publiez pour l’afficher sur le site.',
+            });
         },
         onError: (error) => toast.error(errorMessage(error)),
       },
@@ -130,20 +144,35 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
 
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
-      <PageHeader title="Site" subtitle="Votre vitrine : elle se met à jour toute seule avec vos produits et votre stock." />
+      <PageHeader
+        title="Site"
+        subtitle="Votre vitrine : elle se met à jour toute seule avec vos produits et votre stock."
+      />
 
       <motion.section
-        className="sur-vert enseigne flex flex-col gap-6 px-6 py-8 sm:px-10 lg:flex-row lg:items-end lg:justify-between"
-        initial={reduce ? false : { clipPath: 'inset(0 100% 0 0 round 16px)' }}
-        animate={{ clipPath: 'inset(0 0% 0 0 round 16px)' }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        variants={riseIn}
+        className="relative isolate flex flex-col gap-6 overflow-hidden rounded-[1.75rem] bg-brand px-6 py-8 text-white shadow-float sm:px-10 lg:flex-row lg:items-end lg:justify-between"
       >
+        <UpsellMark
+          mono="#ffffff"
+          className="pointer-events-none absolute -right-8 -bottom-10 -z-10 h-52 w-auto opacity-[0.12]"
+        />
         <div className="flex min-w-0 flex-col gap-4">
-          <NomPeint name={store.name} placeholder="" className="text-[2.75rem] sm:text-[4rem]" />
+          <LiveName name={store.name} placeholder="" className="text-[2.25rem] sm:text-[3rem]" />
           <div className="flex flex-wrap items-center gap-2.5">
-            <Plaque tone={online ? 'jaune' : 'contour-blanc'}>{online ? 'En ligne' : 'Hors ligne'}</Plaque>
-            <a href={site.url} target="_blank" rel="noreferrer" className="no-underline">
-              <PlaqueAdresse host={host} />
+            <Badge
+              tone={online ? 'success' : 'neutral'}
+              className={online ? 'bg-white text-success-ink' : 'bg-white/15 text-white'}
+            >
+              {online ? 'En ligne' : 'Hors ligne'}
+            </Badge>
+            <a
+              href={site.url}
+              target="_blank"
+              rel="noreferrer"
+              className="no-underline transition-transform hover:-translate-y-px"
+            >
+              <SiteAddress host={host} live={online} className="bg-white text-[#0c1a3c] shadow-none" />
             </a>
             {site.publishedAt && (
               <span className="text-[0.8125rem] text-white/75">Publié le {formatDateTime(site.publishedAt)}</span>
@@ -151,12 +180,12 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href={site.url} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-lg bg-white px-4 font-[650] text-baobab no-underline hover:bg-baobab-50">
-            <ExternalLink className="size-4" /> Voir le site
+          <a href={site.url} target="_blank" rel="noreferrer" className={buttonClasses('inverse')}>
+            <ExternalLink /> Voir le site
           </a>
           <Button
-            variant={online ? 'fantome' : 'jaune'}
-            className={online ? 'text-white hover:bg-white/10 hover:text-white' : undefined}
+            variant={online ? 'ghost' : 'accent'}
+            className={online ? 'text-white hover:bg-white/12 hover:text-white' : undefined}
             icon={online ? <PowerOff /> : <Globe />}
             loading={pending === 'publish' || pending === 'unpublish'}
             onClick={togglePublished}
@@ -168,8 +197,8 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-8">
         <div className="flex flex-col gap-6">
-          <section className="planche">
-            <PlancheHeader title="Couleurs" />
+          <Card>
+            <CardHeader title="Couleurs" />
             <div className="grid grid-cols-2 gap-4 px-5 pb-6">
               {(
                 [
@@ -179,8 +208,16 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                   ['foreground', 'Texte', 'Textes et titres'],
                 ] as const
               ).map(([key, label, hint]) => (
-                <label key={key} className="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-chaux">
-                  <span className="relative size-11 shrink-0 overflow-hidden rounded-lg shadow-[inset_0_0_0_1.5px_rgb(20_32_26/0.2)]" style={{ background: settings.colors[key] }}>
+                <label
+                  key={key}
+                  className="group flex cursor-pointer items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-2"
+                >
+                  <motion.span
+                    className="relative size-11 shrink-0 overflow-hidden rounded-xl shadow-[inset_0_0_0_1px_rgb(12_26_60/0.18)]"
+                    animate={{ backgroundColor: settings.colors[key] }}
+                    whileHover={{ scale: 1.06, rotate: -3 }}
+                    transition={snappy}
+                  >
                     <input
                       type="color"
                       value={settings.colors[key]}
@@ -188,20 +225,20 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                       className="absolute inset-0 size-full cursor-pointer opacity-0"
                       aria-label={`Couleur ${label.toLowerCase()}`}
                     />
-                  </span>
+                  </motion.span>
                   <span className="flex min-w-0 flex-col">
-                    <span className="font-[640]">{label}</span>
-                    <span className="chiffres truncate text-[0.75rem] text-encre-2">
+                    <span className="font-[650]">{label}</span>
+                    <span className="tabular truncate text-[0.75rem] text-ink-2">
                       {settings.colors[key]} · {hint}
                     </span>
                   </span>
                 </label>
               ))}
             </div>
-          </section>
+          </Card>
 
-          <section className="planche">
-            <PlancheHeader title="Textes et polices" />
+          <Card>
+            <CardHeader title="Textes et polices" />
             <div className="flex flex-col gap-5 px-5 pb-6">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Police des titres">
@@ -209,7 +246,15 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                     <Select
                       {...props}
                       value={settings.fonts.heading}
-                      onChange={(e) => edit({ ...settings, fonts: { ...settings.fonts, heading: e.target.value as typeof settings.fonts.heading } })}
+                      onChange={(e) =>
+                        edit({
+                          ...settings,
+                          fonts: {
+                            ...settings.fonts,
+                            heading: e.target.value as typeof settings.fonts.heading,
+                          },
+                        })
+                      }
                     >
                       {FONT_CHOICES.map((f) => (
                         <option key={f}>{f}</option>
@@ -222,7 +267,15 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                     <Select
                       {...props}
                       value={settings.fonts.body}
-                      onChange={(e) => edit({ ...settings, fonts: { ...settings.fonts, body: e.target.value as typeof settings.fonts.body } })}
+                      onChange={(e) =>
+                        edit({
+                          ...settings,
+                          fonts: {
+                            ...settings.fonts,
+                            body: e.target.value as typeof settings.fonts.body,
+                          },
+                        })
+                      }
                     >
                       {FONT_CHOICES.map((f) => (
                         <option key={f}>{f}</option>
@@ -234,16 +287,33 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
               {hero?.type === 'hero' && (
                 <>
                   <Field label="Titre d’accueil">
-                    {(props) => <Input {...props} value={hero.title} maxLength={120} onChange={(e) => setSection('hero', { title: e.target.value })} />}
+                    {(props) => (
+                      <Input
+                        {...props}
+                        value={hero.title}
+                        maxLength={120}
+                        onChange={(e) => setSection('hero', { title: e.target.value })}
+                      />
+                    )}
                   </Field>
                   <Field label="Sous-titre">
                     {(props) => (
-                      <Input {...props} value={hero.subtitle ?? ''} maxLength={300} onChange={(e) => setSection('hero', { subtitle: e.target.value })} />
+                      <Input
+                        {...props}
+                        value={hero.subtitle ?? ''}
+                        maxLength={300}
+                        onChange={(e) => setSection('hero', { subtitle: e.target.value })}
+                      />
                     )}
                   </Field>
                   <Field label="Texte du bouton">
                     {(props) => (
-                      <Input {...props} value={hero.ctaLabel ?? ''} maxLength={40} onChange={(e) => setSection('hero', { ctaLabel: e.target.value })} />
+                      <Input
+                        {...props}
+                        value={hero.ctaLabel ?? ''}
+                        maxLength={40}
+                        onChange={(e) => setSection('hero', { ctaLabel: e.target.value })}
+                      />
                     )}
                   </Field>
                 </>
@@ -276,39 +346,95 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                 <input
                   type="checkbox"
                   checked={settings.announcement.enabled}
-                  onChange={(e) => edit({ ...settings, announcement: { ...settings.announcement, enabled: e.target.checked } })}
-                  className="mt-0.5 size-5 accent-baobab"
+                  onChange={(e) =>
+                    edit({
+                      ...settings,
+                      announcement: {
+                        ...settings.announcement,
+                        enabled: e.target.checked,
+                      },
+                    })
+                  }
+                  className="mt-0.5 size-5 accent-brand"
                 />
                 <span className="flex flex-col">
-                  <span className="font-[640]">Bandeau d’annonce</span>
-                  <span className="text-[0.875rem] text-encre-2">Une ligne en haut de chaque page : livraison, horaires…</span>
+                  <span className="font-[650]">Bandeau d’annonce</span>
+                  <span className="text-[0.875rem] text-ink-2">
+                    Une ligne en haut de chaque page : livraison, horaires…
+                  </span>
                 </span>
               </label>
-              {settings.announcement.enabled && (
-                <Field label="Texte du bandeau">
-                  {(props) => (
-                    <Input
-                      {...props}
-                      value={settings.announcement.text}
-                      maxLength={160}
-                      placeholder="Livraison offerte dès 50 000 FCFA"
-                      onChange={(e) => edit({ ...settings, announcement: { ...settings.announcement, text: e.target.value } })}
-                    />
-                  )}
-                </Field>
-              )}
+              <AnimatePresence initial={false}>
+                {settings.announcement.enabled && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3, ease: EASE_OUT }}
+                    className="overflow-hidden"
+                  >
+                    <Field label="Texte du bandeau">
+                      {(props) => (
+                        <Input
+                          {...props}
+                          value={settings.announcement.text}
+                          maxLength={160}
+                          placeholder="Livraison offerte dès 50 000 FCFA"
+                          onChange={(e) =>
+                            edit({
+                              ...settings,
+                              announcement: {
+                                ...settings.announcement,
+                                text: e.target.value,
+                              },
+                            })
+                          }
+                        />
+                      )}
+                    </Field>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-          </section>
+          </Card>
         </div>
 
-        <div className="flex flex-col gap-4 lg:sticky lg:top-10">
+        <motion.div variants={riseIn} className="flex flex-col gap-4 lg:sticky lg:top-10">
           <ApercuSite settings={settings} storeName={store.name} host={host} />
-          <div className="planche flex flex-wrap items-center justify-between gap-3 p-4">
-            <span className="text-[0.875rem] text-encre-2">
-              {dirty ? 'Modifications non enregistrées' : site.hasUnpublishedChanges ? 'Brouillon prêt à publier' : 'Le site est à jour'}
+          <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
+            <span className="flex items-center gap-2 text-[0.875rem] text-ink-2">
+              <motion.span
+                aria-hidden
+                className="size-2 rounded-full"
+                animate={{
+                  backgroundColor: dirty ? '#fdb52a' : site.hasUnpublishedChanges ? '#0b57f0' : '#13a15a',
+                  scale: dirty ? [1, 1.4, 1] : 1,
+                }}
+                transition={{ duration: 0.4 }}
+              />
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  key={dirty ? 'dirty' : site.hasUnpublishedChanges ? 'draft' : 'ok'}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  {dirty
+                    ? 'Modifications non enregistrées'
+                    : site.hasUnpublishedChanges
+                      ? 'Brouillon prêt à publier'
+                      : 'Le site est à jour'}
+                </motion.span>
+              </AnimatePresence>
             </span>
             <div className="flex flex-wrap gap-2">
-              <Button variant="secondaire" disabled={!dirty} loading={pending === 'save-theme' && !hasChanges} onClick={() => saveDraft()}>
+              <Button
+                variant="secondary"
+                disabled={!dirty}
+                loading={pending === 'save-theme' && !hasChanges}
+                onClick={() => saveDraft()}
+              >
                 Enregistrer
               </Button>
               <Button
@@ -320,7 +446,7 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
               </Button>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

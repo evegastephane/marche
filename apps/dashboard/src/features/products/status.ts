@@ -1,10 +1,18 @@
 import type { ProductStatus } from '@marche/contracts';
-import type { PlaqueTone } from '@/shared/ui/plaque';
+import type { BadgeTone } from '@/shared/ui/badge';
 
-export const PRODUCT_STATUS: Record<ProductStatus, { label: string; tone: PlaqueTone; hint: string }> = {
-  ACTIVE: { label: 'En vente', tone: 'vert', hint: 'Visible sur votre site' },
-  DRAFT: { label: 'Brouillon', tone: 'pointille', hint: 'Invisible sur votre site' },
-  ARCHIVED: { label: 'Archivé', tone: 'contour', hint: 'Retiré de la vente' },
+export const PRODUCT_STATUS: Record<ProductStatus, { label: string; tone: BadgeTone; hint: string }> = {
+  ACTIVE: {
+    label: 'En vente',
+    tone: 'success',
+    hint: 'Visible sur votre site',
+  },
+  DRAFT: {
+    label: 'Brouillon',
+    tone: 'draft',
+    hint: 'Invisible sur votre site',
+  },
+  ARCHIVED: { label: 'Archivé', tone: 'outline', hint: 'Retiré de la vente' },
 };
 
 export type ProductFilter = 'all' | ProductStatus;

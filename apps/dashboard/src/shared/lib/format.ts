@@ -18,7 +18,7 @@ export function formatMoney(amount: number, currency: Currency): string {
   return format.format(amount / 10 ** CURRENCY_EXPONENT[currency]);
 }
 
-/** Montant sans le symbole, pour les chiffres peints en grand (le symbole est posé à côté). */
+/** Montant sans le symbole, pour les chiffres affichés en grand (le symbole est posé à côté). */
 export function formatAmount(amount: number, currency: Currency): string {
   const digits = CURRENCY_EXPONENT[currency];
   return new Intl.NumberFormat('fr-FR', {

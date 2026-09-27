@@ -1,7 +1,7 @@
 {
   "name": "@marche/storefront",
   "version": "0.0.0",
-  "description": "Sites des boutiques Baobab (Next.js, multi-tenant par sous-domaine)",
+  "description": "Sites des boutiques Upsell (Next.js, multi-tenant par sous-domaine)",
   "private": true,
   "type": "module",
   "scripts": {

@@ -20,7 +20,7 @@ function NotFound() {
       </Reveal>
       <Reveal delay={0.1} className="display-window flex flex-col gap-3 rounded-2xl px-7 py-6">
         <span className="legend text-display-dim">Erreur</span>
-        <AnimatedNumber value={404} format={(n) => String(Math.round(n))} className="readout text-[5rem] sm:text-[6rem]" />
+        <AnimatedNumber value={404} format={(n) => String(Math.round(n))} className="readout text-[5rem]" />
       </Reveal>
       <Reveal delay={0.2} className="flex flex-col gap-2">
         <h1 className="display text-[2rem] sm:text-[2.5rem]">Page introuvable</h1>

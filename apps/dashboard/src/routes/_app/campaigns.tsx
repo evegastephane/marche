@@ -261,7 +261,7 @@ function CampaignRow({ campaign, index }: { campaign: CampaignDto; index: number
         ).map(([label, value]) => (
           <div key={label} className="flex flex-col">
             <dt className="legend">{label}</dt>
-            <dd className={cn('text-[1.125rem] font-[600]', label === 'Échecs' && value > 0 && 'text-danger-ink')}>
+            <dd className={cn('text-[1.0625rem] font-[600]', label === 'Échecs' && value > 0 && 'text-danger-ink')}>
               <AnimatedNumber value={value} />
             </dd>
           </div>
@@ -279,17 +279,12 @@ function NotConfigured() {
         <Badge tone="off">Envoi WhatsApp non activé</Badge>
       </div>
       <p className="max-w-[70ch] text-ink-2">
-        Pour envoyer des campagnes, Upsell a besoin de votre compte WhatsApp Business (Meta) : le jeton d’accès permanent,
-        l’identifiant du numéro et le nom du modèle de message approuvé, à renseigner dans <code>apps/api/.env</code>{' '}
-        (<code>WHATSAPP_ACCESS_TOKEN</code>, <code>WHATSAPP_PHONE_NUMBER_ID</code>, <code>WHATSAPP_TEMPLATE_NAME</code>), puis
-        redémarrer l’API et le worker.
+        L’envoi de campagnes WhatsApp n’est pas encore activé sur Upsell. Dès qu’il le sera, vous choisirez ici un produit
+        et l’enverrez en un geste aux clients qui ont accepté vos nouveautés.
       </p>
       <p className="max-w-[70ch] text-[0.875rem] text-ink-2">
-        Modèle attendu (catégorie Marketing, français) :{' '}
-        <em>
-          « Bonjour {'{{1}}'} ! Nouveau chez {'{{2}}'} : {'{{3}}'}, à {'{{4}}'}. Découvrez-le ici : {'{{5}}'} »
-        </em>
-        . Vos clients donnent déjà leur accord au paiement : ils seront prêts à recevoir la première campagne.
+        En attendant, rien n’est perdu : vos clients donnent déjà leur accord au moment de commander sur votre site. Ils
+        seront prêts à recevoir votre première campagne.
       </p>
     </motion.section>
   );

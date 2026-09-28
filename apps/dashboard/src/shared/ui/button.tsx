@@ -11,7 +11,7 @@ import { glide, press } from './motion';
  * - `ink` : touche noire, pour l'emphase sans l'orange ;
  * - `ghost` : légende seule, pour les actions de repli ;
  * - `danger` : action destructrice confirmée ;
- * - `display` : touche posée dans la fenêtre noire de l'afficheur.
+ * - `display` : touche posée dans la fenêtre de l'afficheur.
  */
 export type ButtonVariant = 'primary' | 'secondary' | 'ink' | 'ghost' | 'danger' | 'display';
 type Size = 'sm' | 'md' | 'lg';
@@ -22,7 +22,7 @@ const variants: Record<ButtonVariant, string> = {
     'bg-key text-ink shadow-[0_0_0_1px_var(--color-line-strong),var(--shadow-key)] hover:bg-surface-2 active:bg-key-pressed active:shadow-[0_0_0_1px_var(--color-line-strong),var(--shadow-key-pressed)]',
   ink: 'bg-ink text-canvas shadow-key hover:opacity-90 active:shadow-key-pressed',
   ghost: 'text-ink-2 hover:bg-surface-2 hover:text-ink active:bg-surface-3',
-  danger: 'bg-danger text-white shadow-key hover:brightness-95 active:shadow-key-pressed',
+  danger: 'bg-danger text-on-danger shadow-key hover:brightness-95 active:shadow-key-pressed',
   display:
     'text-display-ink shadow-[inset_0_0_0_1px_var(--color-display-line)] hover:bg-display-ink/8 active:bg-display-ink/12',
 };

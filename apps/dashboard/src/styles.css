@@ -8,7 +8,7 @@
 
 /*
  * Upsell, « L'instrument » : un boîtier net (blanc cassé ou noir), des faces au filet fin,
- * des champs en creux, un afficheur noir, et l'orange du logo réservé à la touche
+ * des champs en creux, un afficheur (écran clair, noir en thème sombre), et l'orange du logo réservé à la touche
  * de l'action à faire et aux témoins qui demandent l'attention.
  * Les composants ne connaissent que les rôles ; les valeurs basculent entre clair et sombre.
  */
@@ -48,6 +48,7 @@
   --danger: #d2281b;
   --danger-soft: #fbe9e7;
   --danger-ink: #a01b10;
+  --on-danger: #ffffff;
 
   --overlay: rgb(16 17 21 / 0.42);
   --shadow-color: 240 10% 8%;
@@ -85,6 +86,8 @@
   --danger: #ff5b4f;
   --danger-soft: rgb(255 91 79 / 0.14);
   --danger-ink: #ff8f86;
+  /* Rouge clair en sombre : la légende passe à l’encre noire (6,2:1). */
+  --on-danger: #101115;
 
   --overlay: rgb(0 0 0 / 0.62);
   --shadow-color: 0 0% 0%;
@@ -136,6 +139,7 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-danger-ink: var(--danger-ink);
+  --color-on-danger: var(--on-danger);
   --color-overlay: var(--overlay);
 
   --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);

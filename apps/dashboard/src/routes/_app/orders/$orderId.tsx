@@ -16,7 +16,7 @@ import { Card, CardHeader } from '@/shared/ui/card';
 import { Dialog } from '@/shared/ui/dialog';
 import { EmptyState, LoadError, Skeleton } from '@/shared/ui/feedback';
 import { Field, Textarea } from '@/shared/ui/field';
-import { EASE_OUT, riseIn } from '@/shared/ui/motion';
+import { EASE_OUT, press, riseIn } from '@/shared/ui/motion';
 
 export const Route = createFileRoute('/_app/orders/$orderId')({
   component: CommandeDetail,
@@ -93,7 +93,7 @@ function Detail({ order }: { order: OrderDto }) {
         className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4"
       >
         <div className="flex flex-col gap-2.5">
-          <h1 className="display tabular text-[2.5rem] md:text-[3.25rem]">
+          <h1 className="display tabular text-[2.5rem] md:text-[3rem]">
             <span className="sr-only">Commande </span>
             {orderNumber(order.number)}
           </h1>
@@ -356,7 +356,7 @@ function Suivi({ order }: { order: OrderDto }) {
                 className="relative mt-1.5 inline-flex"
                 initial={step.at ? { scale: 0 } : false}
                 animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 700, damping: 30, delay: 0.12 + index * 0.14 }}
+                transition={{ ...press, delay: 0.12 + index * 0.14 }}
               >
                 <Led tone={tone} pulse={tone === 'attention'} />
               </motion.span>

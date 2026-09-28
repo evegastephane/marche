@@ -1,0 +1,828 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-28T00:16:36.417Z",
+  "title": "Design System: Upsell",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Orange des roues",
+        "tonalRamp": [
+          "#a8440c",
+          "#ea5d12",
+          "#f66b21"
+        ],
+        "note": "Identique en clair et en sombre. Touche de l’action à faire maintenant, témoins d’attention, caret, action de toast."
+      },
+      "accent-strong": {
+        "role": "primary",
+        "displayName": "Orange enfoncé",
+        "tonalRamp": [
+          "#a8440c",
+          "#ea5d12",
+          "#f66b21"
+        ],
+        "note": "Survol de la touche orange."
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "Encre orangée",
+        "tonalRamp": [
+          "#a8440c",
+          "#ea5d12",
+          "#f66b21"
+        ],
+        "note": "Survol des liens des écrans Clerk seulement."
+      },
+      "on-accent": {
+        "role": "primary",
+        "displayName": "Légende sur orange",
+        "note": "Encre (#101115) sur la face orange, dans les deux thèmes."
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Boîtier",
+        "tonalRamp": [
+          "#101115",
+          "#4a4c54",
+          "#6b6d75",
+          "#cfcfca",
+          "#e4e4e0",
+          "#f2f2ef",
+          "#f4f4f1",
+          "#ffffff"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Face",
+        "tonalRamp": [
+          "#101115",
+          "#4a4c54",
+          "#6b6d75",
+          "#cfcfca",
+          "#e4e4e0",
+          "#f2f2ef",
+          "#f4f4f1",
+          "#ffffff"
+        ]
+      },
+      "surface-2": {
+        "role": "neutral",
+        "displayName": "Creux",
+        "tonalRamp": [
+          "#101115",
+          "#4a4c54",
+          "#6b6d75",
+          "#cfcfca",
+          "#e4e4e0",
+          "#f2f2ef",
+          "#f4f4f1",
+          "#ffffff"
+        ]
+      },
+      "surface-3": {
+        "role": "neutral",
+        "displayName": "Creux profond",
+        "tonalRamp": [
+          "#101115",
+          "#4a4c54",
+          "#6b6d75",
+          "#cfcfca",
+          "#e4e4e0",
+          "#f2f2ef",
+          "#f4f4f1",
+          "#ffffff"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Encre",
+        "tonalRamp": [
+          "#101115",
+          "#4a4c54",
+          "#6b6d75",
+          "#cfcfca",
+          "#e4e4e0",
+          "#f2f2ef",
+          "#f4f4f1",
+          "#ffffff"
+        ],
+        "note": "Noir du logo. Texte, focus, sélection, témoin allumé, rail d’interrupteur allumé, toasts."
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Encre seconde",
+        "tonalRamp": [
+          "#101115",
+          "#4a4c54",
+          "#6b6d75",
+          "#cfcfca",
+          "#e4e4e0",
+          "#f2f2ef",
+          "#f4f4f1",
+          "#ffffff"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Encre tierce",
+        "tonalRamp": [
+          "#101115",
+          "#4a4c54",
+          "#6b6d75",
+          "#cfcfca",
+          "#e4e4e0",
+          "#f2f2ef",
+          "#f4f4f1",
+          "#ffffff"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Filet",
+        "tonalRamp": [
+          "#101115",
+          "#4a4c54",
+          "#6b6d75",
+          "#cfcfca",
+          "#e4e4e0",
+          "#f2f2ef",
+          "#f4f4f1",
+          "#ffffff"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Filet appuyé",
+        "tonalRamp": [
+          "#101115",
+          "#4a4c54",
+          "#6b6d75",
+          "#cfcfca",
+          "#e4e4e0",
+          "#f2f2ef",
+          "#f4f4f1",
+          "#ffffff"
+        ]
+      },
+      "key": {
+        "role": "neutral",
+        "displayName": "Face de touche"
+      },
+      "key-pressed": {
+        "role": "neutral",
+        "displayName": "Touche enfoncée"
+      },
+      "key-edge": {
+        "role": "neutral",
+        "displayName": "Arête de touche",
+        "note": "Couleur de l’ombre courte sous chaque touche."
+      },
+      "display": {
+        "role": "display",
+        "displayName": "Verre LCD",
+        "tonalRamp": [
+          "#101115",
+          "#5d5f66",
+          "#e8e9e3"
+        ],
+        "note": "Gris vert clair en thème clair (décision du 2026-09-27), noir en sombre."
+      },
+      "display-ink": {
+        "role": "display",
+        "displayName": "Segments",
+        "tonalRamp": [
+          "#101115",
+          "#5d5f66",
+          "#e8e9e3"
+        ]
+      },
+      "display-dim": {
+        "role": "display",
+        "displayName": "Segments éteints",
+        "tonalRamp": [
+          "#101115",
+          "#5d5f66",
+          "#e8e9e3"
+        ]
+      },
+      "display-line": {
+        "role": "display",
+        "displayName": "Filet d’afficheur"
+      },
+      "danger": {
+        "role": "error",
+        "displayName": "Rouge",
+        "tonalRamp": [
+          "#a01b10",
+          "#d2281b",
+          "#fbe9e7"
+        ],
+        "note": "Erreur, annulation, rupture, destruction confirmée."
+      },
+      "danger-soft": {
+        "role": "error",
+        "displayName": "Voile rouge",
+        "tonalRamp": [
+          "#a01b10",
+          "#d2281b",
+          "#fbe9e7"
+        ]
+      },
+      "danger-ink": {
+        "role": "error",
+        "displayName": "Encre rouge",
+        "tonalRamp": [
+          "#a01b10",
+          "#d2281b",
+          "#fbe9e7"
+        ]
+      },
+      "overlay": {
+        "role": "neutral",
+        "displayName": "Voile",
+        "note": "Derrière les dialogues."
+      },
+      "accent-strong-dark": {
+        "role": "primary",
+        "displayName": "Orange enfoncé (sombre)",
+        "tonalRamp": [
+          "#f66b21",
+          "#ff7d36",
+          "#ff9d63"
+        ]
+      },
+      "accent-ink-dark": {
+        "role": "primary",
+        "displayName": "Encre orangée (sombre)",
+        "tonalRamp": [
+          "#f66b21",
+          "#ff7d36",
+          "#ff9d63"
+        ]
+      },
+      "canvas-dark": {
+        "role": "neutral",
+        "displayName": "Boîtier (sombre)",
+        "tonalRamp": [
+          "#0c0c0e",
+          "#141417",
+          "#1b1b1f",
+          "#242429",
+          "#34343a",
+          "#8a8b92",
+          "#abacb2",
+          "#f2f2ef"
+        ]
+      },
+      "surface-dark": {
+        "role": "neutral",
+        "displayName": "Face (sombre)",
+        "tonalRamp": [
+          "#0c0c0e",
+          "#141417",
+          "#1b1b1f",
+          "#242429",
+          "#34343a",
+          "#8a8b92",
+          "#abacb2",
+          "#f2f2ef"
+        ]
+      },
+      "surface-2-dark": {
+        "role": "neutral",
+        "displayName": "Creux (sombre)",
+        "tonalRamp": [
+          "#0c0c0e",
+          "#141417",
+          "#1b1b1f",
+          "#242429",
+          "#34343a",
+          "#8a8b92",
+          "#abacb2",
+          "#f2f2ef"
+        ]
+      },
+      "surface-3-dark": {
+        "role": "neutral",
+        "displayName": "Creux profond (sombre)",
+        "tonalRamp": [
+          "#0c0c0e",
+          "#141417",
+          "#1b1b1f",
+          "#242429",
+          "#34343a",
+          "#8a8b92",
+          "#abacb2",
+          "#f2f2ef"
+        ]
+      },
+      "ink-dark": {
+        "role": "neutral",
+        "displayName": "Encre (sombre)",
+        "tonalRamp": [
+          "#0c0c0e",
+          "#141417",
+          "#1b1b1f",
+          "#242429",
+          "#34343a",
+          "#8a8b92",
+          "#abacb2",
+          "#f2f2ef"
+        ]
+      },
+      "ink-2-dark": {
+        "role": "neutral",
+        "displayName": "Encre seconde (sombre)",
+        "tonalRamp": [
+          "#0c0c0e",
+          "#141417",
+          "#1b1b1f",
+          "#242429",
+          "#34343a",
+          "#8a8b92",
+          "#abacb2",
+          "#f2f2ef"
+        ]
+      },
+      "ink-3-dark": {
+        "role": "neutral",
+        "displayName": "Encre tierce (sombre)",
+        "tonalRamp": [
+          "#0c0c0e",
+          "#141417",
+          "#1b1b1f",
+          "#242429",
+          "#34343a",
+          "#8a8b92",
+          "#abacb2",
+          "#f2f2ef"
+        ]
+      },
+      "line-dark": {
+        "role": "neutral",
+        "displayName": "Filet (sombre)",
+        "tonalRamp": [
+          "#0c0c0e",
+          "#141417",
+          "#1b1b1f",
+          "#242429",
+          "#34343a",
+          "#8a8b92",
+          "#abacb2",
+          "#f2f2ef"
+        ]
+      },
+      "line-strong-dark": {
+        "role": "neutral",
+        "displayName": "Filet appuyé (sombre)",
+        "tonalRamp": [
+          "#0c0c0e",
+          "#141417",
+          "#1b1b1f",
+          "#242429",
+          "#34343a",
+          "#8a8b92",
+          "#abacb2",
+          "#f2f2ef"
+        ]
+      },
+      "key-dark": {
+        "role": "neutral",
+        "displayName": "Face de touche (sombre)"
+      },
+      "key-pressed-dark": {
+        "role": "neutral",
+        "displayName": "Touche enfoncée (sombre)"
+      },
+      "key-edge-dark": {
+        "role": "neutral",
+        "displayName": "Arête de touche (sombre)"
+      },
+      "display-dark": {
+        "role": "display",
+        "displayName": "Verre LCD (sombre)",
+        "tonalRamp": [
+          "#060607",
+          "#8e9097",
+          "#f2f2ef"
+        ]
+      },
+      "display-ink-dark": {
+        "role": "display",
+        "displayName": "Segments (sombre)",
+        "tonalRamp": [
+          "#060607",
+          "#8e9097",
+          "#f2f2ef"
+        ]
+      },
+      "display-dim-dark": {
+        "role": "display",
+        "displayName": "Segments éteints (sombre)",
+        "tonalRamp": [
+          "#060607",
+          "#8e9097",
+          "#f2f2ef"
+        ]
+      },
+      "display-line-dark": {
+        "role": "display",
+        "displayName": "Filet d’afficheur (sombre)"
+      },
+      "danger-dark": {
+        "role": "error",
+        "displayName": "Rouge (sombre)",
+        "tonalRamp": [
+          "#ff5b4f",
+          "#ff8f86"
+        ]
+      },
+      "danger-soft-dark": {
+        "role": "error",
+        "displayName": "Voile rouge (sombre)",
+        "tonalRamp": [
+          "#ff5b4f",
+          "#ff8f86"
+        ]
+      },
+      "danger-ink-dark": {
+        "role": "error",
+        "displayName": "Encre rouge (sombre)",
+        "tonalRamp": [
+          "#ff5b4f",
+          "#ff8f86"
+        ]
+      },
+      "overlay-dark": {
+        "role": "neutral",
+        "displayName": "Voile (sombre)"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Titres de page (1.875rem sous 768 px, 2.25rem au-delà), nom de la boutique, numéro de commande, accroches. Jamais en capitales forcées."
+      },
+      "heading": {
+        "displayName": "Heading",
+        "purpose": "Titres de face (1rem), de section (1.0625rem), de dialogue (1.25rem)."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Texte courant ; sous-titres de page en encre seconde, 60ch au plus."
+      },
+      "body-small": {
+        "displayName": "Body small",
+        "purpose": "Lignes secondaires, aides de champ, notes d’afficheur."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Libellés de champ."
+      },
+      "status": {
+        "displayName": "Status",
+        "purpose": "Libellé d’un témoin ; la graisse 560 sert aussi aux touches de navigation et aux options de menu."
+      },
+      "key": {
+        "displayName": "Key",
+        "purpose": "Légende des touches : 0.8125rem (petite), 0.9375rem (moyenne), 1rem (grande)."
+      },
+      "legend": {
+        "displayName": "Legend",
+        "purpose": "En capitales (text-transform: uppercase), encre tierce ou segments éteints : en-têtes de colonnes, groupes de navigation, lectures de l’afficheur, étiquettes de menu, unités."
+      },
+      "readout": {
+        "displayName": "Readout",
+        "purpose": "Chiffres de l’afficheur, en colonnes fixes qui roulent : 3.5rem (2.75rem au téléphone) sur l’Accueil, 2 à 2.25rem pour les totaux, 5 à 6rem pour le 404."
+      }
+    },
+    "shadows": [
+      {
+        "name": "panel-hairline",
+        "value": "0 0 0 1px var(--color-line)",
+        "purpose": "Contour de chaque face ; aucune ombre portée."
+      },
+      {
+        "name": "well",
+        "value": "inset 0 1px 2px hsl(var(--shadow-color) / 0.07), inset 0 0 0 1px var(--color-line)",
+        "purpose": "Champs, rails, pastilles, vignettes (creux)."
+      },
+      {
+        "name": "key",
+        "value": "0 1px 0 var(--key-edge), 0 2px 4px -1px hsl(var(--shadow-color) / 0.08)",
+        "purpose": "Arête des touches ; les touches blanches et curseurs ajoutent 0 0 0 1px var(--color-line-strong)."
+      },
+      {
+        "name": "key-pressed",
+        "value": "inset 0 1px 2px hsl(var(--shadow-color) / 0.14)",
+        "purpose": "Touche appuyée."
+      },
+      {
+        "name": "display-glass",
+        "value": "inset 0 2px 3px rgb(16 17 21 / 0.08), inset 0 0 0 1px rgb(16 17 21 / 0.12)",
+        "purpose": "Verre d’afficheur enfoncé, thème clair."
+      },
+      {
+        "name": "display-glass-dark",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 0.06), 0 0 0 1px var(--line)",
+        "purpose": "Verre d’afficheur, reflet sur l’arête haute, thème sombre."
+      },
+      {
+        "name": "led-glow-dark",
+        "value": "0 0 8px rgb(255 255 255 / 0.5)",
+        "purpose": "Lueur d’un témoin allumé dans l’afficheur, thème sombre seulement (none en clair)."
+      },
+      {
+        "name": "menu",
+        "value": "0 16px 36px -14px hsl(var(--shadow-color) / 0.28), 0 3px 8px -3px hsl(var(--shadow-color) / 0.1)",
+        "purpose": "Menus déroulants."
+      },
+      {
+        "name": "float",
+        "value": "0 24px 56px -20px hsl(var(--shadow-color) / 0.32), 0 4px 12px -4px hsl(var(--shadow-color) / 0.12)",
+        "purpose": "Dialogues, toasts, fenêtres Clerk."
+      },
+      {
+        "name": "focus-field",
+        "value": "inset 0 0 0 1.5px var(--color-ink), 0 0 0 4px var(--color-surface-3)",
+        "purpose": "Champ au focus (la face devient blanche)."
+      },
+      {
+        "name": "invalid-field",
+        "value": "inset 0 0 0 1.5px var(--color-danger), 0 0 0 4px var(--color-danger-soft)",
+        "purpose": "Champ invalide."
+      },
+      {
+        "name": "focus-outline",
+        "value": "outline: 2px solid var(--color-ink); outline-offset: 2px",
+        "purpose": "Focus clavier par défaut, à l’encre."
+      },
+      {
+        "name": "shadow-color",
+        "value": "240 10% 8% (clair) / 0 0% 0% (sombre)",
+        "purpose": "Teinte HSL des ombres, injectée dans hsl(var(--shadow-color) / a)."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "spring { stiffness: 900, damping: 48, mass: 0.6 }",
+        "purpose": "Ressort sec des touches (tap : y 1px, scale 0.985), sans rebond ; aussi le chariot et les lettres qui tombent."
+      },
+      {
+        "name": "glide",
+        "value": "spring { stiffness: 420, damping: 38, mass: 0.9 }",
+        "purpose": "Glissement des curseurs, de la lumière orange partagée, des mises en page, du roulement des chiffres, des dialogues."
+      },
+      {
+        "name": "ease-out-soft",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Courbe des transitions CSS et des entrées."
+      },
+      {
+        "name": "rise-in",
+        "value": "opacity 0 → 1, y 8px → 0, 0.36s ease-out-soft",
+        "purpose": "Entrée des blocs de page (en-tête, faces)."
+      },
+      {
+        "name": "stagger",
+        "value": "0.04s",
+        "purpose": "Décalage entre blocs d’une page ; 25 ms pour les touches de navigation, 25–35 ms pour les rangées."
+      },
+      {
+        "name": "digit-roll",
+        "value": "glide, délai min(colonne, 8) × 0.035s",
+        "purpose": "Chaque chiffre roule dans sa colonne ; les colonnes hautes un peu plus tard."
+      },
+      {
+        "name": "menu-open",
+        "value": "0.18s ease-out-soft, y ∓6px, scale 0.97 → 1",
+        "purpose": "Le menu grandit depuis son déclencheur."
+      },
+      {
+        "name": "overlay-fade",
+        "value": "0.2s",
+        "purpose": "Voile des dialogues."
+      },
+      {
+        "name": "theme-change",
+        "value": "background-color, color 0.3s ease-out-soft",
+        "purpose": "Bascule clair / sombre du corps de page."
+      },
+      {
+        "name": "row-exit",
+        "value": "opacity → 0, x +40px, 0.24s ease-out-soft",
+        "purpose": "Une commande expédiée quitte la file vers la droite, la file se resserre."
+      },
+      {
+        "name": "field-error",
+        "value": "0.28s, x [0, -3, 3, -1, 0]",
+        "purpose": "Arrivée d’un message d’erreur de champ."
+      },
+      {
+        "name": "led-breathe",
+        "value": "1.8s easeOut, scale 1 → 2.6, opacity 0.5 → 0, pause 0.6s, en boucle",
+        "purpose": "Témoin orange qui respire, un seul par écran."
+      },
+      {
+        "name": "shimmer",
+        "value": "1.4s ease-out-soft, en boucle",
+        "purpose": "Reflet des blocs de chargement."
+      },
+      {
+        "name": "emblem-intro",
+        "value": "tracé 0.62s ease-out-soft ; flèche press à +0.42s ; roues press à +0.62s et +0.74s",
+        "purpose": "Allumage de l’emblème à l’arrivée."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "MotionConfig reducedMotion=\"user\"",
+        "purpose": "Tout le mouvement se réduit avec prefers-reduced-motion ; le reflet et la respiration s’arrêtent."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px",
+        "note": "Dialogue centré au lieu d’une feuille (feuille sous 639px) ; marges 24px."
+      },
+      {
+        "name": "md",
+        "value": "768px",
+        "note": "Tables au lieu de rangées empilées ; tailles de touches et de champs ordinateur."
+      },
+      {
+        "name": "lg",
+        "value": "1024px",
+        "note": "Panneau de commande de 15.5rem au lieu de l’en-tête et de la rangée du bas ; mises en page à deux colonnes ; marges 40px."
+      },
+      {
+        "name": "xl",
+        "value": "1280px",
+        "note": "Marges de la façade de connexion."
+      }
+    ],
+    "layout": {
+      "contentMax": "72rem",
+      "sidebar": "15.5rem",
+      "mobileHeader": "56px",
+      "bottomNav": "56px keys, 5 colonnes, safe-area",
+      "touchTargets": "sous 768px : touches md et champs 44px, touches sm 40px, navigation 48px"
+    },
+    "themes": {
+      "mechanism": "Classe .dark sur <html> (script anti-flash dans index.html, préférence « upsell-theme » en localStorage) ; les jetons -dark du frontmatter remplacent leurs homologues.",
+      "themeColor": {
+        "light": "#f2f2ef",
+        "dark": "#0c0c0e"
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Touche orange",
+      "kind": "button",
+      "refersTo": "key-primary",
+      "description": "La touche de l’action à faire maintenant : une seule par écran.",
+      "html": "<button type=\"button\" class=\"ds-key-primary\"><svg viewBox=\"0 0 24 24\" width=\"17\" height=\"17\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/></svg>Expédier</button>",
+      "css": ".ds-key-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 0.7rem; font-family: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif; font-size: 0.9375rem; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s cubic-bezier(0.16, 1, 0.3, 1); } .ds-key-primary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; } .ds-key-primary:disabled { opacity: 0.45; pointer-events: none; } .ds-key-primary:active { transform: translateY(1px) scale(0.985); } .ds-key-primary { background: var(--accent); color: var(--on-accent); box-shadow: 0 1px 0 var(--key-edge), 0 2px 4px -1px hsl(var(--shadow-color) / 0.08); } .ds-key-primary:hover { background: var(--accent-strong); } .ds-key-primary:active { box-shadow: inset 0 1px 2px hsl(var(--shadow-color) / 0.14); }"
+    },
+    {
+      "name": "Touche blanche",
+      "kind": "button",
+      "refersTo": "key-secondary",
+      "description": "Touche par défaut : face de touche, contour en filet appuyé, arête ; elle s’enfonce sous le doigt.",
+      "html": "<button type=\"button\" class=\"ds-key-secondary\"><svg viewBox=\"0 0 24 24\" width=\"17\" height=\"17\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg>Nouvelle commande</button>",
+      "css": ".ds-key-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 0.7rem; font-family: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif; font-size: 0.9375rem; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s cubic-bezier(0.16, 1, 0.3, 1); } .ds-key-secondary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; } .ds-key-secondary:disabled { opacity: 0.45; pointer-events: none; } .ds-key-secondary:active { transform: translateY(1px) scale(0.985); } .ds-key-secondary { background: var(--key); color: var(--ink); box-shadow: 0 0 0 1px var(--line-strong), 0 1px 0 var(--key-edge), 0 2px 4px -1px hsl(var(--shadow-color) / 0.08); } .ds-key-secondary:hover { background: var(--surface-2); } .ds-key-secondary:active { background: var(--key-pressed); box-shadow: 0 0 0 1px var(--line-strong), inset 0 1px 2px hsl(var(--shadow-color) / 0.14); }"
+    },
+    {
+      "name": "Touche fantôme",
+      "kind": "button",
+      "refersTo": "key-ghost",
+      "description": "Légende seule, pour les actions de repli (Annuler, Garder, Mettre hors ligne).",
+      "html": "<button type=\"button\" class=\"ds-key-ghost\">Garder la commande</button>",
+      "css": ".ds-key-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 0.7rem; font-family: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif; font-size: 0.9375rem; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s cubic-bezier(0.16, 1, 0.3, 1); } .ds-key-ghost:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; } .ds-key-ghost:disabled { opacity: 0.45; pointer-events: none; } .ds-key-ghost:active { transform: translateY(1px) scale(0.985); } .ds-key-ghost { background: transparent; color: var(--ink-2); } .ds-key-ghost:hover { background: var(--surface-2); color: var(--ink); } .ds-key-ghost:active { background: var(--surface-3); }"
+    },
+    {
+      "name": "Champ en creux",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Libellé au-dessus, champ enfoncé ; face blanche et filet d’encre au focus, rouge si invalide.",
+      "html": "<div class=\"ds-field\"><label for=\"ds-field-sku\">SKU</label><input id=\"ds-field-sku\" class=\"ds-field-input\" value=\"PAGNE-WAX-01\" spellcheck=\"false\"><p>Référence unique de l’article.</p></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; max-width: 22rem; font-family: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif; } .ds-field label { font-size: 0.8125rem; font-weight: 600; color: var(--ink); } .ds-field-input { height: 40px; padding: 0 14px; border: 0; border-radius: 0.7rem; background: var(--surface-2); color: var(--ink); caret-color: var(--accent); font-family: inherit; font-size: 0.9375rem; font-variant-numeric: tabular-nums lining-nums; text-transform: uppercase; box-shadow: inset 0 1px 2px hsl(var(--shadow-color) / 0.07), inset 0 0 0 1px var(--line); transition: box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-field-input::placeholder { color: var(--ink-3); } .ds-field-input:hover { box-shadow: inset 0 1px 2px hsl(var(--shadow-color) / 0.07), inset 0 0 0 1px var(--line-strong); } .ds-field-input:focus-visible { outline: none; background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--ink), 0 0 0 4px var(--surface-3); } .ds-field-input[aria-invalid=\"true\"] { box-shadow: inset 0 0 0 1.5px var(--danger), 0 0 0 4px var(--danger-soft); } .ds-field p { margin: 0; font-size: 0.8125rem; color: var(--ink-2); }"
+    },
+    {
+      "name": "Sélecteur à glissière",
+      "kind": "chip",
+      "refersTo": "selector-rail",
+      "description": "Filtres exclusifs : rail en creux, curseur-touche sur la position choisie ; témoin orange et compteur sur le filtre qui contient du travail.",
+      "html": "<div class=\"ds-selector\" role=\"group\" aria-label=\"Filtrer les commandes\"><button type=\"button\" aria-pressed=\"false\">Toutes</button><button type=\"button\" aria-pressed=\"true\"><span class=\"ds-selector-led\" aria-hidden=\"true\"></span>À expédier<span class=\"ds-selector-count\">3</span></button><button type=\"button\" aria-pressed=\"false\">Non payées</button><button type=\"button\" aria-pressed=\"false\">Expédiées</button></div>",
+      "css": ".ds-selector { display: inline-flex; gap: 2px; max-width: 100%; overflow-x: auto; padding: 4px; border-radius: 0.75rem; background: var(--surface-2); box-shadow: inset 0 1px 2px hsl(var(--shadow-color) / 0.07), inset 0 0 0 1px var(--line); font-family: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif; } .ds-selector button { display: inline-flex; flex-shrink: 0; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border: 0; border-radius: 0.5rem; background: transparent; color: var(--ink-2); font-family: inherit; font-size: 0.8125rem; font-weight: 580; cursor: pointer; transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-selector button:hover { color: var(--ink); } .ds-selector button[aria-pressed=\"true\"] { background: var(--key); color: var(--ink); box-shadow: 0 0 0 1px var(--line-strong), 0 1px 0 var(--key-edge), 0 2px 4px -1px hsl(var(--shadow-color) / 0.08); } .ds-selector button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; } .ds-selector-led { width: 8px; height: 8px; border-radius: 9999px; background: var(--accent); } .ds-selector-count { font-size: 0.75rem; font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums lining-nums; }"
+    },
+    {
+      "name": "Touches de navigation",
+      "kind": "nav",
+      "refersTo": "nav-key",
+      "description": "Panneau de commande : groupes nommés par une légende, curseur-touche sous la page active, compteur et témoin orange sur Commandes.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Navigation principale\"><a class=\"ds-nav-key\" href=\"#\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/></svg><span class=\"ds-nav-label\">Accueil</span></a><p class=\"ds-nav-legend\">Vendre</p><a class=\"ds-nav-key\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z\"/><path d=\"M14 8H8\"/><path d=\"M16 12H8\"/><path d=\"M13 16H8\"/></svg><span class=\"ds-nav-label\">Commandes</span><span class=\"ds-nav-count\">3<span class=\"ds-nav-led\" aria-hidden=\"true\"></span></span></a><p class=\"ds-nav-legend\">Catalogue</p><a class=\"ds-nav-key\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z\"/><path d=\"M12 22V12\"/><path d=\"m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7\"/><path d=\"m7.5 4.27 9 5.15\"/></svg><span class=\"ds-nav-label\">Produits</span></a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; width: 15.5rem; padding: 12px; box-sizing: border-box; background: var(--canvas); font-family: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif; } .ds-nav-legend { margin: 0; padding: 16px 12px 6px; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); } .ds-nav-key { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 0.7rem; color: var(--ink-2); font-size: 0.9375rem; font-weight: 560; text-decoration: none; transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-nav-key svg { flex-shrink: 0; color: var(--ink-3); transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-nav-key:hover, .ds-nav-key:hover svg { color: var(--ink); } .ds-nav-key[aria-current=\"page\"] { background: var(--key); color: var(--ink); box-shadow: 0 0 0 1px var(--line-strong), 0 1px 0 var(--key-edge), 0 2px 4px -1px hsl(var(--shadow-color) / 0.08); } .ds-nav-key[aria-current=\"page\"] svg { color: var(--ink); } .ds-nav-key:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; } .ds-nav-label { flex: 1; } .ds-nav-count { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8125rem; font-weight: 500; color: var(--ink-2); font-variant-numeric: tabular-nums lining-nums; } .ds-nav-led { width: 8px; height: 8px; border-radius: 9999px; background: var(--accent); }"
+    },
+    {
+      "name": "Témoins d’état",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Témoin lumineux + libellé, sans fond : orange = à faire (il respire), plein = allumé, anneau = éteint, pointillé = brouillon, rouge = erreur.",
+      "html": "<div class=\"ds-badges\"><span class=\"ds-badge ds-badge-attention\"><i aria-hidden=\"true\"></i>À expédier</span><span class=\"ds-badge ds-badge-on\"><i aria-hidden=\"true\"></i>Expédiée</span><span class=\"ds-badge ds-badge-off\"><i aria-hidden=\"true\"></i>Non payée</span><span class=\"ds-badge ds-badge-draft\"><i aria-hidden=\"true\"></i>Brouillon</span><span class=\"ds-badge ds-badge-danger\"><i aria-hidden=\"true\"></i>Annulée</span></div>",
+      "css": ".ds-badges { display: flex; flex-wrap: wrap; gap: 8px 16px; font-family: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif; } .ds-badge { display: inline-flex; align-items: center; gap: 8px; height: 24px; font-size: 0.8125rem; font-weight: 560; white-space: nowrap; color: var(--ink-2); } .ds-badge i { position: relative; flex-shrink: 0; width: 8px; height: 8px; border-radius: 9999px; } .ds-badge-attention { color: var(--ink); } .ds-badge-attention i { background: var(--accent); } .ds-badge-attention i::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: var(--accent); animation: ds-led-breathe 2.4s ease-out infinite; } @keyframes ds-led-breathe { 0% { opacity: 0.5; transform: scale(1); } 75%, 100% { opacity: 0; transform: scale(2.6); } } .ds-badge-on i { background: var(--ink); } .ds-badge-off i { box-shadow: inset 0 0 0 1.5px var(--ink-3); } .ds-badge-draft i { outline: 1.5px dashed var(--ink-3); outline-offset: -1.5px; } .ds-badge-danger { color: var(--danger-ink); } .ds-badge-danger i { background: var(--danger); } @media (prefers-reduced-motion: reduce) { .ds-badge-attention i::after { animation: none; opacity: 0; } }"
+    },
+    {
+      "name": "Face : file à expédier",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Face plane au filet fin, en-tête avec compteur, rangées séparées d’un filet ; la lumière orange partagée allume « Expédier » sur la première commande et glisse à la suivante quand elle part.",
+      "html": "<section class=\"ds-queue\"><header><h2>À expédier <span>2</span></h2><a href=\"#\">Toutes les commandes <svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/></svg></a></header><ul><li><span class=\"ds-queue-no\">#1042</span><span class=\"ds-queue-who\"><b>Awa</b><small>2 articles · <strong>18 500 FCFA</strong></small></span><button type=\"button\" class=\"ds-queue-key ds-queue-lit\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/></svg>Expédier</button></li><li><span class=\"ds-queue-no\">#1043</span><span class=\"ds-queue-who\"><b>Mariama</b><small>1 article · <strong>7 000 FCFA</strong></small></span><button type=\"button\" class=\"ds-queue-key\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2\"/><path d=\"M15 18H9\"/><path d=\"M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/></svg>Expédier</button></li></ul></section>",
+      "css": ".ds-queue { max-width: 36rem; overflow: hidden; border-radius: 1rem; background: var(--surface); box-shadow: 0 0 0 1px var(--line); color: var(--ink); font-family: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif; font-size: 0.9375rem; } .ds-queue header { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; padding: 16px 20px 12px; box-sizing: border-box; } .ds-queue h2 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 1rem; font-weight: 650; letter-spacing: -0.015em; line-height: 1.25; } .ds-queue h2 span { font-size: 0.875rem; font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums lining-nums; } .ds-queue header a { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8125rem; font-weight: 560; color: var(--ink-2); text-decoration: none; } .ds-queue header a:hover { color: var(--ink); } .ds-queue ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); } .ds-queue li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; padding: 14px 20px; border-top: 1px solid var(--line); transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-queue li:first-child { border-top: 0; } .ds-queue li:hover { background: var(--surface-2); } .ds-queue-no { display: inline-flex; align-items: center; justify-content: center; height: 40px; min-width: 64px; padding: 0 10px; box-sizing: border-box; border-radius: 0.7rem; background: var(--surface-2); box-shadow: inset 0 1px 2px hsl(var(--shadow-color) / 0.07), inset 0 0 0 1px var(--line); font-weight: 600; font-variant-numeric: tabular-nums lining-nums; } .ds-queue-who { display: flex; flex-direction: column; min-width: 0; } .ds-queue-who b { font-weight: 600; } .ds-queue-who small { font-size: 0.8125rem; color: var(--ink-2); font-variant-numeric: tabular-nums lining-nums; } .ds-queue-who strong { font-weight: 600; color: var(--ink); } .ds-queue-key { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 0; border-radius: 0.5rem; background: var(--key); color: var(--ink); font-family: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer; box-shadow: 0 0 0 1px var(--line-strong), 0 1px 0 var(--key-edge), 0 2px 4px -1px hsl(var(--shadow-color) / 0.08); transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s cubic-bezier(0.16, 1, 0.3, 1); } .ds-queue-key:hover { background: var(--surface-2); } .ds-queue-key:active { transform: translateY(1px) scale(0.985); } .ds-queue-key:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; } .ds-queue-lit, .ds-queue-lit:hover { background: var(--accent); color: var(--on-accent); box-shadow: 0 1px 0 var(--key-edge), 0 2px 4px -1px hsl(var(--shadow-color) / 0.08); }"
+    },
+    {
+      "name": "Afficheur",
+      "kind": "custom",
+      "refersTo": "display-window",
+      "description": "Composant signature : verre LCD enfoncé (fenêtre noire en sombre), légendes sérigraphiées, chiffres fins en colonnes fixes, commutateur de période, témoin orange qui respire sur « À expédier ».",
+      "html": "<section class=\"ds-display\" aria-label=\"Afficheur\"><div class=\"ds-display-reading ds-display-main\"><span class=\"ds-display-head\"><span class=\"ds-display-legend\">Ventes</span><span class=\"ds-display-period\" role=\"group\" aria-label=\"Période\"><button type=\"button\" aria-pressed=\"false\">7 j</button><button type=\"button\" aria-pressed=\"true\">30 j</button><button type=\"button\" aria-pressed=\"false\">90 j</button></span></span><span class=\"ds-display-value\"><span class=\"ds-display-num\">1 284 500</span><span class=\"ds-display-unit\">FCFA</span></span><span class=\"ds-display-note\">42 commandes hors annulées</span></div><div class=\"ds-display-reading\"><span class=\"ds-display-head\"><span class=\"ds-display-legend\">À expédier<i aria-hidden=\"true\"></i></span></span><span class=\"ds-display-num\">3</span><span class=\"ds-display-note\">en attente de départ</span></div><div class=\"ds-display-reading\"><span class=\"ds-display-head\"><span class=\"ds-display-legend\">Stock bas</span></span><span class=\"ds-display-num\">5</span><span class=\"ds-display-note\">dont 1 en rupture</span></div></section>",
+      "css": ".ds-display { display: grid; grid-template-columns: 1.7fr 1fr 1fr; overflow: hidden; border-radius: 1rem; background: var(--display); color: var(--display-ink); box-shadow: var(--display-glass); font-family: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif; } .ds-display-reading { display: flex; flex-direction: column; justify-content: space-between; gap: 16px; min-height: 10.5rem; padding: 24px; box-sizing: border-box; border-left: 1px solid var(--display-line); } .ds-display-reading:first-child { border-left: 0; } .ds-display-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; } .ds-display-legend { display: inline-flex; align-items: center; gap: 8px; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--display-dim); } .ds-display-legend i { width: 8px; height: 8px; border-radius: 9999px; background: var(--accent); } .ds-display-value { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; } .ds-display-num { font-size: 3.5rem; font-weight: 300; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums lining-nums; } .ds-display-unit { font-size: 1rem; font-weight: 500; color: var(--display-dim); } .ds-display-note { font-size: 0.8125rem; color: var(--display-dim); } .ds-display-period { display: flex; gap: 2px; padding: 2px; border-radius: 0.5rem; box-shadow: inset 0 0 0 1px var(--display-line); } .ds-display-period button { height: 28px; padding: 0 10px; border: 0; border-radius: 0.375rem; background: transparent; color: var(--display-dim); font-family: inherit; font-size: 0.75rem; font-weight: 560; font-variant-numeric: tabular-nums lining-nums; cursor: pointer; transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-display-period button:hover { color: var(--display-ink); } .ds-display-period button[aria-pressed=\"true\"] { background: var(--key); color: var(--ink); box-shadow: 0 0 0 1px var(--line-strong), 0 1px 0 var(--key-edge), 0 2px 4px -1px hsl(var(--shadow-color) / 0.08); } .ds-display-period button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; } @media (max-width: 1023px) { .ds-display { grid-template-columns: 1fr 1fr; } .ds-display-reading { border-left: 0; } .ds-display-main { grid-column: span 2; border-bottom: 1px solid var(--display-line); } .ds-display-main + .ds-display-reading { border-right: 1px solid var(--display-line); } } @media (max-width: 639px) { .ds-display-reading { padding: 20px; } .ds-display-num { font-size: 2.75rem; } }"
+    },
+    {
+      "name": "Interrupteur",
+      "kind": "custom",
+      "refersTo": "switch",
+      "description": "Rail en creux éteint, à l’encre allumé, bouton-touche qui glisse ; toute la ligne libellée est cliquable.",
+      "html": "<label class=\"ds-switch\"><input type=\"checkbox\" role=\"switch\" checked><span class=\"ds-switch-track\" aria-hidden=\"true\"><span class=\"ds-switch-knob\"></span></span><span class=\"ds-switch-text\"><b>Livrer à une adresse</b><small>Sinon, le client repart avec ses articles.</small></span></label>",
+      "css": ".ds-switch { position: relative; display: flex; align-items: flex-start; gap: 12px; max-width: 26rem; padding: 12px 16px; border-radius: 0.75rem; background: var(--surface-2); box-shadow: inset 0 1px 2px hsl(var(--shadow-color) / 0.07), inset 0 0 0 1px var(--line); color: var(--ink); font-family: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif; font-size: 0.9375rem; cursor: pointer; } .ds-switch input { position: absolute; width: 40px; height: 24px; margin: 2px 0 0; opacity: 0; cursor: pointer; } .ds-switch-track { display: flex; flex-shrink: 0; align-items: center; width: 40px; height: 24px; margin-top: 2px; padding: 2px; box-sizing: border-box; border-radius: 9999px; background: var(--surface-2); box-shadow: inset 0 1px 2px hsl(var(--shadow-color) / 0.07), inset 0 0 0 1px var(--line); transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-switch-knob { width: 20px; height: 20px; border-radius: 9999px; background: var(--key); box-shadow: 0 0 0 1px var(--line-strong), 0 1px 0 var(--key-edge), 0 2px 4px -1px hsl(var(--shadow-color) / 0.08); transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); } .ds-switch input:checked + .ds-switch-track { background: var(--ink); box-shadow: none; } .ds-switch input:checked + .ds-switch-track .ds-switch-knob { transform: translateX(16px); } .ds-switch input:focus-visible + .ds-switch-track { outline: 2px solid var(--ink); outline-offset: 2px; } .ds-switch-text { display: flex; flex-direction: column; } .ds-switch-text b { font-weight: 600; } .ds-switch-text small { font-size: 0.875rem; color: var(--ink-2); } @media (prefers-reduced-motion: reduce) { .ds-switch-knob { transition: none; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "L'instrument",
+    "overview": "Upsell se tient comme une calculatrice Braun de Dieter Rams : un boîtier net (blanc cassé en clair, noir en sombre), des faces planes cernées d'un filet fin, des champs en creux, des touches qui s'enfoncent d'un pixel, un afficheur à cristaux liquides où les chiffres roulent dans des colonnes fixes, et des témoins lumineux qui disent l'état de chaque chose. Au milieu de ce calme, une seule touche orange par écran : celle de l'action à faire maintenant. Quand une commande part, cette lumière glisse jusqu'à la touche de la suivante.\n\nLa densité est celle d'un outil de travail, pas d'une vitrine : une linéale unique (Hanken Grotesk), des chiffres tabulaires partout, des listes en table à l'ordinateur et en rangées empilées au téléphone, des cibles de 44 px au doigt. Le noir plein reste rare en thème clair : l'afficheur y est un écran gris clair enfoncé dans le boîtier (décision du 2026-09-27, les blocs noirs faisaient « un peu sombre ») ; en thème sombre il devient une fenêtre noire aux chiffres clairs. Le thème suit l'appareil, le marchand peut forcer clair ou sombre.\n\nLe mouvement fait partie de l'instrument : un ressort sec pour les touches, un ressort de glissement pour les curseurs, la lumière orange et les mises en page, des entrées courtes (0,36 s, 8 px) décalées de 40 ms. Rien ne dure plus de 0,4 s, sauf le roulement des chiffres, l'allumage de l'emblème et les signaux en boucle (témoin qui respire, reflet de chargement). Tout se réduit avec `prefers-reduced-motion`. Le monde refuse la grille de cartes du back-office générique et les graphiques décoratifs : les chiffres qui comptent vivent dans l'afficheur.\n\nPortée : le dashboard (`apps/dashboard`). La page plateforme du storefront (`apps/storefront/src/app/page.tsx`, `confidentialite/page.tsx`) reprend ce monde ; les sites des boutiques sont habillés par le thème de chaque marchand et sortent de ce système.",
+    "keyCharacteristics": [
+      "Boîtier blanc cassé ou noir selon l'appareil, faces planes au filet fin, champs et rails en creux.",
+      "Touches à arête ombrée qui s'enfoncent ; une seule touche orange par écran, dont la lumière glisse d'une touche à l'autre.",
+      "Afficheur LCD (clair en thème clair, noir en thème sombre) aux chiffres fins qui roulent en colonnes fixes.",
+      "États lus aux témoins : orange = à faire, plein = allumé, anneau = éteint, pointillé = brouillon, rouge = erreur.",
+      "Sélections exclusives en curseurs à glissière (navigation, filtres, période, thème, options de menu).",
+      "Une linéale, Hanken Grotesk, chiffres tabulaires ; légendes sérigraphiées en petites capitales espacées."
+    ],
+    "rules": [
+      {
+        "name": "La règle des roues",
+        "body": "L'orange n'apparaît que sur la touche de l'action à faire maintenant et sur les témoins qui demandent l'attention, comme les deux roues du logo. Titres, fonds, liens, icônes, graphiques : jamais orange.",
+        "section": "colors"
+      },
+      {
+        "name": "La règle de la lumière unique",
+        "body": "Une seule touche orange par écran. Dans une liste, les touches de la prochaine action partagent une seule lumière (même `lightId`) qui glisse vers la suivante quand l'action est faite ; sans rien à faire, la lumière revient à l'action suivante de l'écran (sur l'Accueil : mettre le site en ligne), et une touche « Enregistrer » ne s'allume que s'il y a des changements.",
+        "section": "colors"
+      },
+      {
+        "name": "La règle du rouge réservé",
+        "body": "Le rouge dit erreur, annulation, rupture ou destruction confirmée, rien d'autre. Le focus et la sélection sont à l'encre.",
+        "section": "colors"
+      },
+      {
+        "name": "La règle des colonnes fixes",
+        "body": "Tout nombre s'affiche en chiffres tabulaires (tables, totaux, compteurs, adresses). Dans l'afficheur, les chiffres sont fins (300) et chacun roule dans sa colonne jusqu'à sa valeur ; séparateurs fixes, valeur finale lue par les lecteurs d'écran.",
+        "section": "typography"
+      },
+      {
+        "name": "La règle de la sérigraphie",
+        "body": "La légende nomme ce qui est juste à côté : une colonne, une lecture, un groupe de touches, une unité. Elle n'est jamais un surtitre posé au-dessus d'un titre de page ou de section.",
+        "section": "typography"
+      },
+      {
+        "name": "La règle des trois reliefs",
+        "body": "Plat pour ce qu'on lit (face au filet), creux pour ce qu'on remplit ou fait glisser (champ, rail), relief pour ce qu'on enfonce (touche, curseur). Une ombre portée ne marque que ce qui flotte au-dessus de l'écran.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do allumer une seule touche orange par écran, sur l'action à faire maintenant ; les autres actions sont des touches blanches ou fantômes.",
+      "Do partager la lumière orange entre les touches d'une même liste (même `lightId`) pour qu'elle glisse vers la prochaine action.",
+      "Do dire chaque état par un témoin et un libellé : orange = à faire, plein = allumé, anneau = éteint, pointillé = brouillon, rouge = erreur.",
+      "Do poser les chiffres qui comptent (ventes, totaux, compteurs) dans un afficheur, en chiffres fins tabulaires qui roulent, avec l'unité de la devise de la boutique.",
+      "Do passer par les rôles (boîtier, face, creux, encre, filet, touche, afficheur, orange, rouge) pour que tout bascule entre clair et sombre.",
+      "Do marquer toute sélection exclusive par un curseur qui glisse (ressort de glissement), dans un rail en creux.",
+      "Do tenir le mouvement dans la grammaire : ressort sec pour les touches, ressort de glissement pour les curseurs et la lumière, entrées de 0.36 s décalées de 40 ms, rien au-delà de 0.4 s hors chiffres, emblème et signaux en boucle.",
+      "Do donner 44 px aux touches et aux champs sous 768 px, et passer les listes en rangées empilées au téléphone."
+    ],
+    "donts": [
+      "Don't mettre de l'orange sur un titre, un fond, un lien, une icône ou un graphique : il est rare, comme les roues du logo.",
+      "Don't allumer deux touches orange sur le même écran ; un dialogue qui recouvre l'écran porte sa propre touche.",
+      "Don't poser de grands aplats noirs en thème clair : l'afficheur y est un écran gris clair, le noir plein reste réservé aux petites pièces (témoin, rail allumé, toast).",
+      "Don't employer le rouge pour attirer l'œil : il dit erreur, annulation, rupture ou destruction confirmée.",
+      "Don't laisser la couleur parler seule : un témoin a toujours un libellé, visible ou lu par le lecteur d'écran.",
+      "Don't donner une ombre portée à une face : elle est plate au filet ; l'ombre portée est pour ce qui flotte.",
+      "Don't construire un écran en grille de cartes de statistiques ou en graphiques décoratifs : les chiffres vont dans l'afficheur.",
+      "Don't utiliser la légende en capitales comme surtitre au-dessus d'un titre : elle nomme une colonne, une lecture ou un groupe."
+    ]
+  }
+}

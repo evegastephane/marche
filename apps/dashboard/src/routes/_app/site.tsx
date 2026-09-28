@@ -77,7 +77,7 @@ function SansSite({ store }: { store: StoreDto }) {
             Adresse du site
             <UpsellMark className="h-4 w-auto text-display-ink" />
           </span>
-          <span className="readout text-[1.375rem] break-all sm:text-[1.625rem]">{siteHost(store.slug)}</span>
+          <span className="readout text-[1.375rem] break-all sm:text-[1.5rem]">{siteHost(store.slug)}</span>
           <span className="flex items-center gap-2 text-[0.8125rem] text-display-dim">
             <span aria-hidden className="size-2 rounded-full shadow-[inset_0_0_0_1.5px_var(--color-display-dim)]" />
             Hors ligne tant que vous n’avez pas appuyé
@@ -471,7 +471,7 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                 Enregistrer
               </Button>
               <Button
-                variant={online ? 'primary' : 'secondary'}
+                variant={online && hasChanges ? 'primary' : 'secondary'}
                 disabled={!hasChanges || busy !== null}
                 loading={busy === 'publish'}
                 onClick={() => (dirty ? saveDraft(true) : publishTheme())}

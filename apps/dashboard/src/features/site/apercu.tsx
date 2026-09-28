@@ -59,7 +59,7 @@ export function ApercuSite({
             <span className="truncate text-[0.9375rem] font-bold" style={{ fontFamily: family(fonts.heading) }}>
               {storeName}
             </span>
-            <span className="flex gap-3 text-[0.625rem] opacity-70" aria-hidden>
+            <span className="flex gap-3 text-[0.6875rem] opacity-70" aria-hidden>
               <span>Boutique</span>
               <span>Panier</span>
             </span>
@@ -77,7 +77,7 @@ export function ApercuSite({
               {hero.subtitle && <p className="text-[0.6875rem] opacity-85">{hero.subtitle}</p>}
               {hero.ctaLabel && (
                 <span
-                  className="mt-1 rounded-md px-2.5 py-1 text-[0.625rem] font-bold"
+                  className="mt-1 rounded-md px-2.5 py-1 text-[0.6875rem] font-bold"
                   style={{
                     background: colors.accent,
                     color: colors.foreground,

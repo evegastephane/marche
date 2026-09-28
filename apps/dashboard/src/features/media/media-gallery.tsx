@@ -114,7 +114,7 @@ export function MediaGallery({
                 className="pointer-events-none size-full object-cover"
               />
               {index === 0 && (
-                <span className="absolute bottom-1.5 left-1.5 rounded-md bg-ink/85 px-1.5 py-0.5 text-[0.625rem] font-[600] text-canvas">
+                <span className="absolute bottom-1.5 left-1.5 rounded-md bg-ink/85 px-1.5 py-0.5 text-[0.6875rem] font-[600] text-canvas">
                   Principale
                 </span>
               )}

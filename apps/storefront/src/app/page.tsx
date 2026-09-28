@@ -46,15 +46,15 @@ export default function PlatformHome() {
           </a>
         </div>
 
-        <div className="sf-rise flex flex-col gap-5 rounded-2xl bg-[#e8e9e3] p-6 text-[#101115] shadow-[inset_0_2px_3px_rgb(16_17_21/0.08),inset_0_0_0_1px_rgb(16_17_21/0.12)] [--sf-delay:260ms] sm:p-7 dark:bg-[#060607] dark:text-[#f4f4f1] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_0_0_1px_rgb(255_255_255/0.08)]">
-          <span className="text-[0.6875rem] font-semibold tracking-[0.08em] text-[#5d5f66] uppercase dark:text-[#9a9ca3]">
+        <div className="sf-rise flex flex-col gap-5 rounded-2xl bg-[#e8e9e3] p-6 text-[#101115] shadow-[inset_0_2px_3px_rgb(16_17_21/0.08),inset_0_0_0_1px_rgb(16_17_21/0.12)] [--sf-delay:260ms] sm:p-7 dark:bg-[#060607] dark:text-[#f2f2ef] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.06),0_0_0_1px_rgb(255_255_255/0.08)]">
+          <span className="text-[0.6875rem] font-semibold tracking-[0.08em] text-[#5d5f66] uppercase dark:text-[#8e9097]">
             Exemple d’adresse
           </span>
-          <span className="text-[1.375rem] leading-tight font-light tracking-[-0.02em] break-all tabular-nums sm:text-[1.625rem]">
+          <span className="text-[1.375rem] leading-tight font-light tracking-[-0.02em] break-all tabular-nums sm:text-[1.5rem]">
             chez-awa.{ROOT_DOMAIN}
           </span>
-          <span className="flex items-center gap-2.5 border-t border-black/10 pt-4 text-[0.875rem] text-[#5d5f66] dark:border-white/10 dark:text-[#9a9ca3]">
-            <span aria-hidden className="size-2 rounded-full bg-[#101115] dark:bg-[#f4f4f1] dark:shadow-[0_0_8px_rgb(255_255_255/0.55)]" />
+          <span className="flex items-center gap-2.5 border-t border-black/10 pt-4 text-[0.875rem] text-[#5d5f66] dark:border-white/10 dark:text-[#8e9097]">
+            <span aria-hidden className="size-2 rounded-full bg-[#101115] dark:bg-[#f2f2ef] dark:shadow-[0_0_8px_rgb(255_255_255/0.5)]" />
             En ligne, avec le stock à jour
           </span>
         </div>

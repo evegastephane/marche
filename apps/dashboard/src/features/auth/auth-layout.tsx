@@ -8,7 +8,7 @@ import { ThemeToggle } from '@/shared/ui/theme';
 const FUNCTIONS = ['Produits', 'Stock', 'Commandes', 'Site'];
 
 /**
- * Connexion et inscription : à gauche, la façade noire de l'instrument qui s'allume
+ * Connexion et inscription : à gauche, la façade de l'instrument (écran de l'afficheur) qui s'allume
  * (logo, puis les témoins des quatre fonctions l'un après l'autre) ; à droite, le formulaire au calme.
  */
 export function AuthLayout({ children }: { children: ReactNode }) {
@@ -43,7 +43,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
 
         <div className="flex flex-col gap-4">
           <Reveal delay={0.3}>
-            <p className="display text-[3rem] xl:text-[3.75rem]">
+            <p className="display text-[3rem] xl:text-[3.5rem]">
               Votre boutique,
               <br />
               plus haut.

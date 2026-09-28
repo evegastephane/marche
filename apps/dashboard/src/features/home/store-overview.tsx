@@ -47,7 +47,7 @@ export function StoreHeader({
 }
 
 /**
- * L'afficheur : fenêtre noire pleine largeur, trois lectures en colonnes fixes.
+ * L'afficheur : écran pleine largeur (clair, noir en thème sombre), trois lectures en colonnes fixes.
  * Les chiffres roulent à l'allumage puis à chaque changement de période.
  */
 export function Afficheur({

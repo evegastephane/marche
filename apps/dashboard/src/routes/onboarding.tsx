@@ -6,6 +6,7 @@ import { createFileRoute, Link, Navigate, useNavigate } from '@tanstack/react-ro
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { type ChangeEvent, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
+import type { z } from 'zod';
 import { COUNTRIES, CURRENCY_NAMES } from '@/features/onboarding/countries';
 import { AccountMenu } from '@/features/shell/account-menu';
 import { ApiError } from '@/shared/api/client';
@@ -59,9 +60,9 @@ function StoreForm() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const form = useForm<CreateStoreInput>({
+  const form = useForm<z.input<typeof createStoreSchema>, unknown, CreateStoreInput>({
     resolver: zodResolver(createStoreSchema),
-    defaultValues: { name: '', slug: '', country: 'SN', currency: 'XOF' },
+    defaultValues: { name: '', slug: '', country: 'SN', currency: 'XOF', type: 'FASHION' },
   });
   const { register, handleSubmit, setValue, setError, control, formState } = form;
   const [name, slug, currency, country] = useWatch({

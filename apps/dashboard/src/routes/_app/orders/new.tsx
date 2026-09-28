@@ -101,6 +101,7 @@ function NouvelleCommande() {
     return {
       customer,
       lines: lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })),
+      customLines: [],
       shippingAddress,
       note: note.trim() || null,
     };

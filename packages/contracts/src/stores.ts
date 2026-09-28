@@ -65,8 +65,8 @@ export const createStoreSchema = z.object({
   currency: currencySchema,
   country: countrySchema,
   timezone: timezoneSchema.optional(),
-  /** Mode ou Électronique : décide des sortes d'articles, des options et du site. */
-  type: storeTypeSchema,
+  /** Mode ou Électronique : décide des sortes d'articles, des options et du site (Mode par défaut). */
+  type: storeTypeSchema.default('FASHION'),
 });
 export type CreateStoreInput = z.infer<typeof createStoreSchema>;
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common';
+import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   type AdjustStockInput,
@@ -12,6 +12,8 @@ import {
   paginationQuerySchema,
   type SetLowStockThresholdInput,
   setLowStockThresholdSchema,
+  type StockCountInput,
+  stockCountSchema,
   type StockMovementDto,
 } from '@marche/contracts';
 import { ADMIN_API } from '../../../shared/infrastructure/http/access.decorators.js';
@@ -28,6 +30,14 @@ export class InventoryController {
   @Get()
   list(@ZodQuery(inventoryListQuerySchema) query: InventoryListQuery): Promise<Paginated<InventoryItemDto>> {
     return this.inventory.list(query);
+  }
+
+  /** Comptage de plusieurs déclinaisons (grille taille × couleur). */
+  @Post('counts')
+  @HttpCode(200)
+  @ApiZodBody(stockCountSchema)
+  count(@ZodBody(stockCountSchema) input: StockCountInput): Promise<InventoryLevelDto[]> {
+    return this.inventory.count(input);
   }
 
   /** UC-20 : réception, correction, perte, retour. */

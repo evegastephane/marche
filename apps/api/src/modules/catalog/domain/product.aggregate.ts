@@ -1,7 +1,11 @@
 import {
+  MAX_PRODUCT_ACCESSORIES,
   MAX_PRODUCT_MEDIA,
   MAX_PRODUCT_OPTIONS,
   MAX_PRODUCT_VARIANTS,
+  parseAttributes,
+  type ProductAttributes,
+  type ProductKind,
   type ProductOption,
   type ProductStatus,
 } from '@marche/contracts';
@@ -22,6 +26,12 @@ export interface ProductData {
   options: ProductOption[];
   variants: ProductVariant[];
   mediaIds: string[];
+  /** Photo → valeur d'option (couleur) montrée par la photo. */
+  mediaOptionValues: Record<string, string>;
+  kind: ProductKind | null;
+  attributes: ProductAttributes;
+  /** Accessoires choisis à la main, dans l'ordre. */
+  accessoryIds: string[];
   seoTitle: string | null;
   seoDescription: string | null;
   publishedAt: Date | null;
@@ -38,6 +48,10 @@ export interface ProductDraft {
   options: ProductOption[];
   variants: VariantDraft[];
   mediaIds: string[];
+  mediaOptionValues?: Record<string, string>;
+  kind?: ProductKind | null;
+  attributes?: ProductAttributes;
+  accessoryIds?: string[];
   seoTitle?: string | null;
   seoDescription?: string | null;
 }
@@ -65,8 +79,46 @@ function normalizeOptions(options: readonly ProductOption[]): ProductOption[] {
     if (new Set(values.map(key)).size !== values.length) {
       throw new InvalidProductError(`Valeur en double dans l’option « ${name} »`, 'options');
     }
-    return { name, values };
+    // Les pastilles ne concernent que les valeurs présentes (une valeur retirée perd la sienne).
+    const swatches = option.swatches
+      ? Object.fromEntries(Object.entries(option.swatches).filter(([value]) => values.includes(value)))
+      : undefined;
+    return {
+      name,
+      values,
+      ...(option.type ? { type: option.type } : {}),
+      ...(swatches && Object.keys(swatches).length > 0 ? { swatches } : {}),
+    };
   });
+}
+
+/** Une photo n'est associée qu'à une valeur existante d'une option du produit. */
+function normalizeMediaOptionValues(
+  tags: Readonly<Record<string, string>> | undefined,
+  mediaIds: readonly string[],
+  options: readonly ProductOption[],
+): Record<string, string> {
+  const values = new Set(options.flatMap((option) => option.values));
+  return Object.fromEntries(
+    Object.entries(tags ?? {}).filter(([mediaId, value]) => mediaIds.includes(mediaId) && values.has(value)),
+  );
+}
+
+/** Fiche technique validée selon la sorte d'article ; sans sorte, aucun attribut. */
+function normalizeAttributes(kind: ProductKind | null, attributes: ProductAttributes | undefined): ProductAttributes {
+  if (!kind) return {};
+  const parsed = parseAttributes(kind, attributes ?? {});
+  const [field, message] = Object.entries(parsed.errors)[0] ?? [];
+  if (field) throw new InvalidProductError(`${message} (${field})`, `attributes.${field}`);
+  return parsed.attributes;
+}
+
+function normalizeAccessoryIds(productId: string, accessoryIds: readonly string[] | undefined): string[] {
+  const unique = [...new Set(accessoryIds ?? [])].filter((id) => id !== productId);
+  if (unique.length > MAX_PRODUCT_ACCESSORIES) {
+    throw new InvalidProductError(`${MAX_PRODUCT_ACCESSORIES} accessoires maximum`, 'accessoryIds');
+  }
+  return unique;
 }
 
 /** R2 + cohérence options/variantes : au moins une variante, combinaisons et SKU uniques. */
@@ -136,6 +188,8 @@ export class Product extends AggregateRoot {
     const options = normalizeOptions(draft.options);
     assertVariantsMatchOptions(options, draft.variants);
     const variants = draft.variants.map((variant, index) => ProductVariant.fromDraft(variant, index));
+    const mediaIds = normalizeMediaIds(draft.mediaIds);
+    const kind = draft.kind ?? null;
     const product = new Product(id, {
       storeId,
       brandId: draft.brandId ?? null,
@@ -145,7 +199,11 @@ export class Product extends AggregateRoot {
       status: 'DRAFT',
       options,
       variants,
-      mediaIds: normalizeMediaIds(draft.mediaIds),
+      mediaIds,
+      mediaOptionValues: normalizeMediaOptionValues(draft.mediaOptionValues, mediaIds, options),
+      kind,
+      attributes: normalizeAttributes(kind, draft.attributes),
+      accessoryIds: normalizeAccessoryIds(id, draft.accessoryIds),
       seoTitle: draft.seoTitle ?? null,
       seoDescription: draft.seoDescription ?? null,
       publishedAt: null,
@@ -166,7 +224,11 @@ export class Product extends AggregateRoot {
   }
 
   static reconstitute(id: string, data: ProductData, version: number): Product {
-    return new Product(id, { ...data, variants: [...data.variants], mediaIds: [...data.mediaIds] }, version);
+    return new Product(
+      id,
+      { ...data, variants: [...data.variants], mediaIds: [...data.mediaIds], accessoryIds: [...data.accessoryIds] },
+      version,
+    );
   }
 
   get storeId(): string {
@@ -195,7 +257,12 @@ export class Product extends AggregateRoot {
   }
 
   snapshot(): Readonly<ProductData> {
-    return { ...this.data, variants: [...this.data.variants], mediaIds: [...this.data.mediaIds] };
+    return {
+      ...this.data,
+      variants: [...this.data.variants],
+      mediaIds: [...this.data.mediaIds],
+      accessoryIds: [...this.data.accessoryIds],
+    };
   }
 
   /**
@@ -226,6 +293,8 @@ export class Product extends AggregateRoot {
       .map((variant) => variant.archived(now));
 
     const previousSlug = this.data.slug;
+    const mediaIds = normalizeMediaIds(draft.mediaIds);
+    const kind = draft.kind ?? null;
     this.data = {
       ...this.data,
       brandId: draft.brandId ?? null,
@@ -234,7 +303,11 @@ export class Product extends AggregateRoot {
       description: draft.description ?? null,
       options,
       variants: [...active, ...archived],
-      mediaIds: normalizeMediaIds(draft.mediaIds),
+      mediaIds,
+      mediaOptionValues: normalizeMediaOptionValues(draft.mediaOptionValues, mediaIds, options),
+      kind,
+      attributes: normalizeAttributes(kind, draft.attributes),
+      accessoryIds: normalizeAccessoryIds(this.id, draft.accessoryIds),
       seoTitle: draft.seoTitle ?? null,
       seoDescription: draft.seoDescription ?? null,
       updatedAt: now,
@@ -289,7 +362,11 @@ export class Product extends AggregateRoot {
         slug: input.slug,
         description: this.data.description,
         brandId: this.data.brandId,
-        options: this.data.options.map((option) => ({ name: option.name, values: [...option.values] })),
+        options: this.data.options.map((option) => ({
+          ...option,
+          values: [...option.values],
+          ...(option.swatches ? { swatches: { ...option.swatches } } : {}),
+        })),
         variants: this.activeVariants.map((variant) => {
           const data = variant.snapshot();
           return {
@@ -301,6 +378,10 @@ export class Product extends AggregateRoot {
           };
         }),
         mediaIds: [...this.data.mediaIds],
+        mediaOptionValues: { ...this.data.mediaOptionValues },
+        kind: this.data.kind,
+        attributes: structuredClone(this.data.attributes),
+        accessoryIds: [...this.data.accessoryIds],
         seoTitle: this.data.seoTitle,
         seoDescription: this.data.seoDescription,
       },

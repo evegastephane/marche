@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { type Address, addressSchema, type Currency } from '@marche/contracts';
+import { type Address, addressSchema, type Currency, type OrderDiscount } from '@marche/contracts';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { ActorContext } from '../../../shared/application/actor-context.port.js';
 import { ConcurrentModificationError } from '../../../shared/domain/domain-error.js';
@@ -18,6 +18,17 @@ export function parseAddress(value: Prisma.JsonValue | null): Address | null {
   if (value === null) return null;
   const parsed = addressSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
+}
+
+/** Remises figées sur la commande (JSON) ; une entrée illisible est ignorée. */
+export function parseDiscounts(value: Prisma.JsonValue): OrderDiscount[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (typeof item !== 'object' || item === null || Array.isArray(item)) return [];
+    const { bundleId, title, amount } = item as Record<string, unknown>;
+    if (typeof title !== 'string' || typeof amount !== 'number') return [];
+    return [{ bundleId: typeof bundleId === 'string' ? bundleId : null, title, amount }];
+  });
 }
 
 const orderInclude = { lines: { orderBy: { position: 'asc' } } } satisfies Prisma.OrderInclude;
@@ -45,8 +56,11 @@ function toDomain(row: OrderRow): Order {
         unitPriceAmount: line.unitPriceAmount,
         quantity: line.quantity,
         tracksInventory: line.tracksInventory,
+        custom: line.custom,
       })),
       subtotalAmount: row.subtotalAmount,
+      discounts: parseDiscounts(row.discounts),
+      discountAmount: row.discountAmount,
       shippingAmount: row.shippingAmount,
       totalAmount: row.totalAmount,
       shippingAddress: parseAddress(row.shippingAddress),
@@ -73,6 +87,8 @@ function orderFields(order: Order) {
     status: o.status,
     paymentStatus: o.paymentStatus,
     subtotalAmount: o.subtotalAmount,
+    discounts: o.discounts as unknown as Prisma.InputJsonValue,
+    discountAmount: o.discountAmount,
     shippingAmount: o.shippingAmount,
     totalAmount: o.totalAmount,
     shippingAddress: (o.shippingAddress ?? undefined) as Prisma.InputJsonValue | undefined,
@@ -142,6 +158,7 @@ export class PrismaOrderRepository extends OrderRepository {
         quantity: line.quantity,
         lineTotalAmount: lineTotal(line),
         tracksInventory: line.tracksInventory,
+        custom: line.custom,
         position,
       })),
     });

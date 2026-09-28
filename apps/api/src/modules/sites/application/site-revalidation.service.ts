@@ -27,6 +27,10 @@ export class SiteRevalidationService {
       tags.add(cacheTags.product(event.aggregateId)).add(cacheTags.catalog(storeId));
     } else if (event.type.startsWith('catalog.collection.')) {
       tags.add(cacheTags.collection(event.aggregateId)).add(cacheTags.catalog(storeId)).add(cacheTags.store(storeId));
+    } else if (event.type.startsWith('catalog.bundle.')) {
+      const anchorProductId = (event.payload as { anchorProductId?: string }).anchorProductId;
+      if (anchorProductId) tags.add(cacheTags.product(anchorProductId));
+      tags.add(cacheTags.catalog(storeId));
     } else if (event.type.startsWith('catalog.brand.')) {
       tags.add(cacheTags.catalog(storeId));
     } else if (event.type === 'inventory.stock.out' || event.type === 'inventory.stock.back') {

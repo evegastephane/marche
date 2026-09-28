@@ -20,6 +20,10 @@ export const TENANT_MODELS: ReadonlySet<string> = new Set([
   'Site',
   'Campaign',
   'CampaignMessage',
+  'ProductRelation',
+  'Bundle',
+  'BundleItem',
+  'SpecialRequest',
 ]);
 
 const WHERE_OPERATIONS: ReadonlySet<string> = new Set([

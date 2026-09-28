@@ -1,5 +1,6 @@
 import { Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { z } from 'zod';
 import {
   type BrandDto,
   type BrandListQuery,
@@ -7,6 +8,11 @@ import {
   type BulkProductActionInput,
   type BulkProductActionResultDto,
   bulkProductActionSchema,
+  type BundleDto,
+  type CreateBundleInput,
+  createBundleSchema,
+  type UpdateBundleInput,
+  updateBundleSchema,
   type CollectionDetailDto,
   type CollectionDto,
   type CollectionListQuery,
@@ -34,6 +40,7 @@ import {
 import { ADMIN_API } from '../../../shared/infrastructure/http/access.decorators.js';
 import { ApiZodBody, ZodBody, ZodQuery } from '../../../shared/infrastructure/http/zod-validation.js';
 import { BrandUseCases, CollectionUseCases } from '../application/brand-collection.use-cases.js';
+import { BundleUseCases } from '../application/bundle.use-cases.js';
 import { CatalogQueries } from '../application/catalog.queries.js';
 import {
   ChangeProductStatusUseCase,
@@ -209,5 +216,43 @@ export class CollectionsController {
   @HttpCode(204)
   delete(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.collections.delete(id);
+  }
+}
+
+const bundleListQuerySchema = z.object({ anchorProductId: z.uuid().optional() });
+
+@ApiTags('packs')
+@ApiBearerAuth()
+@Controller(`${ADMIN_API}/bundles`)
+export class BundlesController {
+  constructor(private readonly bundles: BundleUseCases) {}
+
+  /** Tous les packs, ou ceux d'un appareil (?anchorProductId=). */
+  @Get()
+  list(@ZodQuery(bundleListQuerySchema) query: z.infer<typeof bundleListQuerySchema>): Promise<BundleDto[]> {
+    return this.bundles.list(query);
+  }
+
+  @Post()
+  @ApiZodBody(createBundleSchema)
+  create(@ZodBody(createBundleSchema) input: CreateBundleInput): Promise<BundleDto> {
+    return this.bundles.create(input);
+  }
+
+  @Get(':id')
+  get(@Param('id', ParseUUIDPipe) id: string): Promise<BundleDto> {
+    return this.bundles.get(id);
+  }
+
+  @Put(':id')
+  @ApiZodBody(updateBundleSchema)
+  update(@Param('id', ParseUUIDPipe) id: string, @ZodBody(updateBundleSchema) input: UpdateBundleInput): Promise<BundleDto> {
+    return this.bundles.update(id, input);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  delete(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.bundles.delete(id);
   }
 }

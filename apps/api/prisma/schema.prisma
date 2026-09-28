@@ -90,6 +90,10 @@ model Store {
   logoMediaId      String?   @map("logo_media_id") @db.Uuid
   shippingSettings Json      @default("{\"strategy\":\"FLAT_RATE\",\"flatRateAmount\":0}") @map("shipping_settings")
   lowStockDefault  Int       @default(5) @map("low_stock_default")
+  /// Mode ou Électronique : sortes d'articles, options et fiche produit du site.
+  type             StoreType @default(FASHION)
+  /// Réglages propres au type (guides des tailles…), validés par verticalSettingsSchema.
+  verticalSettings Json      @default("{}") @map("vertical_settings")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   archivedAt       DateTime? @map("archived_at")
@@ -104,6 +108,8 @@ model Store {
   customers   Customer[]
   orders      Order[]
   campaigns   Campaign[]
+  bundles     Bundle[]
+  specialRequests SpecialRequest[]
   site        Site?
 
   @@map("stores")
@@ -157,7 +163,11 @@ model Product {
   slug           String
   description    String? // Markdown
   status         ProductStatus       @default(DRAFT)
-  options        Json                @default("[]") // [{ "name": "Taille", "values": ["S","M"] }]
+  options        Json                @default("[]") // [{ "name": "Taille", "values": ["S","M"], "type": "size" }]
+  /// Sorte d'article (CLOTHING, PHONE…), parmi celles du type de la boutique.
+  kind           String?
+  /// Fiche technique ou détails, validés selon la sorte (verticals.ts).
+  attributes     Json                @default("{}")
   seoTitle       String?             @map("seo_title")
   seoDescription String?             @map("seo_description")
   publishedAt    DateTime?           @map("published_at")
@@ -170,10 +180,17 @@ model Product {
   variants       ProductVariant[]
   media          ProductMedia[]
   collections    CollectionProduct[]
+  relations      ProductRelation[]   @relation("RelationOwner")
+  relatedTo      ProductRelation[]   @relation("RelationTarget")
+  bundlesAnchored Bundle[]
+  bundleItems    BundleItem[]
 
   @@unique([storeId, slug])
   @@index([storeId, status, updatedAt(sort: Desc)])
   @@index([storeId, brandId])
+  @@index([storeId, kind])
+  // Recherche par titre (ILIKE accéléré) : déclaré ici pour que prisma migrate ne le supprime plus
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "products_title_trgm")
   @@map("products")
 }
 
@@ -226,6 +243,8 @@ model ProductMedia {
   productId String  @map("product_id") @db.Uuid
   mediaId   String  @map("media_id") @db.Uuid
   position  Int
+  /// Valeur d'option (une couleur) que montre la photo ; null = toutes.
+  optionValue String? @map("option_value")
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   media     Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
@@ -334,6 +353,9 @@ model Order {
   source          OrderSource
   currency        String        @db.Char(3)
   subtotalAmount  Int           @default(0) @map("subtotal_amount")
+  /// Remises des packs, figées au passage : [{ bundleId, title, amount }].
+  discounts       Json          @default("[]")
+  discountAmount  Int           @default(0) @map("discount_amount")
   shippingAmount  Int           @default(0) @map("shipping_amount")
   totalAmount     Int           @default(0) @map("total_amount")
   shippingAddress Json?         @map("shipping_address")
@@ -350,6 +372,7 @@ model Order {
   store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   customer        Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
   lines           OrderLine[]
+  specialRequest  SpecialRequest?
 
   @@unique([storeId, number])
   @@index([storeId, status, createdAt(sort: Desc)])
@@ -369,6 +392,7 @@ model OrderLine {
   quantity        Int
   lineTotalAmount Int             @map("line_total_amount")
   tracksInventory Boolean         @default(true) @map("tracks_inventory") // la ligne a réservé du stock
+  custom          Boolean         @default(false) // ligne libre (commande sur demande), hors catalogue
   position        Int
   order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variant         ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
@@ -468,4 +492,105 @@ model CampaignMessage {
   @@index([campaignId, status])
   @@index([storeId])
   @@map("campaign_messages")
+}
+
+enum StoreType {
+  FASHION
+  ELECTRONICS
+}
+
+enum ProductRelationType {
+  ACCESSORY
+}
+
+/// Lien entre deux produits : accessoires choisis à la main pour un appareil.
+model ProductRelation {
+  storeId          String              @map("store_id") @db.Uuid
+  productId        String              @map("product_id") @db.Uuid
+  relatedProductId String              @map("related_product_id") @db.Uuid
+  type             ProductRelationType @default(ACCESSORY)
+  position         Int
+  product          Product             @relation("RelationOwner", fields: [productId], references: [id], onDelete: Cascade)
+  related          Product             @relation("RelationTarget", fields: [relatedProductId], references: [id], onDelete: Cascade)
+
+  @@id([productId, relatedProductId, type])
+  @@index([relatedProductId])
+  @@index([storeId])
+  @@map("product_relations")
+}
+
+enum BundleDiscountType {
+  PERCENT
+  AMOUNT
+}
+
+/// Pack : un appareil et des accessoires vendus ensemble, avec une remise.
+model Bundle {
+  id              String             @id @default(uuid(7)) @db.Uuid
+  storeId         String             @map("store_id") @db.Uuid
+  title           String
+  anchorProductId String             @map("anchor_product_id") @db.Uuid
+  discountType    BundleDiscountType @map("discount_type")
+  discountValue   Int                @map("discount_value")
+  isActive        Boolean            @default(true) @map("is_active")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  store           Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  anchor          Product            @relation(fields: [anchorProductId], references: [id], onDelete: Cascade)
+  items           BundleItem[]
+
+  @@index([storeId, isActive])
+  @@index([anchorProductId])
+  @@map("bundles")
+}
+
+model BundleItem {
+  storeId   String  @map("store_id") @db.Uuid
+  bundleId  String  @map("bundle_id") @db.Uuid
+  productId String  @map("product_id") @db.Uuid
+  position  Int
+  bundle    Bundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([bundleId, productId])
+  @@index([productId])
+  @@map("bundle_items")
+}
+
+enum SpecialRequestStatus {
+  NEW
+  QUOTED
+  DECLINED
+  CONVERTED
+}
+
+/// Commande sur demande : une configuration absente du stock, demandée depuis le site.
+model SpecialRequest {
+  id                    String               @id @default(uuid(7)) @db.Uuid
+  storeId               String               @map("store_id") @db.Uuid
+  productId             String?              @map("product_id") @db.Uuid
+  productTitle          String               @map("product_title")
+  productSlug           String?              @map("product_slug")
+  /// Configuration souhaitée : [{ name, value }].
+  options               Json                 @default("[]")
+  quantity              Int
+  firstName             String               @map("first_name")
+  lastName              String?              @map("last_name")
+  email                 String
+  phone                 String
+  note                  String?
+  currency              String               @db.Char(3)
+  status                SpecialRequestStatus @default(NEW)
+  quotedUnitPriceAmount Int?                 @map("quoted_unit_price_amount")
+  quotedDelay           String?              @map("quoted_delay")
+  declineReason         String?              @map("decline_reason")
+  orderId               String?              @unique @map("order_id") @db.Uuid
+  version               Int                  @default(0)
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+  store                 Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order                 Order?               @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, status, createdAt(sort: Desc)])
+  @@map("special_requests")
 }

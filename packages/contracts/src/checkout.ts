@@ -11,6 +11,12 @@ export const addCartLineSchema = z.object({
 });
 export type AddCartLineInput = z.infer<typeof addCartLineSchema>;
 
+/** Plusieurs articles d'un coup : un appareil et ses accessoires, ou un pack. */
+export const addCartLinesSchema = z.object({
+  lines: z.array(addCartLineSchema).min(1).max(10),
+});
+export type AddCartLinesInput = z.infer<typeof addCartLinesSchema>;
+
 export const updateCartLineSchema = z.object({
   /** 0 retire la ligne. */
   quantity: z.number().int().min(0).max(MAX_CART_LINE_QUANTITY),
@@ -44,12 +50,23 @@ export interface CartLineDto {
   isSellable: boolean;
 }
 
+/** Remise appliquée par un pack complet (appareil + ses accessoires dans le panier). */
+export interface CartDiscountDto {
+  bundleId: string;
+  title: string;
+  /** Nombre de packs complets dans le panier. */
+  quantity: number;
+  amount: number;
+}
+
 export interface CartDto {
   id: string;
   currency: Currency;
   lines: CartLineDto[];
   itemsCount: number;
   subtotalAmount: number;
+  discounts: CartDiscountDto[];
+  discountAmount: number;
   shippingAmount: number;
   totalAmount: number;
   updatedAt: string;
@@ -87,6 +104,7 @@ export interface PublicOrderDto {
     lineTotalAmount: number;
   }[];
   subtotalAmount: number;
+  discountAmount: number;
   shippingAmount: number;
   totalAmount: number;
   placedAt: string | null;

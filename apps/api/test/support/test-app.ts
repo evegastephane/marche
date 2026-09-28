@@ -135,7 +135,14 @@ export async function createTestApp(envOverrides: Record<string, string> = {}): 
 /** Crée une boutique via l'API et renvoie un jeton porteur de son organisation. */
 export async function createStoreFor(
   testApp: TestApp,
-  input: { slug: string; name?: string; currency?: string; country?: string; userId?: string },
+  input: {
+    slug: string;
+    name?: string;
+    currency?: string;
+    country?: string;
+    userId?: string;
+    type?: 'FASHION' | 'ELECTRONICS';
+  },
 ): Promise<{ token: string; storeId: string; userId: string }> {
   const userId = input.userId ?? `user_${randomBytes(6).toString('hex')}`;
   const bootstrapToken = await testApp.token({ sub: userId });
@@ -148,6 +155,7 @@ export async function createStoreFor(
       slug: input.slug,
       currency: input.currency ?? 'EUR',
       country: input.country ?? 'FR',
+      type: input.type ?? 'FASHION',
     });
   if (response.status !== 201) {
     throw new Error(`Création de boutique impossible : ${response.status} ${JSON.stringify(response.body)}`);

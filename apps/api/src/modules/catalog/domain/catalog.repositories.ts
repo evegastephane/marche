@@ -1,4 +1,5 @@
 import type { Brand } from './brand.aggregate.js';
+import type { Bundle } from './bundle.aggregate.js';
 import type { Collection } from './collection.aggregate.js';
 import type { Product } from './product.aggregate.js';
 
@@ -28,4 +29,11 @@ export abstract class CollectionRepository {
   abstract insert(collection: Collection): Promise<void>;
   abstract update(collection: Collection): Promise<void>;
   abstract delete(collection: Collection): Promise<void>;
+}
+
+export abstract class BundleRepository {
+  abstract findById(id: string): Promise<Bundle | null>;
+  abstract insert(bundle: Bundle): Promise<void>;
+  abstract update(bundle: Bundle): Promise<void>;
+  abstract delete(bundle: Bundle): Promise<void>;
 }

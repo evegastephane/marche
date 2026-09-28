@@ -9,11 +9,18 @@ import {
   type CustomerDto,
   type CustomerListQuery,
   customerListQuerySchema,
+  type DeclineSpecialRequestInput,
+  declineSpecialRequestSchema,
   type OrderDto,
   type OrderListItemDto,
   type OrderListQuery,
   orderListQuerySchema,
   type Paginated,
+  type QuoteSpecialRequestInput,
+  quoteSpecialRequestSchema,
+  type SpecialRequestDto,
+  type SpecialRequestListQuery,
+  specialRequestListQuerySchema,
   type UpdateDraftOrderInput,
   updateDraftOrderSchema,
 } from '@marche/contracts';
@@ -29,6 +36,7 @@ import {
   UpdateDraftOrderUseCase,
 } from '../application/order.use-cases.js';
 import { OrdersReadModel } from '../application/orders.ports.js';
+import { SpecialRequestUseCases } from '../application/special-request.use-cases.js';
 
 @ApiTags('commandes')
 @ApiBearerAuth()
@@ -123,5 +131,56 @@ export class CustomersController {
     const customer = await this.readModel.getCustomer(id);
     if (!customer) throw new NotFoundError('Client', id);
     return customer;
+  }
+}
+
+@ApiTags('demandes')
+@ApiBearerAuth()
+@Controller(`${ADMIN_API}/special-requests`)
+export class SpecialRequestsController {
+  constructor(private readonly requests: SpecialRequestUseCases) {}
+
+  @Get()
+  list(@ZodQuery(specialRequestListQuerySchema) query: SpecialRequestListQuery): Promise<Paginated<SpecialRequestDto>> {
+    return this.requests.list(query);
+  }
+
+  /** Nombre de demandes à traiter (témoin du menu). */
+  @Get('summary')
+  summary(): Promise<{ newCount: number }> {
+    return this.requests.summary();
+  }
+
+  @Get(':id')
+  get(@Param('id', ParseUUIDPipe) id: string): Promise<SpecialRequestDto> {
+    return this.requests.get(id);
+  }
+
+  /** Prix et délai annoncés au client (un e-mail lui est envoyé). */
+  @Post(':id/quote')
+  @HttpCode(200)
+  @ApiZodBody(quoteSpecialRequestSchema)
+  quote(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ZodBody(quoteSpecialRequestSchema) input: QuoteSpecialRequestInput,
+  ): Promise<SpecialRequestDto> {
+    return this.requests.quote(id, input);
+  }
+
+  @Post(':id/decline')
+  @HttpCode(200)
+  @ApiZodBody(declineSpecialRequestSchema)
+  decline(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ZodBody(declineSpecialRequestSchema) input: DeclineSpecialRequestInput,
+  ): Promise<SpecialRequestDto> {
+    return this.requests.decline(id, input);
+  }
+
+  /** Crée le brouillon de commande correspondant au devis. */
+  @Post(':id/convert')
+  @HttpCode(200)
+  convert(@Param('id', ParseUUIDPipe) id: string): Promise<SpecialRequestDto> {
+    return this.requests.convert(id);
   }
 }

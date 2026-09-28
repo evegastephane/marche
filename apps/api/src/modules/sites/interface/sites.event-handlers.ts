@@ -51,6 +51,11 @@ export class SitesEventHandlers {
     return this.revalidation.handle(event);
   }
 
+  @revalidate('catalog.bundle.changed')
+  onBundleChanged(event: SerializedDomainEvent) {
+    return this.revalidation.handle(event);
+  }
+
   @revalidate('catalog.brand.updated')
   onBrandUpdated(event: SerializedDomainEvent) {
     return this.revalidation.handle(event);

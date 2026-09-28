@@ -1,8 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import type { Address, CheckoutResultDto, OrderLineInput, PublicOrderDto } from '@marche/contracts';
+import type {
+  Address,
+  CheckoutResultDto,
+  OrderLineInput,
+  PublicOrderDto,
+  SpecialRequestDto,
+  SpecialRequestInput,
+  SpecialRequestReceiptDto,
+} from '@marche/contracts';
 import { OrderPlacementService } from './application/order-placement.service.js';
 import { PlaceStorefrontOrderUseCase } from './application/order.use-cases.js';
-import { type OrderSummary, OrdersReadModel } from './application/orders.ports.js';
+import { type OrderSummary, OrdersReadModel, SpecialRequestsReadModel } from './application/orders.ports.js';
+import { SpecialRequestUseCases } from './application/special-request.use-cases.js';
 import { CustomerRepository, type WhatsAppRecipient } from './domain/order.repositories.js';
 
 export type { OrderSummary, WhatsAppRecipient };
@@ -15,6 +24,8 @@ export class OrdersFacade {
     private readonly readModel: OrdersReadModel,
     private readonly placement: OrderPlacementService,
     private readonly customers: CustomerRepository,
+    private readonly specialRequests: SpecialRequestUseCases,
+    private readonly specialRequestsReadModel: SpecialRequestsReadModel,
   ) {}
 
   /** Frais de livraison de la boutique courante pour un sous-total donné (panier). */
@@ -32,6 +43,16 @@ export class OrdersFacade {
     whatsappOptIn?: boolean;
   }): Promise<CheckoutResultDto> {
     return this.placeStorefrontOrder.execute(input);
+  }
+
+  /** Commande sur demande envoyée depuis la fiche d'un produit du site. */
+  submitSpecialRequest(input: SpecialRequestInput): Promise<SpecialRequestReceiptDto> {
+    return this.specialRequests.submit(input);
+  }
+
+  /** Demande de la boutique courante (e-mails). */
+  getSpecialRequest(requestId: string): Promise<SpecialRequestDto | null> {
+    return this.specialRequestsReadModel.get(requestId);
   }
 
   getPublicOrder(publicToken: string): Promise<PublicOrderDto | null> {

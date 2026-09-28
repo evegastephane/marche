@@ -4,6 +4,8 @@ import type {
   ProductDto,
   StorefrontBrandDto,
   StorefrontCollectionDto,
+  StorefrontFacetsDto,
+  StorefrontFacetsQuery,
   StorefrontProductCardDto,
   StorefrontProductDto,
 } from '@marche/contracts';
@@ -13,8 +15,9 @@ import {
   type StorefrontProductFilter,
   type VariantSnapshot,
 } from './application/catalog.read-model.js';
+import { type BundleDiscount, type PricingLine, priceBundles } from './domain/bundle-pricing.js';
 
-export type { VariantSnapshot, StorefrontProductFilter };
+export type { VariantSnapshot, StorefrontProductFilter, BundleDiscount, PricingLine };
 
 /** API publique du module catalog (commandes, panier, site, storefront). */
 @Injectable()
@@ -52,6 +55,17 @@ export class CatalogFacade {
 
   getPublishedProduct(slug: string): Promise<StorefrontProductDto | null> {
     return this.storefront.getProduct(slug);
+  }
+
+  /** Filtres du site (valeurs et nombre d'articles) ; null si le catalogue demandé n'est pas publié. */
+  facets(query: StorefrontFacetsQuery): Promise<StorefrontFacetsDto | null> {
+    return this.storefront.facets(query);
+  }
+
+  /** Remises des packs pour ces lignes (panier ou commande), toujours recalculées par le serveur. */
+  async priceBundles(lines: readonly PricingLine[]): Promise<BundleDiscount[]> {
+    const bundles = await this.storefront.activeBundles(lines.map((line) => line.productId));
+    return priceBundles(bundles, lines);
   }
 
   /** Produit de la boutique courante, quel que soit son statut (campagnes). */

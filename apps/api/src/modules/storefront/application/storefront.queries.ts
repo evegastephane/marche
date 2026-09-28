@@ -1,14 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  AvailabilityDto,
-  Paginated,
-  PublicOrderDto,
-  StorefrontBrandDto,
-  StorefrontCollectionDto,
-  StorefrontProductCardDto,
-  StorefrontProductDto,
-  StorefrontProductListQuery,
-  StorefrontStoreDto,
+import {
+  type AvailabilityDto,
+  OPTION_TYPES,
+  type OptionType,
+  type Paginated,
+  sizeGuideFor,
+  type StorefrontFacetsDto,
+  type StorefrontFacetsQuery,
+  type PublicOrderDto,
+  type StorefrontBrandDto,
+  type StorefrontCollectionDto,
+  type StorefrontProductCardDto,
+  type StorefrontProductDto,
+  type StorefrontProductListQuery,
+  type StorefrontStoreDto,
 } from '@marche/contracts';
 import { ActorContext } from '../../../shared/application/actor-context.port.js';
 import { NotFoundError } from '../../../shared/domain/domain-error.js';
@@ -18,6 +23,19 @@ import { MediaFacade } from '../../media/media.facade.js';
 import { OrdersFacade } from '../../orders/orders.facade.js';
 import { SitesFacade } from '../../sites/sites.facade.js';
 import { StoresFacade } from '../../stores/stores.facade.js';
+
+/** « type:valeur » répétés → valeurs regroupées par clé (les valeurs d'une même clé s'additionnent). */
+function groupPairs(pairs: readonly string[]): Map<string, string[]> {
+  const groups = new Map<string, string[]>();
+  for (const pair of pairs) {
+    const separator = pair.indexOf(':');
+    const key = pair.slice(0, separator);
+    const value = pair.slice(separator + 1).trim();
+    if (!value) continue;
+    groups.set(key, [...new Set([...(groups.get(key) ?? []), value])]);
+  }
+  return groups;
+}
 
 /** Lectures du site public (BFF) : composition des façades des modules. */
 @Injectable()
@@ -54,6 +72,11 @@ export class StorefrontQueries {
       contactEmail: settings.contactEmail,
       phone: settings.phone,
       logo: (logoId && media.get(logoId)) || null,
+      type: settings.type,
+      sizeGuides: {
+        CLOTHING: sizeGuideFor('CLOTHING', settings.verticalSettings)!,
+        SHOES: sizeGuideFor('SHOES', settings.verticalSettings)!,
+      },
       templateId: site.templateId,
       templateVersion: site.templateVersion,
       theme: site.theme,
@@ -65,9 +88,18 @@ export class StorefrontQueries {
   }
 
   async products(query: StorefrontProductListQuery): Promise<Paginated<StorefrontProductCardDto>> {
+    const options = [...groupPairs(query.o)]
+      .filter(([type]) => (OPTION_TYPES as readonly string[]).includes(type))
+      .map(([type, values]) => ({ type: type as OptionType, values }));
+    const attributes = [...groupPairs(query.a)].map(([key, values]) => ({ key, values }));
     const page = await this.catalog.listProductCards({
       collectionSlug: query.collection,
       brandSlug: query.brand,
+      kind: query.kind,
+      options,
+      attributes,
+      priceMin: query.priceMin,
+      priceMax: query.priceMax,
       sort: query.sort,
       cursor: query.cursor,
       limit: query.limit,
@@ -80,6 +112,13 @@ export class StorefrontQueries {
     const product = await this.catalog.getPublishedProduct(slug);
     if (!product) throw new NotFoundError('Produit', slug);
     return product;
+  }
+
+  /** Filtres proposés (valeurs présentes et nombre d'articles), pour tout le catalogue ou un catalogue. */
+  async facets(query: StorefrontFacetsQuery): Promise<StorefrontFacetsDto> {
+    const facets = await this.catalog.facets(query);
+    if (!facets) throw new NotFoundError('Catalogue', query.collection);
+    return facets;
   }
 
   collections(): Promise<StorefrontCollectionDto[]> {

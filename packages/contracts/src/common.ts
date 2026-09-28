@@ -126,6 +126,8 @@ export const ERROR_CODES = [
   'WHATSAPP_NOT_CONFIGURED',
   'PRODUCT_NOT_ACTIVE',
   'NO_RECIPIENTS',
+  'INVALID_PRODUCT_KIND',
+  'INVALID_REQUEST_TRANSITION',
   'INTERNAL_ERROR',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];

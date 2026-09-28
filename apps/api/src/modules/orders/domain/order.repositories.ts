@@ -1,5 +1,6 @@
 import type { Address } from '@marche/contracts';
 import type { Order } from './order.aggregate.js';
+import type { SpecialRequest } from './special-request.aggregate.js';
 
 export abstract class OrderRepository {
   abstract findById(id: string): Promise<Order | null>;
@@ -35,4 +36,11 @@ export abstract class CustomerRepository {
    * se termine par ces chiffres (contexte système). Retourne le nombre de fiches désinscrites.
    */
   abstract optOutWhatsApp(phoneSuffix: string, at: Date): Promise<number>;
+}
+
+export abstract class SpecialRequestRepository {
+  abstract findById(id: string): Promise<SpecialRequest | null>;
+  abstract insert(request: SpecialRequest): Promise<void>;
+  /** Lève ConcurrentModificationError si la version a changé entre-temps. */
+  abstract update(request: SpecialRequest): Promise<void>;
 }

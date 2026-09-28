@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type {
   Address,
   Currency,
+  OrderDiscount,
   OrderSource,
   OrderStatus,
   PaymentStatus,
@@ -23,6 +24,8 @@ export interface OrderLineData {
   unitPriceAmount: number;
   quantity: number;
   tracksInventory: boolean;
+  /** Ligne libre (commande sur demande) : hors catalogue, au prix convenu, sans stock réservé. */
+  custom: boolean;
 }
 
 export type NewOrderLine = Omit<OrderLineData, 'id'>;
@@ -39,6 +42,9 @@ export interface OrderData {
   currency: Currency;
   lines: OrderLineData[];
   subtotalAmount: number;
+  /** Remises des packs (R11 : recalculées par le serveur, jamais reprises du client). */
+  discounts: OrderDiscount[];
+  discountAmount: number;
   shippingAmount: number;
   totalAmount: number;
   shippingAddress: Address | null;
@@ -56,6 +62,21 @@ export interface OrderData {
 /** Lien de suivi public de l'acheteur : 32 octets aléatoires, impossible à deviner. */
 export function newPublicToken(): string {
   return randomBytes(32).toString('base64url');
+}
+
+/** Lignes figées et remises des packs, prêtes à poser sur une commande. */
+export interface PricedLines {
+  lines: readonly NewOrderLine[];
+  discounts: readonly OrderDiscount[];
+}
+
+function buildDiscounts(discounts: readonly OrderDiscount[]): OrderDiscount[] {
+  return discounts.map((discount) => {
+    if (!Number.isSafeInteger(discount.amount) || discount.amount < 0) {
+      throw new ValidationError('VALIDATION_FAILED', 'Remise invalide');
+    }
+    return { ...discount };
+  });
 }
 
 export function lineTotal(line: Pick<OrderLineData, 'unitPriceAmount' | 'quantity'>): number {
@@ -97,6 +118,8 @@ export class Order extends AggregateRoot {
       currency: input.currency,
       lines: [],
       subtotalAmount: 0,
+      discounts: [],
+      discountAmount: 0,
       shippingAmount: 0,
       totalAmount: 0,
       shippingAddress: input.shippingAddress ?? null,
@@ -113,7 +136,11 @@ export class Order extends AggregateRoot {
   }
 
   static reconstitute(id: string, data: OrderData, version: number): Order {
-    return new Order(id, { ...data, lines: data.lines.map((line) => ({ ...line })) }, version);
+    return new Order(
+      id,
+      { ...data, lines: data.lines.map((line) => ({ ...line })), discounts: data.discounts.map((d) => ({ ...d })) },
+      version,
+    );
   }
 
   get status(): OrderStatus {
@@ -133,7 +160,11 @@ export class Order extends AggregateRoot {
   }
 
   snapshot(): Readonly<OrderData> {
-    return { ...this.data, lines: this.data.lines.map((line) => ({ ...line })) };
+    return {
+      ...this.data,
+      lines: this.data.lines.map((line) => ({ ...line })),
+      discounts: this.data.discounts.map((d) => ({ ...d })),
+    };
   }
 
   /** Lignes ayant réservé du stock (celles dont la variante suit l'inventaire). */
@@ -143,10 +174,10 @@ export class Order extends AggregateRoot {
       .map((line) => ({ variantId: line.variantId as string, quantity: line.quantity }));
   }
 
-  /** Brouillon uniquement : remplace les lignes et recalcule les totaux. */
-  replaceLines(lines: readonly NewOrderLine[], shipping: ShippingStrategy, now: Date): void {
+  /** Brouillon uniquement : remplace les lignes (et leurs remises) et recalcule les totaux. */
+  replaceLines(priced: PricedLines, shipping: ShippingStrategy, now: Date): void {
     if (!this.state.canEditLines) throw new InvalidOrderTransitionError(this.status, 'modifier');
-    this.data = { ...this.data, lines: this.buildLines(lines), updatedAt: now };
+    this.data = { ...this.data, lines: this.buildLines(priced.lines), discounts: buildDiscounts(priced.discounts), updatedAt: now };
     this.recomputeTotals(shipping);
   }
 
@@ -170,15 +201,18 @@ export class Order extends AggregateRoot {
    * La réservation du stock (R5) est faite par le use case, dans la même transaction.
    */
   place(
-    input: { number: number; lines: readonly NewOrderLine[]; shipping: ShippingStrategy; customerId: string | null },
+    input: { number: number; priced: PricedLines; shipping: ShippingStrategy; customerId: string | null },
     now: Date,
   ): void {
     const next = this.state.place();
-    if (input.lines.length === 0) throw new ValidationError('VALIDATION_FAILED', 'La commande ne contient aucun article');
+    if (input.priced.lines.length === 0) {
+      throw new ValidationError('VALIDATION_FAILED', 'La commande ne contient aucun article');
+    }
     this.data = {
       ...this.data,
       number: input.number,
-      lines: this.buildLines(input.lines),
+      lines: this.buildLines(input.priced.lines),
+      discounts: buildDiscounts(input.priced.discounts),
       customerId: input.customerId,
       status: next.status,
       shippingMethod: input.shipping.code,
@@ -254,14 +288,20 @@ export class Order extends AggregateRoot {
     });
   }
 
+  /** La remise ne dépasse jamais le sous-total ; la livraison (et son seuil de gratuité) porte sur le montant remisé. */
   private recomputeTotals(shipping: ShippingStrategy): void {
     const subtotalAmount = this.data.lines.reduce((sum, line) => sum + lineTotal(line), 0);
-    const shippingAmount = shipping.compute(subtotalAmount);
+    const discountAmount = Math.min(
+      this.data.discounts.reduce((sum, discount) => sum + discount.amount, 0),
+      subtotalAmount,
+    );
+    const shippingAmount = shipping.compute(subtotalAmount - discountAmount);
     this.data = {
       ...this.data,
       subtotalAmount,
+      discountAmount,
       shippingAmount,
-      totalAmount: subtotalAmount + shippingAmount,
+      totalAmount: subtotalAmount - discountAmount + shippingAmount,
       shippingMethod: shipping.code,
     };
   }

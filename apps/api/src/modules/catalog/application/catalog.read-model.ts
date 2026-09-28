@@ -1,5 +1,6 @@
 import type {
   BrandDto,
+  BundleDto,
   BrandListQuery,
   CollectionDetailDto,
   CollectionDto,
@@ -10,10 +11,15 @@ import type {
   ProductListQuery,
   StorefrontBrandDto,
   StorefrontCollectionDto,
+  StorefrontFacetsDto,
+  StorefrontFacetsQuery,
   StorefrontProductCardDto,
   StorefrontProductDto,
   StorefrontSort,
+  OptionType,
+  ProductKind,
 } from '@marche/contracts';
+import type { PricingBundle } from '../domain/bundle-pricing.js';
 
 /** Lectures d'administration (CQRS : sans passer par les agrégats). */
 export abstract class CatalogReadModel {
@@ -23,6 +29,8 @@ export abstract class CatalogReadModel {
   abstract getBrand(id: string): Promise<BrandDto | null>;
   abstract listCollections(query: CollectionListQuery): Promise<Paginated<CollectionDto>>;
   abstract getCollection(id: string): Promise<CollectionDetailDto | null>;
+  abstract listBundles(filter: { anchorProductId?: string }): Promise<BundleDto[]>;
+  abstract getBundle(id: string): Promise<BundleDto | null>;
 }
 
 /** Instantané d'une variante au moment d'une commande (R6). */
@@ -45,6 +53,13 @@ export interface VariantSnapshot {
 export interface StorefrontProductFilter {
   collectionSlug?: string;
   brandSlug?: string;
+  kind?: ProductKind;
+  /** Valeurs d'options par nature (même nature = « ou », natures différentes = « et »). */
+  options?: { type: OptionType; values: string[] }[];
+  /** Attributs filtrables (rayon, type d'accessoire…). */
+  attributes?: { key: string; values: string[] }[];
+  priceMin?: number;
+  priceMax?: number;
   sort: StorefrontSort;
   cursor?: string;
   limit: number;
@@ -59,4 +74,7 @@ export abstract class CatalogStorefrontReadModel {
   abstract listBrands(): Promise<StorefrontBrandDto[]>;
   abstract listProductCards(filter: StorefrontProductFilter): Promise<Paginated<StorefrontProductCardDto> | null>;
   abstract getProduct(slug: string): Promise<StorefrontProductDto | null>;
+  abstract facets(query: StorefrontFacetsQuery): Promise<StorefrontFacetsDto | null>;
+  /** Packs actifs dont l'appareil figure parmi ces produits (calcul des remises). */
+  abstract activeBundles(anchorProductIds: readonly string[]): Promise<PricingBundle[]>;
 }

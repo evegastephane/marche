@@ -45,7 +45,7 @@ describe('Boutique, catalogue et stock (e2e)', () => {
       .http()
       .post('/api/v1/stores')
       .set('Authorization', `Bearer ${bootstrap}`)
-      .send({ name: 'Doublon', slug: current.body.slug, currency: 'EUR', country: 'FR' });
+      .send({ name: 'Doublon', slug: current.body.slug, currency: 'EUR', country: 'FR', type: 'FASHION' });
     expect(response.status).toBe(409);
     expect(response.body.code).toBe('STORE_SLUG_TAKEN');
   });

@@ -10,3 +10,5 @@ export * from './storefront.js';
 export * from './reporting.js';
 export * from './templates/index.js';
 export * from './campaigns.js';
+export * from './verticals.js';
+export * from './requests.js';

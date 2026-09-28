@@ -4,6 +4,8 @@ import { Throttle } from '@nestjs/throttler';
 import {
   type AddCartLineInput,
   addCartLineSchema,
+  type AddCartLinesInput,
+  addCartLinesSchema,
   type AvailabilityDto,
   type AvailabilityQuery,
   availabilityQuerySchema,
@@ -13,9 +15,15 @@ import {
   checkoutSchema,
   type Paginated,
   type PublicOrderDto,
+  type SpecialRequestInput,
+  specialRequestInputSchema,
+  type SpecialRequestReceiptDto,
   STOREFRONT_HEADERS,
   type StorefrontBrandDto,
   type StorefrontCollectionDto,
+  type StorefrontFacetsDto,
+  type StorefrontFacetsQuery,
+  storefrontFacetsQuerySchema,
   type StorefrontProductCardDto,
   type StorefrontProductDto,
   type StorefrontProductListQuery,
@@ -28,6 +36,7 @@ import { Public, STOREFRONT_API } from '../../../shared/infrastructure/http/acce
 import { Idempotent } from '../../../shared/infrastructure/http/idempotency.interceptor.js';
 import { ApiZodBody, ZodBody, ZodQuery } from '../../../shared/infrastructure/http/zod-validation.js';
 import { CheckoutFacade } from '../../checkout/checkout.facade.js';
+import { OrdersFacade } from '../../orders/orders.facade.js';
 import { StorefrontQueries } from '../application/storefront.queries.js';
 import { Storefront, StorefrontGuard, type StorefrontRequestContext } from './storefront.guard.js';
 
@@ -59,6 +68,12 @@ export class StorefrontCatalogController {
     @ZodQuery(storefrontProductListQuerySchema) query: StorefrontProductListQuery,
   ): Promise<Paginated<StorefrontProductCardDto>> {
     return this.queries.products(query);
+  }
+
+  /** Filtres du catalogue : tailles, couleurs, stockage, rayons… avec le nombre d'articles. */
+  @Get('facets')
+  facets(@ZodQuery(storefrontFacetsQuerySchema) query: StorefrontFacetsQuery): Promise<StorefrontFacetsDto> {
+    return this.queries.facets(query);
   }
 
   @Get('products/:slug')
@@ -121,6 +136,16 @@ export class StorefrontCartController {
     return this.carts.addLine(cartId, input);
   }
 
+  /** Plusieurs articles d'un geste (appareil et accessoires, pack) : tout ou rien. */
+  @Post(':cartId/lines/batch')
+  @ApiZodBody(addCartLinesSchema)
+  addLines(
+    @Param('cartId', ParseUUIDPipe) cartId: string,
+    @ZodBody(addCartLinesSchema) input: AddCartLinesInput,
+  ): Promise<CartDto> {
+    return this.carts.addLines(cartId, input);
+  }
+
   @Patch(':cartId/lines/:variantId')
   @ApiZodBody(updateCartLineSchema)
   updateLine(
@@ -157,5 +182,21 @@ export class StorefrontCheckoutController {
     @ZodBody(checkoutSchema) input: CheckoutInput,
   ): Promise<CheckoutResultDto> {
     return this.carts.checkout(input, { storeOpen: storefront.acceptsOrders });
+  }
+}
+
+@StorefrontApi()
+@Public()
+@UseGuards(StorefrontGuard)
+@Controller(`${STOREFRONT_API}/special-requests`)
+export class StorefrontSpecialRequestsController {
+  constructor(private readonly orders: OrdersFacade) {}
+
+  /** Commande sur demande : une configuration absente du stock ou du catalogue. 5 envois par minute au plus. */
+  @Post()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiZodBody(specialRequestInputSchema)
+  submit(@ZodBody(specialRequestInputSchema) input: SpecialRequestInput): Promise<SpecialRequestReceiptDto> {
+    return this.orders.submitSpecialRequest(input);
   }
 }

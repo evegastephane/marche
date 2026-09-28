@@ -39,6 +39,29 @@ export const adjustStockSchema = z
   });
 export type AdjustStockInput = z.infer<typeof adjustStockSchema>;
 
+/**
+ * Comptage (grille taille × couleur) : le stock en main compté pour chaque déclinaison.
+ * Le serveur calcule l'écart et l'enregistre comme un ajustement « Comptage ». Tout passe, ou rien.
+ */
+export const stockCountSchema = z.object({
+  entries: z
+    .array(
+      z.object({
+        variantId: z.uuid(),
+        onHand: z.number().int().min(0).max(1_000_000),
+        /** Stock affiché au moment du comptage : si quelqu'un l'a changé entre-temps, le comptage est refusé. */
+        expectedOnHand: z.number().int().min(0).max(1_000_000).optional(),
+      }),
+    )
+    .min(1)
+    .max(100)
+    .refine((entries) => new Set(entries.map((e) => e.variantId)).size === entries.length, {
+      error: 'Une déclinaison ne peut être comptée qu’une fois',
+    }),
+  reason: z.string().trim().min(1).max(200).default('Comptage'),
+});
+export type StockCountInput = z.infer<typeof stockCountSchema>;
+
 export const setLowStockThresholdSchema = z.object({
   /** null = utiliser le seuil par défaut de la boutique. */
   lowStockThreshold: z.number().int().min(0).max(1_000_000).nullable(),

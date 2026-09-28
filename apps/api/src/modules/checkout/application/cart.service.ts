@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { AddCartLineInput, CartDto, CheckoutInput, CheckoutResultDto } from '@marche/contracts';
+import type { AddCartLineInput, AddCartLinesInput, CartDto, CheckoutInput, CheckoutResultDto } from '@marche/contracts';
 import { ActorContext } from '../../../shared/application/actor-context.port.js';
 import { Clock } from '../../../shared/application/clock.port.js';
 import { NotFoundError, ValidationError } from '../../../shared/domain/domain-error.js';
@@ -58,6 +58,25 @@ export class CartService {
       throw new ValidationError('ITEM_UNAVAILABLE', 'Cet article n’est pas disponible à la vente');
     }
     cart.addLine(input.variantId, input.quantity, snapshot.unitPriceAmount, this.clock.now());
+    await this.carts.save(cart);
+    return this.get(cartId);
+  }
+
+  /** Plusieurs articles d'un geste (appareil et accessoires, pack) : tout est ajouté, ou rien. */
+  async addLines(cartId: string, input: AddCartLinesInput): Promise<CartDto> {
+    const cart = await this.load(cartId);
+    const variantIds = input.lines.map((line) => line.variantId);
+    const snapshots = await this.catalog.snapshotVariants(variantIds);
+    const unavailable = variantIds.filter((id) => !snapshots.get(id)?.sellable);
+    if (unavailable.length > 0) {
+      throw new ValidationError('ITEM_UNAVAILABLE', 'Certains articles ne sont pas disponibles à la vente', {
+        variantIds: unavailable,
+      });
+    }
+    const now = this.clock.now();
+    for (const line of input.lines) {
+      cart.addLine(line.variantId, line.quantity, snapshots.get(line.variantId)!.unitPriceAmount, now);
+    }
     await this.carts.save(cart);
     return this.get(cartId);
   }
@@ -154,15 +173,30 @@ export class CartService {
       };
     });
     const subtotalAmount = lines.reduce((sum, line) => sum + line.lineTotalAmount, 0);
-    const shippingAmount = await this.orders.shippingAmountFor(subtotalAmount);
+    // Remises des packs : seuls les articles en vente comptent, aux prix affichés.
+    const discounts = await this.catalog.priceBundles(
+      lines.flatMap((line) =>
+        line.isSellable && line.productId
+          ? [{ productId: line.productId, unitPriceAmount: line.unitPriceAmount, quantity: line.quantity }]
+          : [],
+      ),
+    );
+    const discountAmount = Math.min(
+      discounts.reduce((sum, discount) => sum + discount.amount, 0),
+      subtotalAmount,
+    );
+    // Même calcul qu'au passage de la commande : la livraison porte sur le montant remisé.
+    const shippingAmount = await this.orders.shippingAmountFor(subtotalAmount - discountAmount);
     return {
       id: cart.id,
       currency: settings.currency,
       lines,
       itemsCount: lines.reduce((sum, line) => sum + line.quantity, 0),
       subtotalAmount,
+      discounts,
+      discountAmount,
       shippingAmount,
-      totalAmount: subtotalAmount + shippingAmount,
+      totalAmount: subtotalAmount - discountAmount + shippingAmount,
       updatedAt: cart.toData().updatedAt,
     };
   }

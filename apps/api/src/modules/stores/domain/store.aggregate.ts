@@ -3,7 +3,9 @@ import {
   DEFAULT_SHIPPING_SETTINGS,
   type ShippingSettings,
   storeSlugSchema,
+  type StoreType,
   type UpdateStoreInput,
+  type VerticalSettings,
 } from '@marche/contracts';
 import { AggregateRoot } from '../../../shared/domain/aggregate-root.js';
 import { createEvent } from '../../../shared/domain/domain-event.js';
@@ -22,6 +24,9 @@ export interface StoreProps {
   logoMediaId: string | null;
   shippingSettings: ShippingSettings;
   lowStockDefault: number;
+  /** Mode ou Électronique : décide des sortes d'articles et de la fiche produit du site. */
+  type: StoreType;
+  verticalSettings: VerticalSettings;
   createdAt: Date;
   archivedAt: Date | null;
 }
@@ -71,6 +76,7 @@ export class Store extends AggregateRoot {
       currency: Currency;
       country: string;
       timezone?: string;
+      type: StoreType;
     },
     now: Date,
   ): Store {
@@ -95,6 +101,8 @@ export class Store extends AggregateRoot {
       logoMediaId: null,
       shippingSettings: DEFAULT_SHIPPING_SETTINGS,
       lowStockDefault: 5,
+      type: input.type,
+      verticalSettings: {},
       createdAt: now,
       archivedAt: null,
     });
@@ -103,7 +111,7 @@ export class Store extends AggregateRoot {
         'stores.store.created',
         store.id,
         store.id,
-        { name, slug: slug.data, currency: input.currency, country },
+        { name, slug: slug.data, currency: input.currency, country, type: input.type },
         now,
       ),
     );
@@ -142,6 +150,8 @@ export class Store extends AggregateRoot {
       ...(patch.logoMediaId !== undefined ? { logoMediaId: patch.logoMediaId } : {}),
       ...(patch.shippingSettings !== undefined ? { shippingSettings: patch.shippingSettings } : {}),
       ...(patch.lowStockDefault !== undefined ? { lowStockDefault: patch.lowStockDefault } : {}),
+      ...(patch.type !== undefined ? { type: patch.type } : {}),
+      ...(patch.verticalSettings !== undefined ? { verticalSettings: patch.verticalSettings } : {}),
     };
     this.record(createEvent('stores.store.updated', this.id, this.id, { changed }, now));
   }

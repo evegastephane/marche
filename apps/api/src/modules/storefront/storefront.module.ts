@@ -11,13 +11,19 @@ import {
   StorefrontCartController,
   StorefrontCatalogController,
   StorefrontCheckoutController,
+  StorefrontSpecialRequestsController,
 } from './interface/storefront.controllers.js';
 import { StorefrontGuard } from './interface/storefront.guard.js';
 
 /** API publique des sites générés (BFF) : ne dépend que des façades des autres modules. */
 @Module({
   imports: [StoresModule, SitesModule, CatalogModule, InventoryModule, MediaModule, CheckoutModule, OrdersModule],
-  controllers: [StorefrontCatalogController, StorefrontCartController, StorefrontCheckoutController],
+  controllers: [
+    StorefrontCatalogController,
+    StorefrontCartController,
+    StorefrontCheckoutController,
+    StorefrontSpecialRequestsController,
+  ],
   providers: [StorefrontGuard, StorefrontQueries],
 })
 export class StorefrontModule {}

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type Address, addressSchema, type Currency, paginationQuerySchema } from './common.js';
+import { type Address, addressSchema, amountSchema, type Currency, paginationQuerySchema } from './common.js';
 
 export const ORDER_STATUSES = ['DRAFT', 'PLACED', 'FULFILLED', 'CANCELLED'] as const;
 export const orderStatusSchema = z.enum(ORDER_STATUSES);
@@ -21,6 +21,18 @@ export const orderLineInputSchema = z.object({
 });
 export type OrderLineInput = z.infer<typeof orderLineInputSchema>;
 
+/**
+ * Ligne libre (commande sur demande) : un article hors catalogue ou hors stock,
+ * au prix convenu avec le client. Elle ne réserve pas de stock.
+ */
+export const customOrderLineInputSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  variantTitle: z.string().trim().max(200).default(''),
+  unitPriceAmount: amountSchema,
+  quantity: z.number().int().min(1).max(MAX_LINE_QUANTITY),
+});
+export type CustomOrderLineInput = z.infer<typeof customOrderLineInputSchema>;
+
 export const customerInputSchema = z.object({
   email: z.email().transform((email) => email.toLowerCase()),
   firstName: z.string().trim().max(80).optional(),
@@ -39,6 +51,7 @@ const linesSchema = z
 export const createDraftOrderSchema = z.object({
   customer: customerInputSchema.nullable().optional(),
   lines: linesSchema.default([]),
+  customLines: z.array(customOrderLineInputSchema).max(MAX_ORDER_LINES).default([]),
   shippingAddress: addressSchema.nullable().optional(),
   note: z.string().trim().max(1000).nullable().optional(),
 });
@@ -47,6 +60,7 @@ export type CreateDraftOrderInput = z.infer<typeof createDraftOrderSchema>;
 export const updateDraftOrderSchema = z.object({
   customer: customerInputSchema.nullable().optional(),
   lines: linesSchema.optional(),
+  customLines: z.array(customOrderLineInputSchema).max(MAX_ORDER_LINES).optional(),
   shippingAddress: addressSchema.nullable().optional(),
   note: z.string().trim().max(1000).nullable().optional(),
   version: z.number().int().min(0),
@@ -83,6 +97,15 @@ export interface OrderLineDto {
   quantity: number;
   lineTotalAmount: number;
   tracksInventory: boolean;
+  /** Ligne libre (commande sur demande) : hors catalogue, sans réservation de stock. */
+  custom: boolean;
+}
+
+/** Remise d'un pack appliquée à une commande (ou à un panier). */
+export interface OrderDiscount {
+  bundleId: string | null;
+  title: string;
+  amount: number;
 }
 
 export interface OrderCustomerDto {
@@ -104,6 +127,9 @@ export interface OrderDto {
   customer: OrderCustomerDto | null;
   lines: OrderLineDto[];
   subtotalAmount: number;
+  /** Remises des packs, figées au passage de la commande. */
+  discounts: OrderDiscount[];
+  discountAmount: number;
   shippingAmount: number;
   totalAmount: number;
   shippingAddress: Address | null;

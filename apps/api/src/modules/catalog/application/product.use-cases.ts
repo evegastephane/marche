@@ -6,6 +6,7 @@ import type {
   ProductDto,
   UpdateProductInput,
 } from '@marche/contracts';
+import { KINDS_BY_STORE_TYPE, type ProductKind } from '@marche/contracts';
 import { ActorContext } from '../../../shared/application/actor-context.port.js';
 import { Clock } from '../../../shared/application/clock.port.js';
 import { OutboxPort } from '../../../shared/application/outbox.port.js';
@@ -18,6 +19,7 @@ import {
 } from '../../../shared/domain/domain-error.js';
 import { InventoryFacade } from '../../inventory/inventory.facade.js';
 import { MediaFacade } from '../../media/media.facade.js';
+import { StoresFacade } from '../../stores/stores.facade.js';
 import { SkuTakenError, SlugTakenError } from '../domain/catalog.errors.js';
 import { BrandRepository, ProductRepository } from '../domain/catalog.repositories.js';
 import type { NewVariant, Product, ProductDraft } from '../domain/product.aggregate.js';
@@ -36,13 +38,31 @@ export class ProductWriteSupport {
     private readonly media: MediaFacade,
     private readonly inventory: InventoryFacade,
     private readonly readModel: CatalogReadModel,
+    private readonly stores: StoresFacade,
+    private readonly actor: ActorContext,
   ) {}
 
-  async assertReferences(input: ProductFields): Promise<void> {
+  /**
+   * Marque, photos, sorte d'article et accessoires valides. La sorte doit correspondre au type de la
+   * boutique ; un article déjà classé garde la sienne si la boutique change de type.
+   */
+  async assertReferences(input: ProductFields, currentKind?: ProductKind | null): Promise<void> {
     if (input.brandId && !(await this.brands.isActive(input.brandId))) {
       throw new ValidationError('VALIDATION_FAILED', 'Marque introuvable ou archivée', { field: 'brandId' });
     }
     await this.media.assertUsable(input.mediaIds);
+    if (input.kind && input.kind !== currentKind) {
+      const { type } = await this.stores.getSettings(this.actor.storeId);
+      if (!KINDS_BY_STORE_TYPE[type].includes(input.kind)) {
+        throw new ValidationError('INVALID_PRODUCT_KIND', 'Cette sorte d’article ne correspond pas au type de la boutique', {
+          field: 'kind',
+        });
+      }
+    }
+    const accessoryIds = [...new Set(input.accessoryIds)];
+    if (accessoryIds.length > 0 && (await this.products.existingIds(accessoryIds)).length !== accessoryIds.length) {
+      throw new ValidationError('VALIDATION_FAILED', 'Accessoire introuvable', { field: 'accessoryIds' });
+    }
   }
 
   /** R1 : slug fourni et libre, sinon dérivé du titre et numéroté si besoin. */
@@ -77,6 +97,10 @@ export class ProductWriteSupport {
         initialQuantity: variant.initialQuantity,
       })),
       mediaIds: input.mediaIds,
+      mediaOptionValues: input.mediaOptionValues,
+      kind: input.kind ?? null,
+      attributes: input.attributes,
+      accessoryIds: input.accessoryIds,
       seoTitle: input.seoTitle,
       seoDescription: input.seoDescription,
     };
@@ -138,11 +162,11 @@ export class UpdateProductUseCase {
   ) {}
 
   async execute(productId: string, input: UpdateProductInput): Promise<ProductDto> {
-    await this.support.assertReferences(input);
     await this.uow.run(async () => {
       const product = await this.products.findById(productId);
       if (!product) throw new NotFoundError('Produit', productId);
       if (product.version !== input.version) throw new ConcurrentModificationError('Le produit');
+      await this.support.assertReferences(input, product.snapshot().kind);
       const slug = input.slug ?? product.slug;
       if (slug !== product.slug && (await this.products.slugExists(slug, productId))) {
         throw new SlugTakenError(slug);

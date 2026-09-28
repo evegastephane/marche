@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Order, type NewOrderLine } from './order.aggregate.js';
+import { Order, type NewOrderLine, type PricedLines } from './order.aggregate.js';
 import { InvalidOrderTransitionError } from './order-state.js';
 import { FlatRateShipping, FreeOverThresholdShipping, shippingStrategyFor } from './shipping-strategy.js';
 
@@ -13,8 +13,11 @@ const line = (overrides: Partial<NewOrderLine> = {}): NewOrderLine => ({
   unitPriceAmount: 1000,
   quantity: 2,
   tracksInventory: true,
+  custom: false,
   ...overrides,
 });
+
+const priced = (lines: NewOrderLine[], discounts: PricedLines['discounts'] = []): PricedLines => ({ lines, discounts });
 
 function draft() {
   return Order.createDraft({ storeId: 's1', currency: 'EUR', source: 'ADMIN', email: 'a@b.co' }, now);
@@ -22,7 +25,7 @@ function draft() {
 
 function placed() {
   const order = draft();
-  order.place({ number: 1001, lines: [line()], shipping: new FlatRateShipping(500), customerId: null }, now);
+  order.place({ number: 1001, priced: priced([line()]), shipping: new FlatRateShipping(500), customerId: null }, now);
   return order;
 }
 
@@ -37,7 +40,7 @@ describe('Order : machine à états', () => {
 
   it('refuse de passer une commande vide', () => {
     expect(() =>
-      draft().place({ number: 1, lines: [], shipping: new FlatRateShipping(0), customerId: null }, now),
+      draft().place({ number: 1, priced: priced([]), shipping: new FlatRateShipping(0), customerId: null }, now),
     ).toThrow(/aucun article/);
   });
 
@@ -64,7 +67,7 @@ describe('Order : machine à états', () => {
 
   it('ne modifie plus les lignes après le passage', () => {
     const order = placed();
-    expect(() => order.replaceLines([line()], new FlatRateShipping(0), now)).toThrow(InvalidOrderTransitionError);
+    expect(() => order.replaceLines(priced([line()]), new FlatRateShipping(0), now)).toThrow(InvalidOrderTransitionError);
   });
 
   it('ne réserve que les lignes suivies en stock', () => {
@@ -72,13 +75,48 @@ describe('Order : machine à états', () => {
     order.place(
       {
         number: 1,
-        lines: [line(), line({ variantId: 'v2', tracksInventory: false, quantity: 1 })],
+        priced: priced([line(), line({ variantId: 'v2', tracksInventory: false, quantity: 1 })]),
         shipping: new FlatRateShipping(0),
         customerId: null,
       },
       now,
     );
     expect(order.reservedLines()).toEqual([{ variantId: 'v1', quantity: 2 }]);
+  });
+
+  it('déduit la remise des packs, puis calcule la livraison sur le montant remisé', () => {
+    const order = draft();
+    order.place(
+      {
+        number: 1,
+        priced: priced([line({ unitPriceAmount: 3000, quantity: 1 })], [{ bundleId: 'b1', title: 'Pack', amount: 600 }]),
+        shipping: new FreeOverThresholdShipping(500, 3000),
+        customerId: null,
+      },
+      now,
+    );
+    expect(order.snapshot()).toMatchObject({ subtotalAmount: 3000, discountAmount: 600, shippingAmount: 500, totalAmount: 2900 });
+  });
+
+  it('plafonne la remise au sous-total', () => {
+    const order = draft();
+    order.replaceLines(priced([line()], [{ bundleId: null, title: 'Geste', amount: 99_999 }]), new FlatRateShipping(0), now);
+    expect(order.snapshot()).toMatchObject({ subtotalAmount: 2000, discountAmount: 2000, totalAmount: 0 });
+  });
+
+  it('ne réserve jamais de stock pour une ligne libre', () => {
+    const order = draft();
+    order.place(
+      {
+        number: 1,
+        priced: priced([line({ variantId: null, custom: true, tracksInventory: false, sku: 'SUR-DEMANDE' })]),
+        shipping: new FlatRateShipping(0),
+        customerId: null,
+      },
+      now,
+    );
+    expect(order.reservedLines()).toEqual([]);
+    expect(order.lines[0]).toMatchObject({ custom: true, variantId: null });
   });
 
   it('génère un lien de suivi public non devinable', () => {

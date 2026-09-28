@@ -1,6 +1,14 @@
 import { z } from 'zod';
 import { amountSchema, paginationQuerySchema, resourceSlugSchema } from './common.js';
 import type { MediaDto } from './media.js';
+import {
+  optionTypeSchema,
+  productAttributesSchema,
+  productKindSchema,
+  swatchSchema,
+  type ProductAttributes,
+  type ProductKind,
+} from './verticals.js';
 
 // ───────────── Constantes ─────────────
 
@@ -8,9 +16,11 @@ export const PRODUCT_STATUSES = ['DRAFT', 'ACTIVE', 'ARCHIVED'] as const;
 export const productStatusSchema = z.enum(PRODUCT_STATUSES);
 export type ProductStatus = z.infer<typeof productStatusSchema>;
 
-export const MAX_PRODUCT_OPTIONS = 3;
+/** 4 pour un ordinateur : écran, mémoire, stockage, couleur. */
+export const MAX_PRODUCT_OPTIONS = 4;
 export const MAX_PRODUCT_VARIANTS = 100;
 export const MAX_PRODUCT_MEDIA = 20;
+export const MAX_PRODUCT_ACCESSORIES = 20;
 
 // ───────────── Marques ─────────────
 
@@ -66,10 +76,19 @@ export const skuSchema = z
 
 const optionValueSchema = z.string().trim().min(1).max(40);
 
-export const productOptionSchema = z.object({
-  name: z.string().trim().min(1).max(40),
-  values: z.array(optionValueSchema).min(1).max(50),
-});
+export const productOptionSchema = z
+  .object({
+    name: z.string().trim().min(1).max(40),
+    values: z.array(optionValueSchema).min(1).max(50),
+    /** Nature de l'option (taille, couleur, stockage…) : décide de son affichage sur le site. */
+    type: optionTypeSchema.optional(),
+    /** Pastille de chaque couleur (option de type « color ») : valeur → #RRGGBB. */
+    swatches: z.record(optionValueSchema, swatchSchema).optional(),
+  })
+  .refine((option) => !option.swatches || Object.keys(option.swatches).every((v) => option.values.includes(v)), {
+    error: 'Une pastille correspond à une valeur de l’option',
+    path: ['swatches'],
+  });
 export type ProductOption = z.infer<typeof productOptionSchema>;
 
 export const variantInputSchema = z.object({
@@ -93,6 +112,14 @@ const productFieldsSchema = z.object({
   options: z.array(productOptionSchema).max(MAX_PRODUCT_OPTIONS).default([]),
   variants: z.array(variantInputSchema).min(1).max(MAX_PRODUCT_VARIANTS),
   mediaIds: z.array(z.uuid()).max(MAX_PRODUCT_MEDIA).default([]),
+  /** Photo → valeur d'option (une couleur) : la galerie du site suit la couleur choisie. */
+  mediaOptionValues: z.record(z.uuid(), optionValueSchema).default({}),
+  /** Sorte d'article (vêtement, téléphone…), parmi celles du type de la boutique. */
+  kind: productKindSchema.nullable().optional(),
+  /** Fiche technique ou détails (matière, rayon, stockage…), validés selon la sorte. */
+  attributes: productAttributesSchema.default({}),
+  /** Accessoires proposés avec l'appareil, choisis à la main (dans l'ordre). */
+  accessoryIds: z.array(z.uuid()).max(MAX_PRODUCT_ACCESSORIES).default([]),
   seoTitle: z.string().trim().max(70).nullable().optional(),
   seoDescription: z.string().trim().max(160).nullable().optional(),
 });
@@ -111,6 +138,7 @@ export const productListQuerySchema = paginationQuerySchema.extend({
   status: productStatusSchema.optional(),
   brandId: z.uuid().optional(),
   collectionId: z.uuid().optional(),
+  kind: productKindSchema.optional(),
 });
 export type ProductListQuery = z.infer<typeof productListQuerySchema>;
 
@@ -139,6 +167,13 @@ export interface ProductVariantDto {
   inventory: InventorySummaryDto | null;
 }
 
+export interface ProductAccessoryDto {
+  id: string;
+  title: string;
+  status: ProductStatus;
+  thumbnail: MediaDto | null;
+}
+
 export interface ProductDto {
   id: string;
   title: string;
@@ -146,9 +181,14 @@ export interface ProductDto {
   description: string | null;
   status: ProductStatus;
   brand: { id: string; name: string } | null;
+  kind: ProductKind | null;
+  attributes: ProductAttributes;
   options: ProductOption[];
   variants: ProductVariantDto[];
   media: MediaDto[];
+  mediaOptionValues: Record<string, string>;
+  /** Accessoires choisis à la main, dans l'ordre. */
+  accessories: ProductAccessoryDto[];
   collections: { id: string; title: string }[];
   seoTitle: string | null;
   seoDescription: string | null;
@@ -163,6 +203,7 @@ export interface ProductListItemDto {
   title: string;
   slug: string;
   status: ProductStatus;
+  kind: ProductKind | null;
   brand: { id: string; name: string } | null;
   variantsCount: number;
   priceMinAmount: number;
@@ -233,4 +274,60 @@ export interface CollectionDto {
 
 export interface CollectionDetailDto extends CollectionDto {
   products: ProductListItemDto[];
+}
+
+// ───────────── Packs (appareil + accessoires à prix réduit) ─────────────
+
+export const BUNDLE_DISCOUNT_TYPES = ['PERCENT', 'AMOUNT'] as const;
+export type BundleDiscountType = (typeof BUNDLE_DISCOUNT_TYPES)[number];
+export const MAX_BUNDLE_ITEMS = 5;
+
+const bundleFieldsSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  /** Appareil du pack (n'importe laquelle de ses déclinaisons). */
+  anchorProductId: z.uuid(),
+  /** Accessoires ajoutés au pack (une unité de chacun). */
+  itemProductIds: z.array(z.uuid()).min(1).max(MAX_BUNDLE_ITEMS),
+  discountType: z.enum(BUNDLE_DISCOUNT_TYPES),
+  /** Pourcentage (1 à 90) ou montant en unités mineures. */
+  discountValue: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
+  isActive: z.boolean().default(true),
+});
+
+/** Remise plafonnée, accessoires uniques, appareil absent de ses propres accessoires. */
+const bundleSchema = bundleFieldsSchema.superRefine((b, ctx) => {
+  if (b.discountType === 'PERCENT' && b.discountValue > 90) {
+    ctx.addIssue({ code: 'custom', message: 'Une remise en pourcentage ne dépasse pas 90 %', path: ['discountValue'] });
+  }
+  if (new Set(b.itemProductIds).size !== b.itemProductIds.length) {
+    ctx.addIssue({ code: 'custom', message: 'Un accessoire ne figure qu’une fois dans le pack', path: ['itemProductIds'] });
+  }
+  if (b.itemProductIds.includes(b.anchorProductId)) {
+    ctx.addIssue({ code: 'custom', message: 'L’appareil ne peut pas être aussi un accessoire du pack', path: ['itemProductIds'] });
+  }
+});
+
+export const createBundleSchema = bundleSchema;
+export type CreateBundleInput = z.infer<typeof bundleSchema>;
+export const updateBundleSchema = bundleSchema;
+export type UpdateBundleInput = CreateBundleInput;
+
+export interface BundleProductDto {
+  id: string;
+  title: string;
+  status: ProductStatus;
+  thumbnail: MediaDto | null;
+  priceMinAmount: number;
+}
+
+export interface BundleDto {
+  id: string;
+  title: string;
+  anchor: BundleProductDto;
+  items: BundleProductDto[];
+  discountType: BundleDiscountType;
+  discountValue: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }

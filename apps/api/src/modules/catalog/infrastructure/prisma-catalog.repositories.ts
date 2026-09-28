@@ -1,15 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import type { ProductOption } from '@marche/contracts';
+import {
+  OPTION_TYPES,
+  type OptionType,
+  PRODUCT_KINDS,
+  productAttributesSchema,
+  type ProductAttributes,
+  type ProductKind,
+  type ProductOption,
+} from '@marche/contracts';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { ActorContext } from '../../../shared/application/actor-context.port.js';
 import { ConcurrentModificationError } from '../../../shared/domain/domain-error.js';
 import { isUniqueViolation } from '../../../shared/infrastructure/prisma/prisma-errors.js';
 import type { PrismaAdapter } from '../../../shared/infrastructure/prisma/transaction.js';
 import { Brand } from '../domain/brand.aggregate.js';
+import { Bundle, type BundleData } from '../domain/bundle.aggregate.js';
 import { SkuTakenError, SlugTakenError } from '../domain/catalog.errors.js';
 import {
   BrandRepository,
+  BundleRepository,
   CollectionRepository,
   ProductRepository,
 } from '../domain/catalog.repositories.js';
@@ -17,19 +27,39 @@ import { Collection } from '../domain/collection.aggregate.js';
 import { Product } from '../domain/product.aggregate.js';
 import { ProductVariant } from '../domain/product-variant.entity.js';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
 export function parseOptions(value: Prisma.JsonValue): ProductOption[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
-    if (typeof item !== 'object' || item === null || Array.isArray(item)) return [];
-    const record = item as Record<string, unknown>;
-    return typeof record.name === 'string' && Array.isArray(record.values)
-      ? [{ name: record.name, values: record.values.map(String) }]
-      : [];
+    if (!isRecord(item) || typeof item.name !== 'string' || !Array.isArray(item.values)) return [];
+    const type = (OPTION_TYPES as readonly string[]).includes(item.type as string) ? (item.type as OptionType) : undefined;
+    const swatches = isRecord(item.swatches)
+      ? Object.fromEntries(Object.entries(item.swatches).filter(([, hex]) => typeof hex === 'string')) as Record<string, string>
+      : undefined;
+    return [
+      {
+        name: item.name,
+        values: item.values.map(String),
+        ...(type ? { type } : {}),
+        ...(swatches && Object.keys(swatches).length > 0 ? { swatches } : {}),
+      },
+    ];
   });
 }
 
 export function parseStringArray(value: Prisma.JsonValue): string[] {
   return Array.isArray(value) ? value.map(String) : [];
+}
+
+export function parseKind(value: string | null): ProductKind | null {
+  return value && (PRODUCT_KINDS as readonly string[]).includes(value) ? (value as ProductKind) : null;
+}
+
+export function parseAttributesJson(value: Prisma.JsonValue): ProductAttributes {
+  const parsed = productAttributesSchema.safeParse(value);
+  return parsed.success ? parsed.data : {};
 }
 
 const excluding = (excludeId?: string) => (excludeId ? { id: { not: excludeId } } : {});
@@ -38,7 +68,8 @@ const excluding = (excludeId?: string) => (excludeId ? { id: { not: excludeId } 
 
 const productInclude = {
   variants: { orderBy: { position: 'asc' } },
-  media: { orderBy: { position: 'asc' }, select: { mediaId: true } },
+  media: { orderBy: { position: 'asc' }, select: { mediaId: true, optionValue: true } },
+  relations: { where: { type: 'ACCESSORY' }, orderBy: { position: 'asc' }, select: { relatedProductId: true } },
 } satisfies Prisma.ProductInclude;
 
 type ProductRow = Prisma.ProductGetPayload<{ include: typeof productInclude }>;
@@ -67,6 +98,12 @@ function productToDomain(row: ProductRow): Product {
         }),
       ),
       mediaIds: row.media.map((media) => media.mediaId),
+      mediaOptionValues: Object.fromEntries(
+        row.media.flatMap((media) => (media.optionValue ? [[media.mediaId, media.optionValue]] : [])),
+      ),
+      kind: parseKind(row.kind),
+      attributes: parseAttributesJson(row.attributes),
+      accessoryIds: row.relations.map((relation) => relation.relatedProductId),
       seoTitle: row.seoTitle,
       seoDescription: row.seoDescription,
       publishedAt: row.publishedAt,
@@ -87,6 +124,8 @@ function productFields(product: Product) {
     description: p.description,
     status: p.status,
     options: p.options as unknown as Prisma.InputJsonValue,
+    kind: p.kind,
+    attributes: p.attributes as Prisma.InputJsonValue,
     seoTitle: p.seoTitle,
     seoDescription: p.seoDescription,
     publishedAt: p.publishedAt,
@@ -145,6 +184,7 @@ export class PrismaProductRepository extends ProductRepository {
     }
     await this.writeVariants(product);
     await this.writeMedia(product, false);
+    await this.writeRelations(product, false);
   }
 
   async update(product: Product): Promise<void> {
@@ -161,6 +201,7 @@ export class PrismaProductRepository extends ProductRepository {
     }
     await this.writeVariants(product);
     await this.writeMedia(product, true);
+    await this.writeRelations(product, true);
     product.markPersisted();
   }
 
@@ -193,13 +234,32 @@ export class PrismaProductRepository extends ProductRepository {
 
   private async writeMedia(product: Product, replace: boolean): Promise<void> {
     if (replace) await this.txHost.tx.productMedia.deleteMany({ where: { productId: product.id } });
-    const mediaIds = product.snapshot().mediaIds;
+    const { mediaIds, mediaOptionValues } = product.snapshot();
     if (mediaIds.length === 0) return;
     await this.txHost.tx.productMedia.createMany({
       data: mediaIds.map((mediaId, position) => ({
         storeId: this.actor.storeId,
         productId: product.id,
         mediaId,
+        position,
+        optionValue: mediaOptionValues[mediaId] ?? null,
+      })),
+    });
+  }
+
+  /** Accessoires choisis à la main : réécrits en entier, dans l'ordre du formulaire. */
+  private async writeRelations(product: Product, replace: boolean): Promise<void> {
+    if (replace) {
+      await this.txHost.tx.productRelation.deleteMany({ where: { productId: product.id, type: 'ACCESSORY' } });
+    }
+    const { accessoryIds } = product.snapshot();
+    if (accessoryIds.length === 0) return;
+    await this.txHost.tx.productRelation.createMany({
+      data: accessoryIds.map((relatedProductId, position) => ({
+        storeId: this.actor.storeId,
+        productId: product.id,
+        relatedProductId,
+        type: 'ACCESSORY' as const,
         position,
       })),
     });
@@ -370,6 +430,77 @@ export class PrismaCollectionRepository extends CollectionRepository {
         productId,
         position,
       })),
+    });
+  }
+}
+
+// ───────────── Packs ─────────────
+
+@Injectable()
+export class PrismaBundleRepository extends BundleRepository {
+  constructor(private readonly txHost: TransactionHost<PrismaAdapter>) {
+    super();
+  }
+
+  async findById(id: string): Promise<Bundle | null> {
+    const row = await this.txHost.tx.bundle.findUnique({
+      where: { id },
+      include: { items: { orderBy: { position: 'asc' }, select: { productId: true } } },
+    });
+    return row
+      ? Bundle.reconstitute(row.id, {
+          storeId: row.storeId,
+          title: row.title,
+          anchorProductId: row.anchorProductId,
+          itemProductIds: row.items.map((item) => item.productId),
+          discountType: row.discountType,
+          discountValue: row.discountValue,
+          isActive: row.isActive,
+          createdAt: row.createdAt,
+        })
+      : null;
+  }
+
+  async insert(bundle: Bundle): Promise<void> {
+    const b = bundle.snapshot();
+    await this.txHost.tx.bundle.create({
+      data: {
+        id: bundle.id,
+        storeId: b.storeId,
+        title: b.title,
+        anchorProductId: b.anchorProductId,
+        discountType: b.discountType,
+        discountValue: b.discountValue,
+        isActive: b.isActive,
+        createdAt: b.createdAt,
+      },
+    });
+    await this.writeItems(bundle.id, b);
+  }
+
+  async update(bundle: Bundle): Promise<void> {
+    const b = bundle.snapshot();
+    await this.txHost.tx.bundle.update({
+      where: { id: bundle.id },
+      data: {
+        title: b.title,
+        anchorProductId: b.anchorProductId,
+        discountType: b.discountType,
+        discountValue: b.discountValue,
+        isActive: b.isActive,
+      },
+    });
+    await this.txHost.tx.bundleItem.deleteMany({ where: { bundleId: bundle.id } });
+    await this.writeItems(bundle.id, b);
+  }
+
+  async delete(bundle: Bundle): Promise<void> {
+    await this.txHost.tx.bundle.delete({ where: { id: bundle.id } });
+  }
+
+  private async writeItems(bundleId: string, b: Readonly<BundleData>): Promise<void> {
+    await this.txHost.tx.bundleItem.createMany({
+      data: b.itemProductIds.map((productId, position) => ({ storeId: b.storeId, bundleId, productId, position })),
     });
   }
 }

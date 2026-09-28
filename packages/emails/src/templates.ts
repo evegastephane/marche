@@ -41,6 +41,8 @@ function addressLines(address: Address | null): string[] {
 export interface OrderConfirmationProps extends OrderEmailBase {
   lines: EmailOrderLine[];
   subtotalAmount: number;
+  /** Remises des packs, déduites du sous-total. */
+  discounts?: { title: string; amount: number }[];
   shippingAmount: number;
   totalAmount: number;
   shippingAddress: Address | null;
@@ -64,6 +66,7 @@ export function renderOrderConfirmation(props: OrderConfirmationProps): Rendered
       })),
       [
         { label: 'Sous-total', amount: money(props.subtotalAmount) },
+        ...(props.discounts ?? []).map((discount) => ({ label: `Remise : ${discount.title}`, amount: `−${money(discount.amount)}` })),
         { label: 'Livraison', amount: props.shippingAmount === 0 ? 'Offerte' : money(props.shippingAmount) },
         { label: 'Total', amount: money(props.totalAmount), strong: true },
       ],
@@ -83,6 +86,7 @@ export function renderOrderConfirmation(props: OrderConfirmationProps): Rendered
     ),
     '',
     `Sous-total : ${money(props.subtotalAmount)}`,
+    ...(props.discounts ?? []).map((discount) => `Remise (${discount.title}) : −${money(discount.amount)}`),
     `Livraison : ${props.shippingAmount === 0 ? 'offerte' : money(props.shippingAmount)}`,
     `Total : ${money(props.totalAmount)}`,
     ...(address.length ? ['', 'Livraison à :', ...address] : []),
@@ -174,6 +178,98 @@ export function renderLowStockAlert(props: LowStockAlertProps): RenderedEmail {
   return {
     subject,
     html: layout({ storeName: props.storeName, preheader: subject, title: 'Stock bas', body }),
+    text,
+  };
+}
+
+// ───────────── Commande sur demande ─────────────
+
+export interface SpecialRequestEmailBase {
+  storeName: string;
+  productTitle: string;
+  /** Configuration demandée : « 256 Go / Violet ». */
+  configuration: string;
+  quantity: number;
+}
+
+export interface MerchantSpecialRequestProps extends SpecialRequestEmailBase {
+  customerName: string;
+  phone: string;
+  email: string;
+  note: string | null;
+  requestAdminUrl: string;
+}
+
+/** Au marchand : un client demande une configuration absente du stock. */
+export function renderMerchantSpecialRequest(props: MerchantSpecialRequestProps): RenderedEmail {
+  const item = props.configuration ? `${props.productTitle} (${props.configuration})` : props.productTitle;
+  const subject = `Demande : ${item}`;
+  const body = html`
+    ${paragraph(`${props.customerName} demande ${props.quantity} × ${item}.`)}
+    ${props.note ? paragraph(`« ${props.note} »`) : ''}
+    ${muted(`Téléphone : ${props.phone} · E-mail : ${props.email}`)}
+    ${paragraph('Répondez avec un prix et un délai, ou refusez la demande.')}
+    <p style="margin:24px 0">${button('Traiter la demande', props.requestAdminUrl)}</p>
+  `;
+  const text = [
+    `${props.customerName} demande ${props.quantity} × ${item}.`,
+    ...(props.note ? [`« ${props.note} »`] : []),
+    `Téléphone : ${props.phone}`,
+    `E-mail : ${props.email}`,
+    '',
+    `Traiter la demande : ${props.requestAdminUrl}`,
+  ].join('\n');
+  return {
+    subject,
+    html: layout({ storeName: props.storeName, preheader: subject, title: 'Nouvelle demande', body }),
+    text,
+  };
+}
+
+export interface SpecialRequestQuotedProps extends SpecialRequestEmailBase {
+  customerName: string;
+  currency: Currency;
+  unitPriceAmount: number;
+  delay: string;
+  contactEmail: string | null;
+  phone: string | null;
+}
+
+/** À l'acheteur : la boutique annonce un prix et un délai pour sa demande. */
+export function renderSpecialRequestQuoted(props: SpecialRequestQuotedProps): RenderedEmail {
+  const money = (amount: number) => formatMoney(amount, props.currency);
+  const item = props.configuration ? `${props.productTitle} (${props.configuration})` : props.productTitle;
+  const total = money(props.unitPriceAmount * props.quantity);
+  const subject = `${props.storeName} : votre demande pour ${props.productTitle}`;
+  const contact = [props.phone, props.contactEmail].filter(Boolean).join(' · ');
+  const body = html`
+    ${paragraph(greeting(props.customerName))}
+    ${paragraph(`Bonne nouvelle : nous pouvons vous procurer ${props.quantity} × ${item}.`)}
+    ${linesTable(
+      [{ label: props.productTitle, detail: props.configuration || undefined, quantity: props.quantity, amount: total }],
+      [
+        { label: 'Prix unitaire', amount: money(props.unitPriceAmount) },
+        { label: 'Délai', amount: props.delay },
+        { label: 'Total', amount: total, strong: true },
+      ],
+    )}
+    ${paragraph('Répondez à cet e-mail pour confirmer : nous préparerons votre commande.')}
+    ${contact ? muted(`Nous joindre : ${contact}`) : ''}
+  `;
+  const text = [
+    greeting(props.customerName),
+    '',
+    `Nous pouvons vous procurer ${props.quantity} × ${item}.`,
+    `Prix unitaire : ${money(props.unitPriceAmount)}`,
+    `Délai : ${props.delay}`,
+    `Total : ${total}`,
+    '',
+    'Répondez à cet e-mail pour confirmer : nous préparerons votre commande.',
+    ...(contact ? [`Nous joindre : ${contact}`] : []),
+  ].join('\n');
+  return {
+    subject,
+    html: layout({ storeName: props.storeName, preheader: `Prix et délai pour ${props.productTitle}`, title: 'Votre demande', body }),
     text,
   };
 }

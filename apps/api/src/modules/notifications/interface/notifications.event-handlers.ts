@@ -23,6 +23,16 @@ export class NotificationsEventHandlers {
     return this.notifications.sendOrderShipped(event);
   }
 
+  @OnDomainEvent({ event: 'orders.special-request.received', queue: 'notifications', name: 'merchant-special-request' })
+  onSpecialRequestReceived(event: SerializedDomainEvent): Promise<void> {
+    return this.notifications.sendMerchantSpecialRequest(event);
+  }
+
+  @OnDomainEvent({ event: 'orders.special-request.quoted', queue: 'notifications', name: 'special-request-quoted' })
+  onSpecialRequestQuoted(event: SerializedDomainEvent): Promise<void> {
+    return this.notifications.sendSpecialRequestQuoted(event);
+  }
+
   @OnDomainEvent({ event: 'inventory.stock.low', queue: 'notifications', name: 'low-stock-alert' })
   onStockLow(event: SerializedDomainEvent<{ variantId: string; available: number; threshold: number }>): Promise<void> {
     return this.notifications.sendLowStockAlert(event);

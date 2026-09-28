@@ -2,8 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   renderLowStockAlert,
   renderMerchantNewOrder,
+  renderMerchantSpecialRequest,
   renderOrderConfirmation,
   renderOrderShipped,
+  renderSpecialRequestQuoted,
 } from '@marche/emails';
 import { PublicUrls } from '../../../shared/application/public-urls.port.js';
 import type { SerializedDomainEvent } from '../../../shared/domain/domain-event.js';
@@ -46,6 +48,7 @@ export class NotificationService {
       currency: order.currency,
       lines: order.lines,
       subtotalAmount: order.subtotalAmount,
+      discounts: order.discounts,
       shippingAmount: order.shippingAmount,
       totalAmount: order.totalAmount,
       shippingAddress: order.shippingAddress,
@@ -99,6 +102,52 @@ export class NotificationService {
       ...rendered,
       ...(store.contactEmail ? { replyTo: store.contactEmail } : {}),
       idempotencyKey: `${event.id}-order-shipped`,
+    });
+  }
+
+  /** Commande sur demande reçue : le marchand la chiffre ou la refuse. */
+  async sendMerchantSpecialRequest(event: SerializedDomainEvent): Promise<void> {
+    const recipients = await this.stores.notificationRecipients(event.storeId);
+    if (recipients.length === 0) return;
+    const request = await this.orders.getSpecialRequest(event.aggregateId);
+    if (!request) return;
+    const store = await this.stores.getSettings(event.storeId);
+    const rendered = renderMerchantSpecialRequest({
+      storeName: store.name,
+      productTitle: request.productTitle,
+      configuration: request.options.map((option) => option.value).join(' / '),
+      quantity: request.quantity,
+      customerName: [request.firstName, request.lastName].filter(Boolean).join(' '),
+      phone: request.phone,
+      email: request.email,
+      note: request.note,
+      requestAdminUrl: this.urls.dashboard(`/requests/${request.id}`),
+    });
+    await this.email.send({ to: recipients, ...rendered, idempotencyKey: `${event.id}-merchant-special-request` });
+  }
+
+  /** Devis envoyé : prix et délai annoncés à l'acheteur, qui répond pour confirmer. */
+  async sendSpecialRequestQuoted(event: SerializedDomainEvent): Promise<void> {
+    const request = await this.orders.getSpecialRequest(event.aggregateId);
+    if (!request || request.quotedUnitPriceAmount === null || !request.quotedDelay) return;
+    const store = await this.stores.getSettings(event.storeId);
+    const rendered = renderSpecialRequestQuoted({
+      storeName: store.name,
+      productTitle: request.productTitle,
+      configuration: request.options.map((option) => option.value).join(' / '),
+      quantity: request.quantity,
+      customerName: request.firstName,
+      currency: request.currency,
+      unitPriceAmount: request.quotedUnitPriceAmount,
+      delay: request.quotedDelay,
+      contactEmail: store.contactEmail,
+      phone: store.phone,
+    });
+    await this.email.send({
+      to: [request.email],
+      ...rendered,
+      ...(store.contactEmail ? { replyTo: store.contactEmail } : {}),
+      idempotencyKey: `${event.id}-special-request-quoted`,
     });
   }
 

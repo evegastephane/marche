@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { type Currency, DEFAULT_SHIPPING_SETTINGS, shippingSettingsSchema } from '@marche/contracts';
+import {
+  type Currency,
+  DEFAULT_SHIPPING_SETTINGS,
+  shippingSettingsSchema,
+  verticalSettingsSchema,
+} from '@marche/contracts';
 import type { MemberRole } from '../../../shared/application/actor-context.port.js';
 import type { Prisma, Store as StoreRow } from '../../../generated/prisma/client.js';
 import { isUniqueViolation } from '../../../shared/infrastructure/prisma/prisma-errors.js';
@@ -11,6 +16,7 @@ import { StoreMembershipRepository, StoreRepository } from '../domain/store.repo
 
 function toDomain(row: StoreRow): Store {
   const shipping = shippingSettingsSchema.safeParse(row.shippingSettings);
+  const vertical = verticalSettingsSchema.safeParse(row.verticalSettings);
   return Store.reconstitute(row.id, {
     clerkOrgId: row.clerkOrgId,
     name: row.name,
@@ -23,6 +29,8 @@ function toDomain(row: StoreRow): Store {
     logoMediaId: row.logoMediaId,
     shippingSettings: shipping.success ? shipping.data : DEFAULT_SHIPPING_SETTINGS,
     lowStockDefault: row.lowStockDefault,
+    type: row.type,
+    verticalSettings: vertical.success ? vertical.data : {},
     createdAt: row.createdAt,
     archivedAt: row.archivedAt,
   });
@@ -41,6 +49,8 @@ function toData(store: Store) {
     logoMediaId: s.logoMediaId,
     shippingSettings: s.shippingSettings as Prisma.InputJsonValue,
     lowStockDefault: s.lowStockDefault,
+    type: s.type,
+    verticalSettings: s.verticalSettings as Prisma.InputJsonValue,
     archivedAt: s.archivedAt,
   };
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { OrderLineInput } from '@marche/contracts';
+import type { CustomOrderLineInput, OrderLineInput } from '@marche/contracts';
 import { ActorContext } from '../../../shared/application/actor-context.port.js';
 import { Clock } from '../../../shared/application/clock.port.js';
 import { OutboxPort } from '../../../shared/application/outbox.port.js';
@@ -8,9 +8,18 @@ import { ConflictError, ValidationError } from '../../../shared/domain/domain-er
 import { CatalogFacade } from '../../catalog/catalog.facade.js';
 import { InventoryFacade } from '../../inventory/inventory.facade.js';
 import { StoresFacade } from '../../stores/stores.facade.js';
-import type { NewOrderLine, Order } from '../domain/order.aggregate.js';
+import type { NewOrderLine, Order, PricedLines } from '../domain/order.aggregate.js';
 import { CustomerRepository, OrderRepository } from '../domain/order.repositories.js';
 import { shippingStrategyFor, type ShippingStrategy } from '../domain/shipping-strategy.js';
+
+/** Référence affichée sur une ligne libre (commande sur demande). */
+export const CUSTOM_LINE_SKU = 'SUR-DEMANDE';
+
+/** Lignes demandées : déclinaisons du catalogue et lignes libres. */
+export interface OrderLinesRequest {
+  lines: readonly OrderLineInput[];
+  customLines?: readonly CustomOrderLineInput[];
+}
 
 export class ItemUnavailableError extends ConflictError {
   constructor(variantIds: string[]) {
@@ -43,10 +52,12 @@ export class OrderPlacementService {
   }
 
   /**
-   * Lignes figées à partir du catalogue. `requireSellable` (site) refuse les produits non publiés ;
+   * Lignes figées à partir du catalogue, lignes libres ensuite, et remises des packs recalculées
+   * sur les prix du moment. `requireSellable` (site) refuse les produits non publiés ;
    * le back-office peut vendre un produit en brouillon, mais jamais une variante archivée.
    */
-  async snapshotLines(lines: readonly OrderLineInput[], requireSellable: boolean): Promise<NewOrderLine[]> {
+  async priceLines(request: OrderLinesRequest, requireSellable: boolean): Promise<PricedLines> {
+    const { lines, customLines = [] } = request;
     const snapshots = await this.catalog.snapshotVariants(lines.map((line) => line.variantId));
     const unknown = lines.filter((line) => !snapshots.has(line.variantId)).map((line) => line.variantId);
     if (unknown.length > 0) {
@@ -60,25 +71,54 @@ export class OrderPlacementService {
       .map((line) => line.variantId);
     if (unavailable.length > 0) throw new ItemUnavailableError(unavailable);
 
-    return lines.map((line) => {
+    const catalogLines = lines.map((line) => {
       const snapshot = snapshots.get(line.variantId);
       if (!snapshot) throw new ValidationError('VALIDATION_FAILED', 'Variante introuvable');
-      return {
+      return { snapshot, quantity: line.quantity };
+    });
+    const bundleDiscounts = await this.catalog.priceBundles(
+      catalogLines.map(({ snapshot, quantity }) => ({
+        productId: snapshot.productId,
+        unitPriceAmount: snapshot.unitPriceAmount,
+        quantity,
+      })),
+    );
+    const priced: NewOrderLine[] = [
+      ...catalogLines.map(({ snapshot, quantity }) => ({
         variantId: snapshot.variantId,
         productTitle: snapshot.productTitle,
         variantTitle: snapshot.variantTitle,
         sku: snapshot.sku,
         unitPriceAmount: snapshot.unitPriceAmount,
-        quantity: line.quantity,
+        quantity,
         tracksInventory: snapshot.trackInventory,
-      };
-    });
+        custom: false,
+      })),
+      ...customLines.map((line) => ({
+        variantId: null,
+        productTitle: line.title,
+        variantTitle: line.variantTitle,
+        sku: CUSTOM_LINE_SKU,
+        unitPriceAmount: line.unitPriceAmount,
+        quantity: line.quantity,
+        tracksInventory: false,
+        custom: true,
+      })),
+    ];
+    return {
+      lines: priced,
+      discounts: bundleDiscounts.map((discount) => ({
+        bundleId: discount.bundleId,
+        title: discount.quantity > 1 ? `${discount.title} × ${discount.quantity}` : discount.title,
+        amount: discount.amount,
+      })),
+    };
   }
 
   async place(
     order: Order,
     input: {
-      lines: readonly OrderLineInput[];
+      request: OrderLinesRequest;
       requireSellable: boolean;
       customer?: { firstName?: string | null; lastName?: string | null; phone?: string | null; whatsappOptIn?: boolean };
       isNew: boolean;
@@ -86,7 +126,7 @@ export class OrderPlacementService {
   ): Promise<void> {
     await this.uow.run(async () => {
       const storeId = this.actor.storeId;
-      const lines = await this.snapshotLines(input.lines, input.requireSellable);
+      const priced = await this.priceLines(input.request, input.requireSellable);
       const shipping = await this.shippingStrategy();
       const number = await this.stores.nextOrderNumber(storeId);
       const email = order.email;
@@ -100,7 +140,7 @@ export class OrderPlacementService {
             whatsappOptIn: input.customer?.whatsappOptIn,
           })
         : null;
-      order.place({ number, lines, shipping, customerId }, this.clock.now());
+      order.place({ number, priced, shipping, customerId }, this.clock.now());
       await this.inventory.reserve(order.reservedLines());
       if (input.isNew) await this.orders.insert(order);
       else await this.orders.update(order);

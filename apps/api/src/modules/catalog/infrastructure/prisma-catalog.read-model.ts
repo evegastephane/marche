@@ -3,6 +3,8 @@ import { TransactionHost } from '@nestjs-cls/transactional';
 import type {
   BrandDto,
   BrandListQuery,
+  BundleDto,
+  BundleProductDto,
   CollectionDetailDto,
   CollectionDto,
   CollectionListQuery,
@@ -18,7 +20,7 @@ import type { PrismaAdapter } from '../../../shared/infrastructure/prisma/transa
 import { InventoryFacade } from '../../inventory/inventory.facade.js';
 import { MediaFacade } from '../../media/media.facade.js';
 import { CatalogReadModel } from '../application/catalog.read-model.js';
-import { parseOptions, parseStringArray } from './prisma-catalog.repositories.js';
+import { parseAttributesJson, parseKind, parseOptions, parseStringArray } from './prisma-catalog.repositories.js';
 
 const listItemInclude = {
   brand: { select: { id: true, name: true } },
@@ -28,6 +30,33 @@ const listItemInclude = {
 
 type ListItemRow = Prisma.ProductGetPayload<{ include: typeof listItemInclude }>;
 
+const bundleProductSelect = {
+  id: true,
+  title: true,
+  status: true,
+  variants: { where: { archivedAt: null }, select: { priceAmount: true } },
+  media: { orderBy: { position: 'asc' }, take: 1, select: { mediaId: true } },
+} satisfies Prisma.ProductSelect;
+
+const bundleInclude = {
+  anchor: { select: bundleProductSelect },
+  items: { orderBy: { position: 'asc' }, include: { product: { select: bundleProductSelect } } },
+} satisfies Prisma.BundleInclude;
+
+type BundleRow = Prisma.BundleGetPayload<{ include: typeof bundleInclude }>;
+type BundleProductRow = Prisma.ProductGetPayload<{ select: typeof bundleProductSelect }>;
+
+function toBundleProduct(row: BundleProductRow, media: Map<string, MediaDto>): BundleProductDto {
+  const thumbnailId = row.media[0]?.mediaId;
+  return {
+    id: row.id,
+    title: row.title,
+    status: row.status,
+    thumbnail: (thumbnailId && media.get(thumbnailId)) || null,
+    priceMinAmount: row.variants.length ? Math.min(...row.variants.map((v) => v.priceAmount)) : 0,
+  };
+}
+
 function toListItem(row: ListItemRow, media: Map<string, MediaDto>): ProductListItemDto {
   const prices = row.variants.map((variant) => variant.priceAmount);
   const thumbnailId = row.media[0]?.mediaId;
@@ -36,6 +65,7 @@ function toListItem(row: ListItemRow, media: Map<string, MediaDto>): ProductList
     title: row.title,
     slug: row.slug,
     status: row.status,
+    kind: parseKind(row.kind),
     brand: row.brand,
     variantsCount: row.variants.length,
     priceMinAmount: prices.length ? Math.min(...prices) : 0,
@@ -60,6 +90,7 @@ export class PrismaCatalogReadModel extends CatalogReadModel {
       query.status ? { status: query.status } : { status: { not: 'ARCHIVED' } },
     ];
     if (query.brandId) and.push({ brandId: query.brandId });
+    if (query.kind) and.push({ kind: query.kind });
     if (query.collectionId) and.push({ collections: { some: { collectionId: query.collectionId } } });
     if (query.q) {
       and.push({
@@ -91,13 +122,28 @@ export class PrismaCatalogReadModel extends CatalogReadModel {
       include: {
         brand: { select: { id: true, name: true } },
         variants: { where: { archivedAt: null }, orderBy: { position: 'asc' } },
-        media: { orderBy: { position: 'asc' }, select: { mediaId: true } },
+        media: { orderBy: { position: 'asc' }, select: { mediaId: true, optionValue: true } },
         collections: { include: { collection: { select: { id: true, title: true } } } },
+        relations: {
+          where: { type: 'ACCESSORY' },
+          orderBy: { position: 'asc' },
+          include: {
+            related: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+                media: { orderBy: { position: 'asc' }, take: 1, select: { mediaId: true } },
+              },
+            },
+          },
+        },
       },
     });
     if (!row) return null;
+    const accessoryMediaIds = row.relations.flatMap((r) => r.related.media.map((m) => m.mediaId));
     const [media, stock] = await Promise.all([
-      this.media.getMany(row.media.map((m) => m.mediaId)),
+      this.media.getMany([...row.media.map((m) => m.mediaId), ...accessoryMediaIds]),
       this.inventory.summaries(row.variants.map((variant) => variant.id)),
     ]);
     return {
@@ -107,6 +153,8 @@ export class PrismaCatalogReadModel extends CatalogReadModel {
       description: row.description,
       status: row.status,
       brand: row.brand,
+      kind: parseKind(row.kind),
+      attributes: parseAttributesJson(row.attributes),
       options: parseOptions(row.options),
       variants: row.variants.map((variant) => {
         const optionValues = parseStringArray(variant.optionValues);
@@ -126,6 +174,18 @@ export class PrismaCatalogReadModel extends CatalogReadModel {
       media: row.media.flatMap((m) => {
         const dto = media.get(m.mediaId);
         return dto ? [dto] : [];
+      }),
+      mediaOptionValues: Object.fromEntries(
+        row.media.flatMap((m) => (m.optionValue ? [[m.mediaId, m.optionValue]] : [])),
+      ),
+      accessories: row.relations.map(({ related }) => {
+        const thumbnailId = related.media[0]?.mediaId;
+        return {
+          id: related.id,
+          title: related.title,
+          status: related.status,
+          thumbnail: (thumbnailId && media.get(thumbnailId)) || null,
+        };
       }),
       collections: row.collections.map((link) => link.collection),
       seoTitle: row.seoTitle,
@@ -207,6 +267,38 @@ export class PrismaCatalogReadModel extends CatalogReadModel {
       ...this.toCollectionDto(row, media),
       products: row.products.map((link) => toListItem(link.product, media)),
     };
+  }
+
+  async listBundles(filter: { anchorProductId?: string }): Promise<BundleDto[]> {
+    const rows = await this.txHost.tx.bundle.findMany({
+      where: filter.anchorProductId ? { anchorProductId: filter.anchorProductId } : {},
+      include: bundleInclude,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 200,
+    });
+    return this.toBundleDtos(rows);
+  }
+
+  async getBundle(id: string): Promise<BundleDto | null> {
+    const row = await this.txHost.tx.bundle.findUnique({ where: { id }, include: bundleInclude });
+    return row ? ((await this.toBundleDtos([row]))[0] ?? null) : null;
+  }
+
+  private async toBundleDtos(rows: BundleRow[]): Promise<BundleDto[]> {
+    const media = await this.media.getMany(
+      rows.flatMap((row) => [row.anchor, ...row.items.map((item) => item.product)].flatMap((p) => p.media.map((m) => m.mediaId))),
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      anchor: toBundleProduct(row.anchor, media),
+      items: row.items.map((item) => toBundleProduct(item.product, media)),
+      discountType: row.discountType,
+      discountValue: row.discountValue,
+      isActive: row.isActive,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    }));
   }
 
   private toBrandDto(

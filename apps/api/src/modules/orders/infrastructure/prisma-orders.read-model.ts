@@ -15,7 +15,7 @@ import type { Prisma } from '../../../generated/prisma/client.js';
 import { decodeCursor, toPage } from '../../../shared/application/pagination.js';
 import type { PrismaAdapter } from '../../../shared/infrastructure/prisma/transaction.js';
 import { type OrderSummary, OrdersReadModel } from '../application/orders.ports.js';
-import { parseAddress } from './prisma-order.repositories.js';
+import { parseAddress, parseDiscounts } from './prisma-order.repositories.js';
 
 const listInclude = {
   lines: { select: { quantity: true } },
@@ -160,6 +160,7 @@ export class PrismaOrdersReadModel extends OrdersReadModel {
         lineTotalAmount: line.lineTotalAmount,
       })),
       subtotalAmount: row.subtotalAmount,
+      discountAmount: row.discountAmount,
       shippingAmount: row.shippingAmount,
       totalAmount: row.totalAmount,
       placedAt: row.placedAt?.toISOString() ?? null,
@@ -186,6 +187,8 @@ export class PrismaOrdersReadModel extends OrdersReadModel {
         lineTotalAmount: line.lineTotalAmount,
       })),
       subtotalAmount: row.subtotalAmount,
+      discounts: parseDiscounts(row.discounts),
+      discountAmount: row.discountAmount,
       shippingAmount: row.shippingAmount,
       totalAmount: row.totalAmount,
       shippingAddress: parseAddress(row.shippingAddress),
@@ -222,8 +225,11 @@ export class PrismaOrdersReadModel extends OrdersReadModel {
         quantity: line.quantity,
         lineTotalAmount: line.lineTotalAmount,
         tracksInventory: line.tracksInventory,
+        custom: line.custom,
       })),
       subtotalAmount: row.subtotalAmount,
+      discounts: parseDiscounts(row.discounts),
+      discountAmount: row.discountAmount,
       shippingAmount: row.shippingAmount,
       totalAmount: row.totalAmount,
       shippingAddress: parseAddress(row.shippingAddress),

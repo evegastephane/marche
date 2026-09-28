@@ -16,6 +16,8 @@ export function toStoreDto(store: Store): StoreDto {
     logoMediaId: s.logoMediaId,
     shippingSettings: s.shippingSettings,
     lowStockDefault: s.lowStockDefault,
+    type: s.type,
+    verticalSettings: s.verticalSettings,
     createdAt: s.createdAt.toISOString(),
   };
 }

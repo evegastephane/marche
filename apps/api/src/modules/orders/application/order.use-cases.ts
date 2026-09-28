@@ -3,6 +3,7 @@ import type {
   CheckoutResultDto,
   CreateDraftOrderInput,
   CustomerInput,
+  CustomOrderLineInput,
   OrderDto,
   OrderLineInput,
   UpdateDraftOrderInput,
@@ -20,10 +21,19 @@ import { CustomerRepository, OrderRepository } from '../domain/order.repositorie
 import { OrderPlacementService } from './order-placement.service.js';
 import { OrdersReadModel } from './orders.ports.js';
 
-/** Lignes du brouillon sous forme de demandes (variante + quantité). */
+/** Lignes du catalogue du brouillon (variante + quantité), à refiger au prix du moment. */
 function lineRequests(order: Order): OrderLineInput[] {
   return order.lines.flatMap((line) =>
-    line.variantId ? [{ variantId: line.variantId, quantity: line.quantity }] : [],
+    !line.custom && line.variantId ? [{ variantId: line.variantId, quantity: line.quantity }] : [],
+  );
+}
+
+/** Lignes libres du brouillon : elles gardent le prix convenu. */
+function customLineRequests(order: Order): CustomOrderLineInput[] {
+  return order.lines.flatMap((line) =>
+    line.custom
+      ? [{ title: line.productTitle, variantTitle: line.variantTitle, unitPriceAmount: line.unitPriceAmount, quantity: line.quantity }]
+      : [],
   );
 }
 
@@ -72,9 +82,9 @@ export class CreateDraftOrderUseCase {
         const customerId = await this.upsertCustomer(input.customer, input.shippingAddress ?? null);
         order.updateDetails({ customerId }, now);
       }
-      if (input.lines.length > 0) {
+      if (input.lines.length > 0 || input.customLines.length > 0) {
         order.replaceLines(
-          await this.placement.snapshotLines(input.lines, false),
+          await this.placement.priceLines({ lines: input.lines, customLines: input.customLines }, false),
           await this.placement.shippingStrategy(),
           now,
         );
@@ -127,9 +137,13 @@ export class UpdateDraftOrderUseCase {
       if (input.shippingAddress !== undefined || input.note !== undefined) {
         order.updateDetails({ shippingAddress: input.shippingAddress, note: input.note }, now);
       }
-      if (input.lines) {
+      if (input.lines || input.customLines) {
+        const request = {
+          lines: input.lines ?? lineRequests(order),
+          customLines: input.customLines ?? customLineRequests(order),
+        };
         order.replaceLines(
-          await this.placement.snapshotLines(input.lines, false),
+          await this.placement.priceLines(request, false),
           await this.placement.shippingStrategy(),
           now,
         );
@@ -152,7 +166,11 @@ export class PlaceOrderUseCase {
   async execute(orderId: string): Promise<OrderDto> {
     const order = await this.orders.findById(orderId);
     if (!order) throw new NotFoundError('Commande', orderId);
-    await this.placement.place(order, { lines: lineRequests(order), requireSellable: false, isNew: false });
+    await this.placement.place(order, {
+      request: { lines: lineRequests(order), customLines: customLineRequests(order) },
+      requireSellable: false,
+      isNew: false,
+    });
     return this.dtos.load(orderId);
   }
 }
@@ -232,7 +250,7 @@ export class PlaceStorefrontOrderUseCase {
       this.clock.now(),
     );
     await this.placement.place(order, {
-      lines: input.lines,
+      request: { lines: input.lines },
       requireSellable: true,
       customer: { phone: input.phone ?? input.shippingAddress.phone ?? null, whatsappOptIn: input.whatsappOptIn },
       isNew: true,

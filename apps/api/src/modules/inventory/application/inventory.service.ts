@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type {
   AdjustStockInput,
+  StockCountInput,
   InsufficientStockDetail,
   InventoryItemDto,
   InventoryLevelDto,
@@ -12,7 +13,7 @@ import { ActorContext } from '../../../shared/application/actor-context.port.js'
 import { Clock } from '../../../shared/application/clock.port.js';
 import { OutboxPort } from '../../../shared/application/outbox.port.js';
 import { UnitOfWork } from '../../../shared/application/unit-of-work.port.js';
-import { NotFoundError, ValidationError } from '../../../shared/domain/domain-error.js';
+import { ConcurrentModificationError, NotFoundError, ValidationError } from '../../../shared/domain/domain-error.js';
 import { StoresFacade } from '../../stores/stores.facade.js';
 import {
   aggregateLines,
@@ -131,6 +132,40 @@ export class InventoryService {
       const level = (await this.repository.getLevels([variantId])).get(variantId);
       if (!level) throw new NotFoundError('Stock de la variante', variantId);
       return toLevelDto(level);
+    });
+  }
+
+  /** Comptage : chaque écart devient un ajustement (motif « Comptage »), dans une seule transaction. */
+  async count(input: StockCountInput): Promise<InventoryLevelDto[]> {
+    const variantIds = input.entries.map((entry) => entry.variantId);
+    return this.uow.run(async () => {
+      const levels = await this.repository.getLevels(variantIds);
+      const changes: LevelChange[] = [];
+      for (const entry of input.entries) {
+        const level = levels.get(entry.variantId);
+        if (!level) throw new NotFoundError('Stock de la variante', entry.variantId);
+        if (entry.expectedOnHand !== undefined && entry.expectedOnHand !== level.onHand) {
+          throw new ConcurrentModificationError('Le stock');
+        }
+        const delta = entry.onHand - level.onHand;
+        if (delta === 0) continue;
+        const result = await this.repository.adjust({
+          variantId: entry.variantId,
+          delta,
+          type: 'ADJUSTMENT',
+          reason: input.reason,
+          actorUserId: this.actor.userId,
+        });
+        if (result === 'not_found') throw new NotFoundError('Stock de la variante', entry.variantId);
+        if (result === 'below_reserved') throw new StockBelowReservedError(entry.variantId);
+        changes.push(result);
+      }
+      await this.publishTransitions(changes);
+      const updated = await this.repository.getLevels(variantIds);
+      return variantIds.flatMap((id) => {
+        const level = updated.get(id);
+        return level ? [toLevelDto(level)] : [];
+      });
     });
   }
 

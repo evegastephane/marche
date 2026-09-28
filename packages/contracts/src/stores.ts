@@ -5,6 +5,7 @@ import {
   currencySchema,
   timezoneSchema,
 } from './common.js';
+import { storeTypeSchema, verticalSettingsSchema } from './verticals.js';
 
 /** Sous-domaines réservés à la plateforme : interdits comme slug de boutique. */
 export const RESERVED_STORE_SLUGS = [
@@ -64,6 +65,8 @@ export const createStoreSchema = z.object({
   currency: currencySchema,
   country: countrySchema,
   timezone: timezoneSchema.optional(),
+  /** Mode ou Électronique : décide des sortes d'articles, des options et du site. */
+  type: storeTypeSchema,
 });
 export type CreateStoreInput = z.infer<typeof createStoreSchema>;
 
@@ -76,6 +79,8 @@ export const updateStoreSchema = z
     logoMediaId: z.uuid().nullable(),
     shippingSettings: shippingSettingsSchema,
     lowStockDefault: z.number().int().min(0).max(1_000_000),
+    type: storeTypeSchema,
+    verticalSettings: verticalSettingsSchema,
   })
   .partial()
   .refine((input) => Object.keys(input).length > 0, {
@@ -97,6 +102,8 @@ export const storeSchema = z.object({
   logoMediaId: z.uuid().nullable(),
   shippingSettings: shippingSettingsSchema,
   lowStockDefault: z.number().int(),
+  type: storeTypeSchema,
+  verticalSettings: verticalSettingsSchema,
   createdAt: z.iso.datetime(),
 });
 export type StoreDto = z.infer<typeof storeSchema>;

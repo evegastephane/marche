@@ -70,6 +70,12 @@ export class AnalyticsProcessor extends DomainEventProcessor {
   protected readonly queueName = 'analytics' as const;
 }
 
+/** Envois des campagnes WhatsApp : un job par campagne, les messages partent l'un après l'autre. */
+@Processor('campaigns', { concurrency: 2 })
+export class CampaignsProcessor extends DomainEventProcessor {
+  protected readonly queueName = 'campaigns' as const;
+}
+
 /** Relais de l'outbox, déclenché chaque seconde par un job scheduler BullMQ. */
 @Processor('outbox-relay', { concurrency: 1 })
 export class OutboxRelayProcessor extends WorkerHost implements OnApplicationBootstrap {

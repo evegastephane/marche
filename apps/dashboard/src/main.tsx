@@ -43,9 +43,9 @@ createRoot(root).render(
             toastOptions={{
               classNames: {
                 toast:
-                  '!rounded-2xl !bg-ink !text-canvas !border-0 !shadow-float !font-sans !text-[0.9375rem] !font-[600] !gap-3',
+                  '!rounded-xl !bg-ink !text-canvas !border-0 !shadow-float !font-sans !text-[0.9375rem] !font-[560] !gap-3',
                 description: '!opacity-75 !font-normal',
-                actionButton: '!bg-brand !text-on-brand !font-bold !rounded-full',
+                actionButton: '!bg-accent !text-on-accent !font-[600] !rounded-lg',
               },
             }}
           />

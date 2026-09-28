@@ -28,7 +28,7 @@ function StoreGate() {
     return (
       <div className="flex min-h-dvh flex-col items-start justify-center gap-6 px-6 sm:px-16">
         <Reveal>
-          <UpsellLogo intro className="text-[1.375rem]" />
+          <UpsellLogo intro className="text-[1.5rem]" />
         </Reveal>
         <Reveal delay={0.1} className="flex flex-col items-start gap-4">
           <IconBadge icon={Store} size="lg" />
@@ -50,9 +50,9 @@ function StoreGate() {
 
 function ShellPlaceholder() {
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
-      <div className="hidden border-r border-line bg-surface lg:block" />
-      <div className="h-14 border-b border-line bg-surface lg:hidden" />
+    <div className="min-h-dvh lg:grid lg:grid-cols-[15.5rem_1fr]">
+      <div className="hidden border-r border-line lg:block" />
+      <div className="h-14 border-b border-line lg:hidden" />
     </div>
   );
 }

@@ -22,14 +22,14 @@ function ProduitDetail() {
       <motion.div variants={riseIn} className="self-start">
         <Link
           to="/products"
-          className="group inline-flex items-center gap-1.5 text-[0.875rem] font-semibold text-ink-2 no-underline hover:text-ink"
+          className="group inline-flex items-center gap-1.5 text-[0.875rem] font-[560] text-ink-2 no-underline hover:text-ink"
         >
-          <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" /> Produits
+          <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" strokeWidth={1.8} /> Produits
         </Link>
       </motion.div>
       {product.error ? (
         product.error instanceof ApiError && product.error.code === 'NOT_FOUND' ? (
-          <div className="card">
+          <div className="panel">
             <EmptyState icon={PackageX} title="Produit introuvable">
               Il a peut-être été supprimé, ou appartient à une autre boutique.
             </EmptyState>

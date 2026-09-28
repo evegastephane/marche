@@ -3,6 +3,7 @@ import {
   type CreateProductInput,
   type Currency,
   MAX_PRODUCT_OPTIONS,
+  type MediaDto,
   type ProductDto,
   updateProductSchema,
   type UpdateProductInput,
@@ -35,6 +36,8 @@ export interface ProductDraft {
   hasOptions: boolean;
   options: OptionDraft[];
   variants: VariantDraft[];
+  /** Photos dans l'ordre d'affichage : la première est la photo principale. */
+  media: MediaDto[];
   publish: boolean;
 }
 
@@ -73,6 +76,7 @@ export function emptyDraft(): ProductDraft {
     variants: [
       { key: newKey(), optionValues: [], sku: '', skuTouched: false, price: '', compareAt: '', quantity: '', available: null },
     ],
+    media: [],
     publish: true,
   };
 }
@@ -99,6 +103,7 @@ export function draftFromProduct(product: ProductDto, currency: Currency): Produ
       quantity: '',
       available: v.inventory?.available ?? null,
     })),
+    media: product.media,
     publish: product.status === 'ACTIVE',
   };
 }
@@ -190,7 +195,7 @@ export function draftToInput(
     brandId: draft.brandId || null,
     options: options.map((o) => ({ name: o.name.trim(), values: o.values })),
     variants,
-    mediaIds: existing?.media.map((m) => m.id) ?? [],
+    mediaIds: draft.media.map((m) => m.id),
   };
   const parsed = existing
     ? updateProductSchema.safeParse({ ...base, version: existing.version })

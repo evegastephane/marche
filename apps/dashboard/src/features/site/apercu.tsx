@@ -1,6 +1,6 @@
 import type { ThemeSettings } from '@marche/contracts';
 import { motion } from 'motion/react';
-import { snappy } from '@/shared/ui/motion';
+import { glide as snappy } from '@/shared/ui/motion';
 
 const SERIF = new Set(['Playfair Display', 'Lora']);
 
@@ -31,11 +31,11 @@ export function ApercuSite({
       <div className="overflow-hidden rounded-2xl bg-white shadow-float ring-1 ring-line">
         <div className="flex items-center gap-2 bg-surface-2 px-3 py-2">
           <span className="flex gap-1" aria-hidden>
-            <span className="size-2.5 rounded-full bg-[#ff5a2b]" />
-            <span className="size-2.5 rounded-full bg-[#fdb52a]" />
-            <span className="size-2.5 rounded-full bg-[#13a15a]" />
+            <span className="size-2.5 rounded-full bg-line-strong" />
+            <span className="size-2.5 rounded-full bg-line-strong" />
+            <span className="size-2.5 rounded-full bg-line-strong" />
           </span>
-          <span className="tabular flex-1 truncate rounded-full bg-surface px-2.5 py-0.5 text-center text-[0.75rem] text-ink-2">
+          <span className="tabular flex-1 truncate rounded-md bg-surface px-2.5 py-0.5 text-center text-[0.75rem] text-ink-2">
             {host}
           </span>
         </div>

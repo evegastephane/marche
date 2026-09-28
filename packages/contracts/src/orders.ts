@@ -145,6 +145,9 @@ export interface CustomerDto {
   ordersCount: number;
   totalSpentAmount: number;
   lastOrderAt: string | null;
+  /** Consentement aux nouveautés par WhatsApp, et désinscription éventuelle (« STOP »). */
+  whatsappOptInAt: string | null;
+  whatsappOptOutAt: string | null;
   createdAt: string;
 }
 

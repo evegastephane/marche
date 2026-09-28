@@ -14,10 +14,11 @@ import {
   type StorefrontSort,
   type StorefrontStoreDto,
 } from '@marche/contracts';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import { env } from './env';
+import { PREVIEW_COOKIE } from './site';
 
 export class StorefrontApiError extends Error {
   constructor(
@@ -53,6 +54,9 @@ async function call<T>(site: string, path: string, options: CallOptions = {}): P
     [STOREFRONT_HEADERS.storeHost]: site,
   };
   if (options.body !== undefined) requestHeaders['content-type'] = 'application/json';
+  // Aperçu du brouillon : le thème non publié, jamais mis en cache.
+  const preview = (await cookies()).get(PREVIEW_COOKIE)?.value;
+  if (preview) requestHeaders[STOREFRONT_HEADERS.previewToken] = preview;
   if (options.idempotencyKey) requestHeaders['idempotency-key'] = options.idempotencyKey;
   if (options.method && options.method !== 'GET') {
     // Le throttling de l'API compte par acheteur, pas par serveur Next.
@@ -64,7 +68,7 @@ async function call<T>(site: string, path: string, options: CallOptions = {}): P
     method: options.method ?? 'GET',
     headers: requestHeaders,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-    ...(options.tags
+    ...(options.tags && !preview
       ? { next: { tags: [`site:${site}`, ...options.tags], revalidate: 300 } }
       : { cache: 'no-store' as const }),
   });

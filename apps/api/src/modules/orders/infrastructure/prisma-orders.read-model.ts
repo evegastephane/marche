@@ -283,6 +283,8 @@ export class PrismaOrdersReadModel extends OrdersReadModel {
       ordersCount: stat?.count ?? 0,
       totalSpentAmount: stat?.total ?? 0,
       lastOrderAt: stat?.last?.toISOString() ?? null,
+      whatsappOptInAt: row.whatsappOptInAt?.toISOString() ?? null,
+      whatsappOptOutAt: row.whatsappOptOutAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
     };
   }

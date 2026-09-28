@@ -4,7 +4,8 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { formatMoney } from '@/lib/format';
 import { CART_COOKIE } from '@/lib/site';
-import { getCart } from '@/lib/storefront-api';
+import { getCart, getStore } from '@/lib/storefront-api';
+import { TrackEvent } from '@/components/analytics';
 import { CheckoutForm } from '@/templates/default/components/checkout-form';
 
 export const metadata: Metadata = { title: 'Commande' };
@@ -16,12 +17,14 @@ export default async function CheckoutPage({ params }: { params: Promise<{ site:
   const cartId = (await cookies()).get(CART_COOKIE)?.value;
   const cart = cartId ? await getCart(site, cartId) : null;
   if (!cart || cart.lines.length === 0) redirect('/cart');
+  const store = await getStore(site);
 
   return (
     <div className="mx-auto grid max-w-5xl gap-12 px-4 pt-12 sm:px-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
       <div className="flex flex-col gap-8">
         <h1 className="text-4xl font-bold sm:text-5xl">Commande</h1>
-        <CheckoutForm defaultCountry={COUNTRY_BY_CURRENCY[cart.currency] ?? 'SN'} />
+        <CheckoutForm defaultCountry={COUNTRY_BY_CURRENCY[cart.currency] ?? 'SN'} storeName={store.name} />
+        <TrackEvent event="checkout_started" properties={{ items: cart.itemsCount, total: cart.totalAmount, currency: cart.currency }} />
       </div>
       <aside className="flex flex-col gap-5 self-start rounded-2xl bg-soft p-6 lg:sticky lg:top-24">
         <h2 className="text-xl font-bold">Récapitulatif</h2>

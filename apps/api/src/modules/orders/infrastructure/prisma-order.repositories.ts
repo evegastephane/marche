@@ -11,6 +11,7 @@ import {
   type CustomerDetails,
   CustomerRepository,
   OrderRepository,
+  type WhatsAppRecipient,
 } from '../domain/order.repositories.js';
 
 export function parseAddress(value: Prisma.JsonValue | null): Address | null {
@@ -165,6 +166,7 @@ export class PrismaCustomerRepository extends CustomerRepository {
       ...(details.lastName ? { lastName: details.lastName } : {}),
       ...(details.phone ? { phone: details.phone } : {}),
       ...(details.defaultAddress ? { defaultAddress: details.defaultAddress as Prisma.InputJsonValue } : {}),
+      ...(details.whatsappOptIn ? { whatsappOptInAt: new Date(), whatsappOptOutAt: null } : {}),
     };
     try {
       const row = await this.txHost.tx.customer.upsert({
@@ -180,5 +182,22 @@ export class PrismaCustomerRepository extends CustomerRepository {
       if (!existing) throw error;
       return existing.id;
     }
+  }
+
+  async listWhatsAppRecipients(): Promise<WhatsAppRecipient[]> {
+    const rows = await this.txHost.tx.customer.findMany({
+      where: { whatsappOptInAt: { not: null }, whatsappOptOutAt: null, phone: { not: null } },
+      select: { id: true, firstName: true, phone: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.flatMap((row) => (row.phone?.trim() ? [{ customerId: row.id, firstName: row.firstName, phone: row.phone }] : []));
+  }
+
+  async optOutWhatsApp(phoneSuffix: string, at: Date): Promise<number> {
+    // SQL brut (hors isolation par boutique, voulu ici) : les numéros sont saisis librement, on compare les chiffres.
+    return this.txHost.tx.$executeRaw`
+      UPDATE customers SET whatsapp_opt_out_at = ${at}, updated_at = now()
+      WHERE whatsapp_opt_out_at IS NULL AND phone IS NOT NULL
+        AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE '%' || ${phoneSuffix}`;
   }
 }

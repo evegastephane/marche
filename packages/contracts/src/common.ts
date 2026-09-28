@@ -123,6 +123,9 @@ export const ERROR_CODES = [
   'UNAUTHENTICATED',
   'FORBIDDEN',
   'RATE_LIMITED',
+  'WHATSAPP_NOT_CONFIGURED',
+  'PRODUCT_NOT_ACTIVE',
+  'NO_RECIPIENTS',
   'INTERNAL_ERROR',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];

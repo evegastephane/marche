@@ -75,6 +75,20 @@ L'API vérifie les jetons de session Clerk et crée une organisation Clerk par b
 
 Les webhooks Clerk sont facultatifs en local : un utilisateur est créé à la volée lors de son premier appel à l'API. Pour les tester, la CLI relaie les événements vers l'API : `clerk webhooks listen --forward-to http://localhost:3000/webhooks/clerk`.
 
+### Campagnes WhatsApp (facultatif)
+
+La page **Campagnes** du dashboard envoie un produit sur WhatsApp aux clients qui ont coché « Recevoir les nouveautés sur WhatsApp » au paiement. L'envoi passe par l'API WhatsApp Cloud de Meta ; sans configuration, la page explique quoi renseigner.
+
+1. Dans une app Meta (cas d'usage WhatsApp) : un numéro, un modèle de message **Marketing** en français approuvé, et un jeton permanent (utilisateur système). Le texte attendu du modèle est rappelé dans `apps/api/.env.example`.
+2. Dans `apps/api/.env` : `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_TEMPLATE_NAME` pour l'envoi ; `WHATSAPP_WEBHOOK_VERIFY_TOKEN` et `WHATSAPP_APP_SECRET` pour le webhook. Redémarrer l'API et le worker (c'est le worker qui envoie).
+3. Webhook (statuts délivré/lu, réponses « STOP ») : Meta exige une URL publique en https. En local, un tunnel `ngrok http 3000` suffit ; l'URL de rappel est `https://<domaine-ngrok>/webhooks/whatsapp`.
+
+### Sites des boutiques
+
+- Aperçu du brouillon : bouton **Aperçu** de la page Site (lien valable 30 minutes).
+- `/sitemap.xml`, `/robots.txt` et `/confidentialite` sur chaque boutique ; `/confidentialite` sur le domaine racine pour la plateforme (adresse à donner à Meta).
+- Mesure d'audience PostHog après consentement : renseigner `NEXT_PUBLIC_POSTHOG_KEY` dans `apps/storefront/.env.local` (sans clé, ni bandeau ni mesure).
+
 ## Vérifications
 
 ```bash

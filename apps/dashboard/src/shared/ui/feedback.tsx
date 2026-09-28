@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/cn';
 import { IconBadge } from './badge';
-import { EASE_OUT, riseIn } from './motion';
+import { EASE_OUT, press, riseIn } from './motion';
 
 /** Bloc de chargement à la forme du contenu attendu, traversé d'un reflet. */
 export function Skeleton({ className }: { className?: string }) {
@@ -26,25 +26,20 @@ export function EmptyState({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: EASE_OUT }}
-      className={cn('flex flex-col items-start gap-4 px-6 py-10 sm:flex-row sm:items-center sm:gap-5', className)}
+      transition={{ duration: 0.36, ease: EASE_OUT }}
+      className={cn('flex flex-col items-start gap-4 px-5 py-9 sm:flex-row sm:items-center sm:gap-5', className)}
     >
       <motion.span
-        initial={{ scale: 0.6, rotate: -8 }}
-        animate={{ scale: 1, rotate: 0 }}
-        transition={{
-          type: 'spring',
-          stiffness: 380,
-          damping: 16,
-          delay: 0.08,
-        }}
+        initial={{ scale: 0.7, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ ...press, delay: 0.06 }}
       >
         <IconBadge icon={icon} size="lg" />
       </motion.span>
       <div className="flex max-w-[52ch] flex-1 flex-col gap-1">
-        <p className="heading text-base">{title}</p>
+        <p className="heading text-[1rem]">{title}</p>
         <div className="text-ink-2">{children}</div>
       </div>
       {action}
@@ -61,10 +56,10 @@ export function LoadError({ message, onRetry }: { message: string; onRetry?: () 
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-wrap items-center gap-3 rounded-xl bg-danger-soft px-4 py-3 text-[0.875rem] text-danger-ink"
     >
-      <span className="font-bold">Chargement impossible.</span>
+      <span className="font-[650]">Chargement impossible.</span>
       <span>{message}</span>
       {onRetry && (
-        <button type="button" onClick={onRetry} className="font-bold underline">
+        <button type="button" onClick={onRetry} className="font-[650] underline">
           Réessayer
         </button>
       )}
@@ -72,7 +67,7 @@ export function LoadError({ message, onRetry }: { message: string; onRetry?: () 
   );
 }
 
-/** En-tête de page : grand titre, sous-titre, actions à droite. */
+/** En-tête de page : titre, sous-titre, touches à droite. */
 export function PageHeader({
   title,
   subtitle,
@@ -90,7 +85,7 @@ export function PageHeader({
       className={cn('flex flex-wrap items-end justify-between gap-x-6 gap-y-4', className)}
     >
       <div className="flex min-w-0 flex-col gap-1.5">
-        <h1 className="display text-[2rem] md:text-[2.5rem]">{title}</h1>
+        <h1 className="display text-[1.875rem] md:text-[2.25rem]">{title}</h1>
         {subtitle && <p className="max-w-[60ch] text-ink-2">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

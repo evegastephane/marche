@@ -80,7 +80,7 @@ export class OrderPlacementService {
     input: {
       lines: readonly OrderLineInput[];
       requireSellable: boolean;
-      customer?: { firstName?: string | null; lastName?: string | null; phone?: string | null };
+      customer?: { firstName?: string | null; lastName?: string | null; phone?: string | null; whatsappOptIn?: boolean };
       isNew: boolean;
     },
   ): Promise<void> {
@@ -97,6 +97,7 @@ export class OrderPlacementService {
             lastName: input.customer?.lastName ?? order.snapshot().shippingAddress?.lastName ?? null,
             phone: input.customer?.phone ?? order.snapshot().shippingAddress?.phone ?? null,
             defaultAddress: order.snapshot().shippingAddress,
+            whatsappOptIn: input.customer?.whatsappOptIn,
           })
         : null;
       order.place({ number, lines, shipping, customerId }, this.clock.now());

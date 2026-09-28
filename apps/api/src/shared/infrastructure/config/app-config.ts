@@ -34,6 +34,21 @@ export const envSchema = z
     CLERK_AUTHORIZED_PARTIES: csv,
     CLERK_WEBHOOK_SIGNING_SECRET: optionalString,
 
+    // Webhook WhatsApp (Meta) : jeton choisi par le marchand pour la vérification de l'URL,
+    // et clé secrète de l'app Meta pour vérifier la signature des notifications.
+    WHATSAPP_WEBHOOK_VERIFY_TOKEN: optionalString,
+    WHATSAPP_APP_SECRET: optionalString,
+    // Envoi des campagnes : jeton permanent (utilisateur système Meta), numéro et modèle approuvé.
+    WHATSAPP_ACCESS_TOKEN: optionalString,
+    WHATSAPP_PHONE_NUMBER_ID: optionalString,
+    WHATSAPP_TEMPLATE_NAME: optionalString,
+    WHATSAPP_TEMPLATE_LANGUAGE: z.string().min(2).default('fr'),
+    WHATSAPP_TEMPLATE_HEADER_IMAGE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    WHATSAPP_API_VERSION: z.string().regex(/^v\d+\.\d+$/).default('v23.0'),
+
     CORS_ORIGINS: csv,
 
     S3_ENDPOINT: optionalString,
@@ -114,6 +129,16 @@ export interface AppConfig {
     authorizedParties: string[];
     webhookSigningSecret?: string;
   };
+  whatsapp: {
+    webhookVerifyToken?: string;
+    appSecret?: string;
+    accessToken?: string;
+    phoneNumberId?: string;
+    templateName?: string;
+    templateLanguage: string;
+    templateHeaderImage: boolean;
+    apiVersion: string;
+  };
   cors: { origins: string[] };
   s3: {
     endpoint?: string;
@@ -176,6 +201,16 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       jwtKey: env.CLERK_JWT_KEY?.replace(/\\n/g, '\n'),
       authorizedParties: env.CLERK_AUTHORIZED_PARTIES,
       webhookSigningSecret: env.CLERK_WEBHOOK_SIGNING_SECRET,
+    },
+    whatsapp: {
+      webhookVerifyToken: env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
+      appSecret: env.WHATSAPP_APP_SECRET,
+      accessToken: env.WHATSAPP_ACCESS_TOKEN,
+      phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID,
+      templateName: env.WHATSAPP_TEMPLATE_NAME,
+      templateLanguage: env.WHATSAPP_TEMPLATE_LANGUAGE,
+      templateHeaderImage: env.WHATSAPP_TEMPLATE_HEADER_IMAGE,
+      apiVersion: env.WHATSAPP_API_VERSION,
     },
     cors: { origins: env.CORS_ORIGINS },
     s3: {

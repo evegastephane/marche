@@ -2,18 +2,18 @@
 
 /*
  * Template « default » : épuré, tout vient du thème du marchand (couleurs, polices),
- * injecté en variables CSS par s/[site]/layout.tsx. Par défaut, la palette Upsell.
+ * injecté en variables CSS par s/[site]/layout.tsx. Par défaut, la palette Upsell (noir, blanc, orange).
  */
 @theme inline {
-  --color-primary: var(--sf-primary, #0b57f0);
+  --color-primary: var(--sf-primary, #101115);
   --color-on-primary: var(--sf-on-primary, #ffffff);
-  --color-accent: var(--sf-accent, #fdb52a);
-  --color-on-accent: var(--sf-on-accent, #111111);
+  --color-accent: var(--sf-accent, #f66b21);
+  --color-on-accent: var(--sf-on-accent, #101115);
   --color-bg: var(--sf-bg, #ffffff);
-  --color-fg: var(--sf-fg, #0c1a3c);
-  --color-muted: color-mix(in oklab, var(--sf-fg, #0c1a3c) 64%, var(--sf-bg, #ffffff));
-  --color-line: color-mix(in oklab, var(--sf-fg, #0c1a3c) 11%, var(--sf-bg, #ffffff));
-  --color-soft: color-mix(in oklab, var(--sf-fg, #0c1a3c) 4.5%, var(--sf-bg, #ffffff));
+  --color-fg: var(--sf-fg, #101115);
+  --color-muted: color-mix(in oklab, var(--sf-fg, #101115) 64%, var(--sf-bg, #ffffff));
+  --color-line: color-mix(in oklab, var(--sf-fg, #101115) 11%, var(--sf-bg, #ffffff));
+  --color-soft: color-mix(in oklab, var(--sf-fg, #101115) 4.5%, var(--sf-bg, #ffffff));
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --font-heading: var(--sf-font-heading, ui-sans-serif, system-ui, sans-serif);
   --font-body: var(--sf-font-body, ui-sans-serif, system-ui, sans-serif);

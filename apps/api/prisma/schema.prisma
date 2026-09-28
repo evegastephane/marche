@@ -103,6 +103,7 @@ model Store {
   collections Collection[]
   customers   Customer[]
   orders      Order[]
+  campaigns   Campaign[]
   site        Site?
 
   @@map("stores")
@@ -307,10 +308,14 @@ model Customer {
   lastName       String?  @map("last_name")
   phone          String?
   defaultAddress Json?    @map("default_address")
+  /// Consentement aux nouveautés par WhatsApp (case cochée au paiement), et désinscription (« STOP »).
+  whatsappOptInAt  DateTime? @map("whatsapp_opt_in_at")
+  whatsappOptOutAt DateTime? @map("whatsapp_opt_out_at")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
   store          Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   orders         Order[]
+  campaignMessages CampaignMessage[]
 
   @@unique([storeId, email])
   @@index([storeId, lastName])
@@ -407,4 +412,60 @@ model OutboxEvent {
 
   @@index([occurredAt])
   @@map("outbox_events")
+}
+
+enum CampaignStatus {
+  SENDING
+  DONE
+}
+
+enum CampaignMessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+/// Campagne WhatsApp : un produit envoyé aux clients qui ont accepté de recevoir les nouveautés.
+model Campaign {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  storeId         String         @map("store_id") @db.Uuid
+  productId       String?        @map("product_id") @db.Uuid
+  productTitle    String         @map("product_title")
+  templateName    String         @map("template_name")
+  status          CampaignStatus @default(SENDING)
+  createdByUserId String?        @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime       @default(now()) @map("created_at")
+  finishedAt      DateTime?      @map("finished_at")
+  store           Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  messages        CampaignMessage[]
+
+  @@index([storeId, createdAt])
+  @@map("campaigns")
+}
+
+/// Un message d'une campagne, suivi jusqu'à sa lecture par les notifications de Meta.
+model CampaignMessage {
+  id                String                @id @default(uuid(7)) @db.Uuid
+  storeId           String                @map("store_id") @db.Uuid
+  campaignId        String                @map("campaign_id") @db.Uuid
+  customerId        String?               @map("customer_id") @db.Uuid
+  /// Numéro international sans « + » (format attendu par WhatsApp).
+  phone             String
+  firstName         String?               @map("first_name")
+  status            CampaignMessageStatus @default(QUEUED)
+  providerMessageId String?               @unique @map("provider_message_id")
+  error             String?
+  sentAt            DateTime?             @map("sent_at")
+  deliveredAt       DateTime?             @map("delivered_at")
+  readAt            DateTime?             @map("read_at")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+  campaign          Campaign              @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customer          Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId, status])
+  @@index([storeId])
+  @@map("campaign_messages")
 }

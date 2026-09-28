@@ -92,6 +92,9 @@ export function Footer({ store }: { store: StorefrontStoreDto }) {
             </p>
           )}
         </div>
+        <Link href="/confidentialite" className="text-sm text-muted">
+          Confidentialité
+        </Link>
         <p className="inline-flex items-center gap-2 text-sm text-muted">
           Boutique propulsée par
           <span className="inline-flex items-center gap-1.5 font-semibold text-fg">

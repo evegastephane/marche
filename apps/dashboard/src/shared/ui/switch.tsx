@@ -1,10 +1,11 @@
 import { motion } from 'motion/react';
 import { cn } from '@/shared/lib/cn';
-import { snappy } from './motion';
+import { glide } from './motion';
 
 /**
- * Interrupteur : le curseur glisse sur un ressort, la piste se colore.
- * À placer dans un <label> qui porte le libellé : toute la ligne devient cliquable.
+ * Interrupteur à glissière : le curseur glisse dans son rail en creux ;
+ * allumé, le rail passe à l'encre. À placer dans un <label> qui porte le libellé :
+ * toute la ligne devient cliquable.
  */
 export function Switch({
   checked,
@@ -27,11 +28,15 @@ export function Switch({
       <span
         aria-hidden
         className={cn(
-          'flex h-6 w-10 items-center rounded-full p-0.5 transition-colors duration-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand',
-          checked ? 'justify-end bg-brand' : 'justify-start bg-line-strong',
+          'flex h-6 w-10 items-center rounded-full p-0.5 transition-colors duration-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink',
+          checked ? 'justify-end bg-ink' : 'well justify-start',
         )}
       >
-        <motion.span layout transition={snappy} className="size-5 rounded-full bg-white shadow-lift" />
+        <motion.span
+          layout
+          transition={glide}
+          className="size-5 rounded-full bg-key shadow-[0_0_0_1px_var(--color-line-strong),var(--shadow-key)] dark:bg-[#3a3a40]"
+        />
       </span>
     </span>
   );

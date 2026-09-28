@@ -13,7 +13,7 @@ import { Badge } from '@/shared/ui/badge';
 import { Button, buttonClasses } from '@/shared/ui/button';
 import { Card } from '@/shared/ui/card';
 import { EmptyState, LoadError, PageHeader, Skeleton } from '@/shared/ui/feedback';
-import { EASE_OUT, riseIn, snappy } from '@/shared/ui/motion';
+import { EASE_OUT, glide, riseIn } from '@/shared/ui/motion';
 import { SearchInput } from '@/shared/ui/search';
 import { Tabs } from '@/shared/ui/tabs';
 
@@ -42,7 +42,7 @@ function Produits() {
 
   const newButton = (
     <Link to="/products/new" className={buttonClasses('primary', 'md', 'group')}>
-      <Plus className="transition-transform duration-300 group-hover:rotate-90" /> Nouveau produit
+      <Plus className="transition-transform duration-300 group-hover:rotate-90" strokeWidth={1.8} /> Nouveau produit
     </Link>
   );
 
@@ -97,7 +97,7 @@ function Produits() {
               Vérifiez l’orthographe, ou cherchez un mot plus court.
             </EmptyState>
           ) : status === 'all' ? (
-            <EmptyState icon={PackagePlus} title="Votre premier produit" action={newButton}>
+            <EmptyState icon={PackagePlus} title="Votre premier produit">
               Un titre, un prix et une quantité suffisent. Ajoutez des tailles ou des couleurs si l’article en a :
               chaque déclinaison a son prix et son stock.
             </EmptyState>
@@ -110,12 +110,12 @@ function Produits() {
           <>
             <table className="w-full border-collapse text-left max-md:hidden">
               <thead>
-                <tr className="eyebrow">
-                  <th className="px-5 pt-4 pb-3 font-bold">Produit</th>
-                  <th className="px-3 pt-4 pb-3 font-bold">Déclinaisons</th>
-                  <th className="px-3 pt-4 pb-3 text-right font-bold">Prix</th>
-                  <th className="px-3 pt-4 pb-3 font-bold">État</th>
-                  <th className="px-5 pt-4 pb-3 text-right font-bold">Modifié</th>
+                <tr className="legend">
+                  <th className="px-5 pt-4 pb-3 font-[600]">Produit</th>
+                  <th className="px-3 pt-4 pb-3 font-[600]">Déclinaisons</th>
+                  <th className="px-3 pt-4 pb-3 text-right font-[600]">Prix</th>
+                  <th className="px-3 pt-4 pb-3 font-[600]">État</th>
+                  <th className="px-5 pt-4 pb-3 text-right font-[600]">Modifié</th>
                 </tr>
               </thead>
               <tbody className="tabular">
@@ -136,13 +136,13 @@ function Produits() {
                         <Thumbnail
                           media={product.thumbnail}
                           alt={product.title}
-                          className="transition-transform duration-300 ease-out-soft group-hover:scale-105"
+                          className="transition-transform duration-300 ease-out-soft group-hover:scale-[1.04]"
                         />
                         <div className="min-w-0">
                           <Link
                             to="/products/$productId"
                             params={{ productId: product.id }}
-                            className="block truncate font-[660] text-ink no-underline after:absolute after:inset-0 after:content-['']"
+                            className="block truncate font-[600] text-ink no-underline after:absolute after:inset-0 after:content-['']"
                           >
                             {product.title}
                           </Link>
@@ -155,7 +155,7 @@ function Produits() {
                     <td className="px-3 py-3 text-ink-2">
                       {plural(product.variantsCount, 'déclinaison', 'déclinaisons')}
                     </td>
-                    <td className="px-3 py-3 text-right font-[640] whitespace-nowrap">
+                    <td className="px-3 py-3 text-right font-[560] whitespace-nowrap">
                       {priceRange(product, currency)}
                     </td>
                     <td className="px-3 py-3">
@@ -175,7 +175,7 @@ function Produits() {
                   key={product.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ ...snappy, delay: Math.min(index, 10) * 0.035 }}
+                  transition={{ ...glide, delay: Math.min(index, 10) * 0.035 }}
                   className="relative flex items-center gap-3.5 px-4 py-3.5 active:bg-surface-2"
                 >
                   <Thumbnail media={product.thumbnail} alt={product.title} className="size-14" />
@@ -183,11 +183,11 @@ function Produits() {
                     <Link
                       to="/products/$productId"
                       params={{ productId: product.id }}
-                      className="truncate font-[660] text-ink no-underline after:absolute after:inset-0 after:content-['']"
+                      className="truncate font-[600] text-ink no-underline after:absolute after:inset-0 after:content-['']"
                     >
                       {product.title}
                     </Link>
-                    <span className="tabular text-[0.875rem] font-[620]">{priceRange(product, currency)}</span>
+                    <span className="tabular text-[0.875rem] font-[560]">{priceRange(product, currency)}</span>
                     <span className="flex items-center gap-2 text-[0.8125rem] text-ink-2">
                       <Badge tone={PRODUCT_STATUS[product.status].tone}>{PRODUCT_STATUS[product.status].label}</Badge>
                       {plural(product.variantsCount, 'déclinaison', 'déclinaisons')}

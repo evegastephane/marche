@@ -1,4 +1,5 @@
 import { AnalyticsModule } from './analytics/analytics.module.js';
+import { CampaignsModule } from './campaigns/campaigns.module.js';
 import { CatalogModule } from './catalog/catalog.module.js';
 import { CheckoutModule } from './checkout/checkout.module.js';
 import { IdentityModule } from './identity/identity.module.js';
@@ -20,6 +21,7 @@ export const DOMAIN_MODULES = [
   CatalogModule,
   OrdersModule,
   NotificationsModule,
+  CampaignsModule,
   CheckoutModule,
   SitesModule,
   StorefrontModule,

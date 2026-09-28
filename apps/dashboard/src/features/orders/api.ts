@@ -1,4 +1,4 @@
-import type { OrderDto, OrderListItemDto, Paginated } from '@marche/contracts';
+import type { CreateDraftOrderInput, OrderDto, OrderListItemDto, Paginated } from '@marche/contracts';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '@/shared/api/query-keys';
 import { useApi, useStoreKey } from '@/shared/api/use-api';
@@ -51,6 +51,51 @@ export function useOrderAction() {
       api<OrderDto>('POST', `/api/v1/orders/${id}/${action.type}`, {
         body: action.type === 'cancel' ? { reason: action.reason } : undefined,
       }),
+    onSuccess: async (order) => {
+      queryClient.setQueryData(qk.order(store, order.id), order);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.orders(store) }),
+        queryClient.invalidateQueries({ queryKey: ['store', store, 'reporting'] }),
+        queryClient.invalidateQueries({ queryKey: ['store', store, 'inventory'] }),
+      ]);
+    },
+  });
+}
+
+/**
+ * Commande saisie dans Upsell : créée en brouillon, puis passée si demandé
+ * (le passage réserve le stock, avec une clé d'idempotence contre le double clic).
+ */
+export function useCreateOrder() {
+  const api = useApi();
+  const store = useStoreKey();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ input, place }: { input: CreateDraftOrderInput; place: boolean }) => {
+      const draft = await api<OrderDto>('POST', '/api/v1/orders', { body: input });
+      if (!place) return draft;
+      return api<OrderDto>('POST', `/api/v1/orders/${draft.id}/place`, { idempotencyKey: crypto.randomUUID() });
+    },
+    onSuccess: async (order) => {
+      queryClient.setQueryData(qk.order(store, order.id), order);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.orders(store) }),
+        queryClient.invalidateQueries({ queryKey: qk.customers(store) }),
+        queryClient.invalidateQueries({ queryKey: ['store', store, 'reporting'] }),
+        queryClient.invalidateQueries({ queryKey: ['store', store, 'inventory'] }),
+      ]);
+    },
+  });
+}
+
+/** Passer un brouillon : le stock est réservé à ce moment-là. */
+export function usePlaceOrder() {
+  const api = useApi();
+  const store = useStoreKey();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api<OrderDto>('POST', `/api/v1/orders/${id}/place`, { idempotencyKey: crypto.randomUUID() }),
     onSuccess: async (order) => {
       queryClient.setQueryData(qk.order(store, order.id), order);
       await Promise.all([

@@ -1,19 +1,22 @@
 import type { OrderStatus, PaymentStatus } from '@marche/contracts';
 import type { BadgeTone } from '@/shared/ui/badge';
 
-/** Couleurs d'état des commandes : jaune = à traiter, vert = expédiée, rouge = annulée. */
+/**
+ * États des commandes en témoins : orange = à expédier (il y a quelque chose à faire),
+ * plein = expédiée, pointillé = brouillon, rouge = annulée.
+ */
 export const ORDER_STATUS: Record<OrderStatus, { label: string; tone: BadgeTone }> = {
   DRAFT: { label: 'Brouillon', tone: 'draft' },
-  PLACED: { label: 'À expédier', tone: 'sun' },
-  FULFILLED: { label: 'Expédiée', tone: 'success' },
+  PLACED: { label: 'À expédier', tone: 'attention' },
+  FULFILLED: { label: 'Expédiée', tone: 'on' },
   CANCELLED: { label: 'Annulée', tone: 'danger' },
 };
 
-/** Le paiement se lit à part : bleu = payée, contour = pas encore payée. */
+/** Le paiement se lit à part : plein = payée, creux = pas encore payée. */
 export const PAYMENT_STATUS: Record<PaymentStatus, { label: string; tone: BadgeTone }> = {
-  UNPAID: { label: 'Non payée', tone: 'outline' },
-  PAID: { label: 'Payée', tone: 'brand' },
-  REFUNDED: { label: 'Remboursée', tone: 'outline' },
+  UNPAID: { label: 'Non payée', tone: 'off' },
+  PAID: { label: 'Payée', tone: 'on' },
+  REFUNDED: { label: 'Remboursée', tone: 'off' },
 };
 
 export type OrderFilter = 'all' | 'to-ship' | 'unpaid' | 'fulfilled' | 'cancelled' | 'draft';

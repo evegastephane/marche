@@ -25,11 +25,16 @@ export async function placeOrder(_previous: CheckoutState, form: FormData): Prom
   if (!cartId) return { message: 'Votre panier est vide ou a expiré.' };
 
   const phone = text(form, 'phone');
+  const whatsappOptIn = form.get('whatsappOptIn') === '1';
+  if (whatsappOptIn && !phone) {
+    return { message: 'Vérifiez les champs indiqués.', fieldErrors: { phone: 'Indiquez votre numéro WhatsApp pour recevoir les nouveautés.' } };
+  }
   const parsed = checkoutSchema.safeParse({
     cartId,
     email: text(form, 'email'),
     phone,
     note: text(form, 'note'),
+    whatsappOptIn: whatsappOptIn || undefined,
     shippingAddress: {
       firstName: text(form, 'firstName'),
       lastName: text(form, 'lastName'),

@@ -1,6 +1,7 @@
 import { CURRENCY_EXPONENT } from '@marche/contracts';
 import type { Metadata } from 'next';
 import { getAvailability, getProduct, getStore } from '@/lib/storefront-api';
+import { TrackEvent } from '@/components/analytics';
 import { AddToCart } from '@/templates/default/components/add-to-cart';
 import { imageProps } from '@/templates/default/components/media';
 
@@ -44,6 +45,7 @@ export default async function ProductPage({ params }: { params: Params }) {
 
   return (
     <div className="mx-auto grid max-w-6xl gap-10 px-4 pt-8 sm:px-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 lg:pt-14">
+      <TrackEvent event="product_viewed" properties={{ productId: product.id, slug: product.slug }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
       <div className="flex flex-col gap-3">
         <div className="aspect-[4/5] overflow-hidden rounded-2xl bg-soft">

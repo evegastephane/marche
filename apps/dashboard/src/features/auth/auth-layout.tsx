@@ -1,110 +1,56 @@
-import { Check, Globe, PackageCheck, ReceiptText } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import type { ReactNode } from 'react';
-import { UpsellLogo, UpsellMark } from '@/shared/ui/brand';
-import { EASE_OUT, Reveal } from '@/shared/ui/motion';
+import { UpsellLogo } from '@/shared/ui/brand';
+import { EASE_OUT, press, Reveal } from '@/shared/ui/motion';
 import { ThemeToggle } from '@/shared/ui/theme';
 
-const CHIPS = [
-  {
-    icon: PackageCheck,
-    label: 'Stock à jour',
-    className: 'top-[6%] right-[6%]',
-    delay: 0.9,
-    float: 7,
-  },
-  {
-    icon: Globe,
-    label: 'Site en ligne',
-    className: 'top-[40%] left-0',
-    delay: 1.05,
-    float: 9,
-  },
-  {
-    icon: ReceiptText,
-    label: 'Nouvelle commande',
-    className: 'bottom-[6%] right-[14%]',
-    delay: 1.2,
-    float: 6,
-  },
-];
+/** Les quatre fonctions de l'instrument, dont les témoins s'allument à la mise sous tension. */
+const FUNCTIONS = ['Produits', 'Stock', 'Commandes', 'Site'];
 
-/** Connexion et inscription : le panneau de marque à gauche, le formulaire au calme à droite. */
+/**
+ * Connexion et inscription : à gauche, la façade noire de l'instrument qui s'allume
+ * (logo, puis les témoins des quatre fonctions l'un après l'autre) ; à droite, le formulaire au calme.
+ */
 export function AuthLayout({ children }: { children: ReactNode }) {
+  const reduce = useReducedMotion();
   return (
     <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <section className="sticky top-3 m-3 hidden h-[calc(100dvh-1.5rem)] min-h-[36rem] flex-col justify-between overflow-hidden rounded-[2rem] bg-[#0c1a3c] p-12 text-white lg:flex">
-        <motion.span
-          aria-hidden
-          className="pointer-events-none absolute -top-40 -right-32 size-[34rem] rounded-full bg-[#0b57f0] opacity-50 blur-[120px]"
-          animate={{ scale: [1, 1.12, 1], opacity: [0.45, 0.6, 0.45] }}
-          transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.span
-          aria-hidden
-          className="pointer-events-none absolute -bottom-48 -left-24 size-[28rem] rounded-full bg-[#ff5a2b] opacity-25 blur-[120px]"
-          animate={{ scale: [1.1, 1, 1.1] }}
-          transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
-        />
+      <section className="display-window sticky top-3 m-3 hidden h-[calc(100dvh-1.5rem)] min-h-[36rem] flex-col justify-between rounded-[1.25rem] p-10 lg:flex xl:p-12">
+        <UpsellLogo intro delay={0.15} className="text-[1.75rem] text-display-ink" />
 
-        <div className="relative flex items-center gap-3">
-          <span className="inline-flex rounded-2xl bg-white p-2.5">
-            <UpsellMark intro className="h-8 w-auto" delay={0.2} />
-          </span>
-          <motion.span
-            className="text-[1.5rem] font-[800] tracking-[-0.04em]"
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, ease: EASE_OUT, delay: 0.4 }}
-          >
-            Upsell
-          </motion.span>
-        </div>
-
-        {/* Bande centrale extensible : les pastilles y flottent sans jamais chevaucher le titre. */}
-        <div aria-hidden className="relative my-6 min-h-40 flex-1">
-          {CHIPS.map((chip) => (
-            <motion.span
-              key={chip.label}
-              aria-hidden
-              className={`absolute ${chip.className} inline-flex items-center gap-2.5 rounded-2xl border border-white/12 bg-white/8 py-2 pr-4 pl-2 text-[0.875rem] font-[650] backdrop-blur-md`}
-              initial={{ opacity: 0, y: 24, scale: 0.9 }}
-              animate={{ opacity: 1, y: [0, -chip.float, 0], scale: 1 }}
-              transition={{
-                opacity: { duration: 0.5, delay: chip.delay },
-                scale: {
-                  type: 'spring',
-                  stiffness: 300,
-                  damping: 20,
-                  delay: chip.delay,
-                },
-                y: {
-                  duration: 5 + chip.float / 3,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                  delay: chip.delay,
-                },
-              }}
+        <div className="grid max-w-[26rem] grid-cols-2 gap-2.5" aria-hidden>
+          {FUNCTIONS.map((label, index) => (
+            <motion.div
+              key={label}
+              className="flex h-24 flex-col justify-between rounded-xl p-4 shadow-[inset_0_0_0_1px_var(--color-display-line)]"
+              initial={reduce ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.36, ease: EASE_OUT, delay: 0.5 + index * 0.06 }}
             >
-              <span className="inline-flex size-8 items-center justify-center rounded-xl bg-white text-[#0b57f0]">
-                <chip.icon className="size-4" strokeWidth={2.3} />
+              <span className="relative inline-flex size-2">
+                <span className="size-2 rounded-full shadow-[inset_0_0_0_1.5px_var(--color-display-dim)]" />
+                <motion.span
+                  className="led-lit absolute inset-0 rounded-full"
+                  initial={reduce ? false : { opacity: 0, scale: 0.4 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ ...press, delay: 1.1 + index * 0.16 }}
+                />
               </span>
-              {chip.label}
-              <Check className="size-4 text-[#25c16f]" strokeWidth={3} />
-            </motion.span>
+              <span className="legend text-display-dim">{label}</span>
+            </motion.div>
           ))}
         </div>
 
-        <div className="relative flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           <Reveal delay={0.3}>
-            <p className="display text-[3.5rem] xl:text-[4.25rem]">
+            <p className="display text-[3rem] xl:text-[3.75rem]">
               Votre boutique,
               <br />
-              <span className="text-[#fdb52a]">plus haut.</span>
+              plus haut.
             </p>
           </Reveal>
-          <Reveal delay={0.45}>
-            <p className="max-w-[40ch] text-[1.0625rem] text-white/75">
+          <Reveal delay={0.4}>
+            <p className="max-w-[40ch] text-[1.0625rem] text-display-dim">
               Produits, stock et commandes au même endroit. Votre site se met en ligne en un clic, avec votre stock à
               jour.
             </p>

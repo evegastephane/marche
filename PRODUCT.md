@@ -42,11 +42,12 @@ Les données de l'ERP **sont** le site : « Générer mon site » publie immédi
 
 ## Brand Commitments
 
-- **Nom de marque : Upsell** (logo fourni le 2026-09-27). « Marché » n'est que le nom de code technique (dépôt, paquets `@marche/*`).
-- **Logo** (`docs/brand/upsell-logo.jpg`) : chariot bleu dont la poignée monte en flèche, deux articles orange et jaune, roues orange ; wordmark « Upsell » en marine. Redessiné en SVG animable dans `apps/dashboard/src/shared/ui/brand.tsx` (copie dans `apps/storefront/src/components/upsell-mark.tsx`).
-- **Palette** : bleu `#0B57F0` (action), marine `#0C1A3C` (encre), orange `#FF5A2B` et jaune `#FDB52A` (signaux). Thème clair et sombre sur le dashboard.
-- **Typographie** : Plus Jakarta Sans.
-- **Mouvement** : Motion (Framer Motion) fait partie du design : entrées qui montent comme la flèche du logo, ressorts amortis, transitions partagées (onglets, navigation), chiffres qui défilent, emblème qui se dessine. Jamais plus d'un tiers de seconde pour un changement d'état.
+- **Nom de marque : Upsell.** « Marché » n'est que le nom de code technique (dépôt, paquets `@marche/*`).
+- **Logo v2** (`docs/brand/upsell-logo.jpg`, fourni le 2026-09-27 ; remplace la v1 colorée, gardée dans `upsell-logo-v1.jpg`) : chariot noir géométrique dont la poignée monte en flèche, deux roues orange ; wordmark « Upsell » noir. Emblème redessiné en SVG animable dans `apps/dashboard/src/shared/ui/brand.tsx` (copie dans `apps/storefront/src/components/upsell-mark.tsx`) ; wordmark détouré depuis le fichier fourni (`upsell-wordmark.png`), utilisé en masque pour suivre le thème.
+- **Palette** (mesurée sur le logo) : noir `#101115`, orange `#F66B21`, blanc. L'orange est **rare**, « comme les roues » : l'action principale de l'écran et ce qui demande l'attention, rien d'autre. Rouge réservé aux erreurs.
+- **Thème** : clair et sombre, suit le réglage de l'appareil ; le marchand peut forcer l'un ou l'autre.
+- **Design** : épuré et minimaliste, monde « L'instrument » (brief : `apps/dashboard/.impeccable/surfaces/apps-dashboard.md`). Typographie : Hanken Grotesk.
+- **Mouvement** : Motion (Framer Motion) fait partie du design, fluide et précis : touches qui s'enfoncent, chiffres qui roulent, curseurs qui glissent, emblème qui s'allume. Réduit à l'essentiel avec `prefers-reduced-motion`.
 
 ## Evidence on Hand
 

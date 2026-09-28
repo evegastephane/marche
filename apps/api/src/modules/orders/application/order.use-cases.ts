@@ -217,6 +217,7 @@ export class PlaceStorefrontOrderUseCase {
     phone?: string;
     shippingAddress: Address;
     note?: string;
+    whatsappOptIn?: boolean;
   }): Promise<CheckoutResultDto> {
     const settings = await this.stores.getSettings(this.actor.storeId);
     const order = Order.createDraft(
@@ -233,7 +234,7 @@ export class PlaceStorefrontOrderUseCase {
     await this.placement.place(order, {
       lines: input.lines,
       requireSellable: true,
-      customer: { phone: input.phone ?? null },
+      customer: { phone: input.phone ?? input.shippingAddress.phone ?? null, whatsappOptIn: input.whatsappOptIn },
       isNew: true,
     });
     const placed = order.snapshot();

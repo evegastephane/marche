@@ -8,6 +8,7 @@ export const QUEUE_NAMES = [
   'media',
   'inventory-alerts',
   'analytics',
+  'campaigns',
 ] as const;
 export type QueueName = (typeof QUEUE_NAMES)[number];
 

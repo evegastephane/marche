@@ -1,4 +1,4 @@
-import type { CollectionDto, Paginated, SiteDto, ThemeSettings } from '@marche/contracts';
+import type { CollectionDto, Paginated, PreviewTokenDto, SiteDto, ThemeSettings } from '@marche/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/shared/api/client';
 import { qk } from '@/shared/api/query-keys';
@@ -59,5 +59,13 @@ export function useSiteAction() {
     onSuccess: (site) => {
       queryClient.setQueryData(qk.site(store), site);
     },
+  });
+}
+
+/** Lien d'aperçu du brouillon (30 minutes), à ouvrir dans un nouvel onglet. */
+export function usePreviewLink() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: () => api<PreviewTokenDto>('POST', '/api/v1/site/preview-token'),
   });
 }

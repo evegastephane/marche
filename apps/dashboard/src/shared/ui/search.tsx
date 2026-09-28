@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { cn } from '@/shared/lib/cn';
 import { controlClasses } from './field';
-import { snappy } from './motion';
+import { glide } from './motion';
 
 /** Recherche avec un léger délai : la liste se filtre pendant la frappe sans saturer l'API. */
 export function SearchInput({
@@ -31,6 +31,7 @@ export function SearchInput({
     <div className={cn('relative', className)}>
       <Search
         className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-ink-3"
+        strokeWidth={1.8}
         aria-hidden
       />
       <input
@@ -41,7 +42,7 @@ export function SearchInput({
         onChange={(event) => setDraft(event.target.value)}
         className={cn(
           controlClasses,
-          'h-10 rounded-full pr-10 pl-10 max-md:h-11 max-md:text-base [&::-webkit-search-cancel-button]:hidden',
+          'h-10 pr-10 pl-10 max-md:h-11 max-md:text-base [&::-webkit-search-cancel-button]:hidden',
         )}
       />
       <AnimatePresence>
@@ -56,8 +57,8 @@ export function SearchInput({
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.5 }}
-            transition={snappy}
-            className="absolute top-1/2 right-1.5 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-full text-ink-2 hover:bg-surface-2 hover:text-ink"
+            transition={glide}
+            className="absolute top-1/2 right-1.5 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink"
           >
             <X className="size-4" />
           </motion.button>

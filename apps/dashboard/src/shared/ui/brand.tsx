@@ -1,147 +1,129 @@
 import { motion, useReducedMotion } from 'motion/react';
+import { useId } from 'react';
+import wordmarkUrl from '@/assets/brand/upsell-wordmark.png';
 import { cn } from '@/shared/lib/cn';
-import { EASE_OUT } from './motion';
+import { EASE_OUT, press } from './motion';
 
-const BLUE = 'var(--color-brand)';
-const ORANGE = '#ff5a2b';
-const YELLOW = '#fdb52a';
+const ORANGE = '#f66b21';
+
+/* Emblème tracé sur le logo v2 (docs/brand/upsell-logo.jpg), repère 376 × 320. */
+const BODY = 'M7 80H260L244 115H65L100 200H257L318 66H369L278 234H79Z';
+const ARROW = 'M316.4 70L326 49H254L294 8H369V66L366.8 70Z';
+/** Ligne médiane du panier : un trait épais qui la parcourt dévoile la forme, comme tracée à la main. */
+const TRACE = 'M300 97H36L90 217H268L356 36';
+const WHEELS = [132, 239];
 
 /**
- * Emblème Upsell dessiné en SVG : le chariot dont la poignée monte en flèche.
- * Avec `intro`, il se dessine (trait, flèche qui pousse, articles qui tombent dans le chariot,
- * roues qui se posent) : c'est le geste signature de la marque.
+ * Emblème Upsell : le chariot dont la poignée jaillit en flèche, sur deux roues orange.
+ * Avec `intro`, il s'allume : le panier se trace, la flèche jaillit, puis les deux roues
+ * s'allument l'une après l'autre comme les témoins d'un instrument.
+ * La forme suit `currentColor` (encre en clair, blanc en sombre) ; les roues restent orange.
  */
 export function UpsellMark({
   className,
   intro = false,
   delay = 0,
   title,
-  mono,
 }: {
   className?: string;
   intro?: boolean;
   delay?: number;
   title?: string;
-  /** Une seule couleur pour tout l'emblème (filigrane). */
-  mono?: string;
 }) {
   const reduce = useReducedMotion();
-  const blue = mono ?? BLUE;
-  const orange = mono ?? ORANGE;
-  const yellow = mono ?? YELLOW;
+  const maskId = `trace-${useId().replace(/[^a-zA-Z0-9-]/g, '')}`;
   const play = intro && !reduce;
-  const at = (t: number) => delay + t;
 
   return (
     <svg
-      viewBox="0 0 100 80"
-      className={cn('overflow-visible', className)}
+      viewBox="0 0 376 320"
+      className={cn('shrink-0 overflow-visible', className)}
       role={title ? 'img' : undefined}
       aria-label={title}
       aria-hidden={title ? undefined : true}
     >
+      {play && (
+        <mask id={maskId} maskUnits="userSpaceOnUse" x="-20" y="-20" width="420" height="360">
+          <motion.path
+            d={TRACE}
+            fill="none"
+            stroke="#fff"
+            strokeWidth={76}
+            strokeLinejoin="round"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 0.62, ease: EASE_OUT, delay }}
+          />
+        </mask>
+      )}
+      <path d={BODY} fill="currentColor" mask={play ? `url(#${maskId})` : undefined} />
       <motion.path
-        d="M8 20 H21 Q24.5 20 26 23.5 L36.5 47 Q39 52.5 45 52.5 H65 Q70.5 52.5 72 47 L78 20"
-        fill="none"
-        stroke={blue}
-        strokeWidth={7.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        initial={play ? { pathLength: 0 } : false}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 0.7, ease: EASE_OUT, delay: at(0) }}
+        d={ARROW}
+        fill="currentColor"
+        style={{ transformBox: 'fill-box', transformOrigin: '0% 100%' }}
+        initial={play ? { opacity: 0, x: -26, y: 26, scale: 0.6 } : false}
+        animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+        transition={{ ...press, delay: delay + 0.42 }}
       />
-      <motion.path
-        d="M78 5 L90.5 18.5 Q91.5 20.5 89 20.5 H67 Q64.5 20.5 65.5 18.5 Z"
-        fill={blue}
-        stroke={blue}
-        strokeWidth={2}
-        strokeLinejoin="round"
-        style={{ transformBox: 'fill-box', transformOrigin: '50% 100%' }}
-        initial={play ? { opacity: 0, y: 10, scale: 0.6 } : false}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{
-          type: 'spring',
-          stiffness: 520,
-          damping: 18,
-          delay: at(0.55),
-        }}
-      />
-      <g transform="rotate(-16 50 30)">
-        <motion.g
-          initial={play ? { opacity: 0, y: -22 } : false}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            type: 'spring',
-            stiffness: 420,
-            damping: 20,
-            delay: at(0.35),
-          }}
-        >
-          <rect x={37} y={27} width={27} height={6.5} rx={3.25} fill={orange} />
-        </motion.g>
-      </g>
-      <g transform="rotate(-16 52 40)">
-        <motion.g
-          initial={play ? { opacity: 0, y: -22 } : false}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            type: 'spring',
-            stiffness: 420,
-            damping: 20,
-            delay: at(0.45),
-          }}
-        >
-          <rect x={40} y={37} width={25} height={6.5} rx={3.25} fill={yellow} />
-        </motion.g>
-      </g>
-      {[45, 65].map((cx, i) => (
+      {WHEELS.map((cx, i) => (
         <motion.circle
           key={cx}
           cx={cx}
-          cy={66}
-          r={6}
-          fill={orange}
+          cy={287}
+          r={25}
+          fill={ORANGE}
           style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
-          initial={play ? { scale: 0 } : false}
-          animate={{ scale: 1 }}
-          transition={{
-            type: 'spring',
-            stiffness: 600,
-            damping: 16,
-            delay: at(0.62 + i * 0.07),
-          }}
+          initial={play ? { opacity: 0, scale: 0.3 } : false}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ ...press, delay: delay + 0.62 + i * 0.12 }}
         />
       ))}
     </svg>
   );
 }
 
-/** Logo complet : emblème + « Upsell » en marine (blanc sur fond de marque). */
+/**
+ * Wordmark « Upsell » tel que dessiné sur le logo : l'image sert de masque,
+ * la couleur suit `currentColor` et donc le thème.
+ */
+export function UpsellWordmark({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn('inline-block aspect-[517/191] h-[1em] shrink-0 bg-current', className)}
+      style={{
+        maskImage: `url(${wordmarkUrl})`,
+        WebkitMaskImage: `url(${wordmarkUrl})`,
+        maskSize: 'contain',
+        WebkitMaskSize: 'contain',
+        maskRepeat: 'no-repeat',
+        WebkitMaskRepeat: 'no-repeat',
+      }}
+    />
+  );
+}
+
+/** Logo complet : emblème + wordmark, en ligne. La taille suit `font-size`. */
 export function UpsellLogo({
   className,
   intro = false,
-  tone = 'ink',
+  delay = 0,
 }: {
   className?: string;
   intro?: boolean;
-  tone?: 'ink' | 'white';
+  delay?: number;
 }) {
   const reduce = useReducedMotion();
   return (
-    <span className={cn('inline-flex items-center gap-2', className)} aria-label="Upsell" role="img">
-      <UpsellMark intro={intro} className="h-[1.35em] w-auto" />
+    <span role="img" aria-label="Upsell" className={cn('inline-flex items-center gap-[0.32em] text-ink', className)}>
+      <UpsellMark intro={intro} delay={delay} className="h-[1.18em] w-auto" />
       <motion.span
-        aria-hidden
-        className={cn(
-          'text-[1em] leading-none font-[800] tracking-[-0.04em]',
-          tone === 'white' ? 'text-white' : 'text-ink',
-        )}
+        className="inline-flex"
         initial={intro && !reduce ? { opacity: 0, x: -6 } : false}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, ease: EASE_OUT, delay: 0.25 }}
+        transition={{ duration: 0.36, ease: EASE_OUT, delay: delay + 0.3 }}
       >
-        Upsell
+        <UpsellWordmark className="h-[1.02em] translate-y-[0.14em]" />
       </motion.span>
     </span>
   );

@@ -74,7 +74,7 @@ describe('Génération du site et parcours acheteur (e2e)', () => {
     const featured = generated.body.themeSettings.sections.find((s: { type: string }) => s.type === 'featured-collection');
     expect(featured).toMatchObject({ enabled: true, title: 'Été 2026' });
     const hero = generated.body.themeSettings.sections.find((s: { type: string }) => s.type === 'hero');
-    expect(hero.title).toBe('Bienvenue chez Chez Awa');
+    expect(hero.title).toBe('Bienvenue chez Awa');
 
     // Idempotent : un second clic renvoie le même site.
     const again = await t.http().post('/api/v1/site/generate').set(admin()).send({});

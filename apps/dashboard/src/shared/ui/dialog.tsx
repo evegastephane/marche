@@ -2,7 +2,7 @@ import { X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Dialog as D } from 'radix-ui';
 import { type ReactNode, useSyncExternalStore } from 'react';
-import { spring } from './motion';
+import { glide } from './motion';
 
 const phoneQuery = typeof window !== 'undefined' ? window.matchMedia('(max-width: 639px)') : null;
 function subscribePhone(listener: () => void) {
@@ -36,7 +36,7 @@ export function Dialog({
           <D.Portal forceMount>
             <D.Overlay asChild forceMount>
               <motion.div
-                className="fixed inset-0 z-50 bg-overlay backdrop-blur-[2px]"
+                className="fixed inset-0 z-50 bg-overlay "
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -45,11 +45,11 @@ export function Dialog({
             </D.Overlay>
             <D.Content asChild forceMount>
               <motion.div
-                className="card fixed inset-x-2 bottom-2 z-50 flex max-h-[88dvh] flex-col gap-5 overflow-y-auto rounded-3xl p-6 shadow-float sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-[min(30rem,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2"
-                initial={phone ? { y: '100%' } : { opacity: 0, scale: 0.94, y: 8 }}
+                className="fixed inset-x-2 bottom-2 z-50 flex max-h-[88dvh] flex-col gap-5 overflow-y-auto rounded-2xl bg-surface p-6 shadow-float ring-1 ring-line sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-[min(30rem,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2"
+                initial={phone ? { y: '100%' } : { opacity: 0, scale: 0.97, y: 6 }}
                 animate={phone ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
                 exit={phone ? { y: '100%' } : { opacity: 0, scale: 0.96, y: 4 }}
-                transition={spring}
+                transition={glide}
                 drag={phone ? 'y' : false}
                 dragConstraints={{ top: 0, bottom: 0 }}
                 dragElastic={{ top: 0, bottom: 0.6 }}
@@ -64,10 +64,10 @@ export function Dialog({
                     {description && <D.Description className="text-ink-2">{description}</D.Description>}
                   </div>
                   <D.Close
-                    className="-m-2 inline-flex size-10 shrink-0 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+                    className="-m-2 inline-flex size-10 shrink-0 items-center justify-center rounded-[0.7rem] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
                     aria-label="Fermer"
                   >
-                    <X className="size-5" />
+                    <X className="size-5" strokeWidth={1.8} />
                   </D.Close>
                 </div>
                 {children}

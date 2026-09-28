@@ -1,56 +1,70 @@
-import { animate, motion, useInView, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
-import { useEffect, useRef } from 'react';
+import { motion, useInView, useReducedMotion } from 'motion/react';
+import { useRef } from 'react';
 import { cn } from '@/shared/lib/cn';
+import { glide } from './motion';
 
 const plain = new Intl.NumberFormat('fr-FR');
+const DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 /**
- * Nombre qui défile jusqu'à sa valeur (à l'apparition, puis à chaque changement).
- * Le premier comptage prend son temps ; les changements suivants sont des changements
- * d'état et restent sous le tiers de seconde.
- * Chiffres tabulaires : la largeur ne tremble pas pendant le comptage.
- * Les lecteurs d'écran lisent directement la valeur finale.
+ * Nombre de l'afficheur : chaque chiffre est une colonne fixe qui roule jusqu'à sa valeur,
+ * comme un compteur mécanique. À l'apparition, les colonnes roulent depuis 0 (les hautes
+ * un peu plus longtemps) ; ensuite, un changement de valeur fait rouler les seules colonnes touchées.
+ * Les séparateurs (espaces, virgule) restent fixes. Les lecteurs d'écran lisent la valeur finale.
  */
 export function AnimatedNumber({
   value,
   format = (n) => plain.format(Math.round(n)),
   className,
-  duration = 0.9,
 }: {
   value: number;
   format?: (n: number) => string;
   className?: string;
+  /** Conservé pour compatibilité : le roulement a sa propre durée. */
   duration?: number;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true });
   const reduce = useReducedMotion();
-  const formatRef = useRef(format);
-  formatRef.current = format;
-  const current = useMotionValue(reduce ? value : 0);
-  const played = useRef(false);
-  const text = useTransform(current, (n) => formatRef.current(n));
-
-  useEffect(() => {
-    if (reduce) {
-      current.set(value);
-      return;
-    }
-    if (!inView) return;
-    const controls = animate(current, value, {
-      duration: played.current ? Math.min(duration, 0.3) : duration,
-      ease: [0.22, 1, 0.36, 1],
-      onComplete: () => {
-        played.current = true;
-      },
-    });
-    return () => controls.stop();
-  }, [value, inView, reduce, duration, current]);
+  const text = format(value);
+  const chars = Array.from(text);
 
   return (
-    <span ref={ref} className={cn('tabular', className)}>
-      <motion.span aria-hidden>{text}</motion.span>
-      <span className="sr-only">{format(value)}</span>
+    <span ref={ref} className={cn('tabular inline-flex', className)}>
+      <span aria-hidden className="inline-flex h-[1.12em] overflow-hidden leading-[1.12em]">
+        {chars.map((char, index) => {
+          // Clé depuis la droite : les unités restent la même colonne quand le nombre s'allonge.
+          const key = chars.length - index;
+          const digit = DIGITS.indexOf(char);
+          if (digit < 0) {
+            return (
+              <span key={`s${key}`} className="inline-block whitespace-pre">
+                {char}
+              </span>
+            );
+          }
+          return (
+            <span key={`d${key}`} className="relative inline-block h-[1.12em]">
+              <motion.span
+                className="flex flex-col"
+                initial={reduce ? false : { y: '0%' }}
+                animate={{ y: inView || reduce ? `${-digit * 10}%` : '0%' }}
+                transition={
+                  reduce ? { duration: 0 } : { ...glide, delay: Math.min(key, 8) * 0.035 }
+                }
+              >
+                {DIGITS.map((d) => (
+                  <span key={d} className="block h-[1.12em]">
+                    {d}
+                  </span>
+                ))}
+              </motion.span>
+            </span>
+          );
+        })}
+      </span>
+      <span className="sr-only">{text}</span>
     </span>
   );
 }
+

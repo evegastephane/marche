@@ -47,7 +47,7 @@ function Input({
 }
 
 /** Commande sans compte : coordonnées et adresse de livraison ; paiement à la réception. */
-export function CheckoutForm({ defaultCountry }: { defaultCountry: string }) {
+export function CheckoutForm({ defaultCountry, storeName }: { defaultCountry: string; storeName: string }) {
   const [state, action, pending] = useActionState<CheckoutState, FormData>(placeOrder, {});
   // Une clé par formulaire affiché : un double envoi ne crée qu'une commande.
   const [idempotencyKey] = useState(() => crypto.randomUUID());
@@ -61,6 +61,19 @@ export function CheckoutForm({ defaultCountry }: { defaultCountry: string }) {
         <legend className="mb-4 font-heading text-xl font-bold">Vos coordonnées</legend>
         <Input name="email" type="email" label="E-mail" autoComplete="email" required error={errors.email} />
         <Input name="phone" type="tel" label="Téléphone" autoComplete="tel" error={errors.phone} />
+        {/* Consentement explicite, jamais coché d'avance : il autorise les campagnes WhatsApp de la boutique. */}
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line px-4 py-3 text-sm">
+          <input
+            type="checkbox"
+            name="whatsappOptIn"
+            value="1"
+            className="mt-0.5 size-5 shrink-0 accent-[var(--color-primary)]"
+          />
+          <span className="flex flex-col gap-0.5">
+            <span className="font-semibold">Recevoir les nouveautés de {storeName} sur WhatsApp</span>
+            <span className="text-muted">Au numéro ci-dessus. Répondez STOP à tout moment pour ne plus rien recevoir.</span>
+          </span>
+        </label>
       </fieldset>
 
       <fieldset className="grid gap-4 sm:grid-cols-2">

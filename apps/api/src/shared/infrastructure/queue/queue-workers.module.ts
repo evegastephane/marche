@@ -4,6 +4,7 @@ import { OutboxRelay } from '../outbox/outbox-relay.js';
 import { DomainEventHandlerRegistry } from './domain-event-handler.registry.js';
 import {
   AnalyticsProcessor,
+  CampaignsProcessor,
   InventoryAlertsProcessor,
   MediaProcessor,
   NotificationsProcessor,
@@ -23,6 +24,7 @@ import {
     MediaProcessor,
     InventoryAlertsProcessor,
     AnalyticsProcessor,
+    CampaignsProcessor,
   ],
   exports: [DomainEventHandlerRegistry, OutboxRelay],
 })

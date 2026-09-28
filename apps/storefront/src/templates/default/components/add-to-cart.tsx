@@ -6,6 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { addToCart } from '@/actions/cart';
+import { track } from '@/components/analytics';
 import { cn } from '@/lib/format';
 import { Price } from './price';
 
@@ -56,6 +57,7 @@ export function AddToCart({
       const result = await addToCart(variant.id, quantity);
       if (result.ok) {
         setMessage({ ok: true, text: 'Ajouté au panier' });
+        track('add_to_cart', { variantId: variant.id, quantity, priceAmount: variant.priceAmount });
         router.refresh();
       } else {
         setMessage({ ok: false, text: result.message });

@@ -2,7 +2,7 @@ import { Monitor, Moon, Sun } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useId, useSyncExternalStore } from 'react';
 import { cn } from '@/shared/lib/cn';
-import { snappy } from './motion';
+import { glide } from './motion';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 
@@ -29,7 +29,7 @@ function resolved(pref: ThemePreference): 'light' | 'dark' {
 function apply() {
   const dark = resolved(preference) === 'dark';
   document.documentElement.classList.toggle('dark', dark);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#070c1a' : '#f6f7fb');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0c0c0e' : '#f2f2ef');
 }
 
 export function setThemePreference(next: ThemePreference) {
@@ -67,20 +67,16 @@ export function useTheme() {
 
 const OPTIONS: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Clair', icon: Sun },
+  { value: 'system', label: 'Comme l’appareil', icon: Monitor },
   { value: 'dark', label: 'Sombre', icon: Moon },
-  { value: 'system', label: 'Système', icon: Monitor },
 ];
 
-/** Sélecteur clair / sombre / système : la pastille glisse d'une option à l'autre. */
+/** Commutateur à trois positions (clair, appareil, sombre) : le curseur glisse d'un cran à l'autre. */
 export function ThemeSwitch({ className }: { className?: string }) {
   const { preference: current, setPreference } = useTheme();
   const group = useId();
   return (
-    <div
-      role="radiogroup"
-      aria-label="Thème de l’interface"
-      className={cn('inline-flex rounded-full bg-surface-2 p-1', className)}
-    >
+    <div role="radiogroup" aria-label="Thème de l’interface" className={cn('well inline-flex rounded-xl p-1', className)}>
       {OPTIONS.map((option) => {
         const active = option.value === current;
         return (
@@ -93,18 +89,18 @@ export function ThemeSwitch({ className }: { className?: string }) {
             title={option.label}
             onClick={() => setPreference(option.value)}
             className={cn(
-              'relative inline-flex size-8 items-center justify-center rounded-full transition-colors duration-200',
+              'relative inline-flex h-8 w-9 items-center justify-center rounded-lg transition-colors duration-200',
               active ? 'text-ink' : 'text-ink-3 hover:text-ink',
             )}
           >
             {active && (
               <motion.span
                 layoutId={`theme-${group}`}
-                className="absolute inset-0 rounded-full bg-surface shadow-lift"
-                transition={snappy}
+                className="absolute inset-0 rounded-lg bg-key shadow-[0_0_0_1px_var(--color-line-strong),var(--shadow-key)]"
+                transition={glide}
               />
             )}
-            <option.icon className="relative size-4" strokeWidth={2.2} />
+            <option.icon className="relative size-4" strokeWidth={1.8} />
           </button>
         );
       })}
@@ -112,7 +108,7 @@ export function ThemeSwitch({ className }: { className?: string }) {
   );
 }
 
-/** Bouton unique clair ⇄ sombre pour l'en-tête mobile : l'icône tourne en changeant. */
+/** Touche unique clair ⇄ sombre pour les en-têtes compacts : l'icône tourne en changeant. */
 export function ThemeToggle({ className }: { className?: string }) {
   const { scheme, setPreference } = useTheme();
   const next = scheme === 'dark' ? 'light' : 'dark';
@@ -122,7 +118,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       onClick={() => setPreference(next)}
       aria-label={next === 'dark' ? 'Passer en thème sombre' : 'Passer en thème clair'}
       className={cn(
-        'relative inline-flex size-10 items-center justify-center overflow-hidden rounded-full text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink',
+        'relative inline-flex size-10 items-center justify-center overflow-hidden rounded-[0.7rem] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink',
         className,
       )}
     >
@@ -132,10 +128,14 @@ export function ThemeToggle({ className }: { className?: string }) {
           initial={{ rotate: -90, scale: 0.4, opacity: 0 }}
           animate={{ rotate: 0, scale: 1, opacity: 1 }}
           exit={{ rotate: 90, scale: 0.4, opacity: 0 }}
-          transition={snappy}
+          transition={glide}
           className="inline-flex"
         >
-          {scheme === 'dark' ? <Moon className="size-[1.15rem]" /> : <Sun className="size-[1.15rem]" />}
+          {scheme === 'dark' ? (
+            <Moon className="size-[1.15rem]" strokeWidth={1.8} />
+          ) : (
+            <Sun className="size-[1.15rem]" strokeWidth={1.8} />
+          )}
         </motion.span>
       </AnimatePresence>
     </button>

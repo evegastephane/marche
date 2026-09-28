@@ -17,9 +17,9 @@ function NouveauProduit() {
       <motion.div variants={riseIn} className="self-start">
         <Link
           to="/products"
-          className="group inline-flex items-center gap-1.5 text-[0.875rem] font-semibold text-ink-2 no-underline hover:text-ink"
+          className="group inline-flex items-center gap-1.5 text-[0.875rem] font-[560] text-ink-2 no-underline hover:text-ink"
         >
-          <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" /> Produits
+          <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" strokeWidth={1.8} /> Produits
         </Link>
       </motion.div>
       {store.data ? <ProductForm currency={store.data.currency} /> : <Skeleton className="h-96" />}

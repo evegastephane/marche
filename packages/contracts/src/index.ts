@@ -9,3 +9,4 @@ export * from './sites.js';
 export * from './storefront.js';
 export * from './reporting.js';
 export * from './templates/index.js';
+export * from './campaigns.js';

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { Webhook } from 'svix';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -9,7 +9,7 @@ import {
   uniqueSlug,
 } from './support/test-app.js';
 
-describe('Intégrité : concurrence du stock et webhooks Clerk (e2e)', () => {
+describe('Intégrité : concurrence du stock et webhooks Clerk et WhatsApp (e2e)', () => {
   let t: TestApp;
   let token: string;
 
@@ -101,6 +101,39 @@ describe('Intégrité : concurrence du stock et webhooks Clerk (e2e)', () => {
       const after = await t.http().get('/api/v1/stores/current').set('Authorization', `Bearer ${other.token}`);
       expect(after.status).toBe(403);
       expect(after.body.code).toBe('STORE_REQUIRED');
+    });
+  });
+
+  describe('webhook WhatsApp (Meta)', () => {
+    const verify = (token: string) =>
+      t.http().get('/webhooks/whatsapp').query({ 'hub.mode': 'subscribe', 'hub.verify_token': token, 'hub.challenge': '1158201444' });
+    const notify = (payload: object, secret = t.config.whatsapp.appSecret as string) => {
+      const body = JSON.stringify(payload);
+      const signature = `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
+      return t.http().post('/webhooks/whatsapp').set({ 'content-type': 'application/json', 'x-hub-signature-256': signature }).send(body);
+    };
+    const statusUpdate = { object: 'whatsapp_business_account', entry: [{ changes: [{ field: 'messages' }] }] };
+
+    it('renvoie le défi de Meta quand le jeton de vérification correspond', async () => {
+      const response = await verify(t.config.whatsapp.webhookVerifyToken as string);
+      expect(response.status).toBe(200);
+      expect(response.text).toBe('1158201444');
+    });
+
+    it('refuse un jeton de vérification différent (403)', async () => {
+      const response = await verify('pas-le-bon-jeton');
+      expect(response.status).toBe(403);
+      expect(response.body.code).toBe('INVALID_VERIFY_TOKEN');
+    });
+
+    it('accepte une notification signée par Meta', async () => {
+      expect((await notify(statusUpdate)).status).toBe(200);
+    });
+
+    it('refuse une notification mal signée (400)', async () => {
+      const response = await notify(statusUpdate, 'autre-cle-secrete');
+      expect(response.status).toBe(400);
+      expect(response.body.code).toBe('INVALID_SIGNATURE');
     });
   });
 });

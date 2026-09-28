@@ -6,8 +6,23 @@ import { orderNumber } from '@/shared/lib/format';
 import { Button } from '@/shared/ui/button';
 import { type OrderAction, useOrderAction } from './api';
 
-/** Les deux gestes du quotidien, directement sur la ligne : encaisser et expédier. */
-export function OrderQuickActions({ order, compact = false }: { order: OrderListItemDto; compact?: boolean }) {
+/** Nom de la lumière orange partagée par les touches « Expédier » d'une liste. */
+export const NEXT_ACTION_LIGHT = 'next-action';
+
+/**
+ * Les deux gestes du quotidien, directement sur la ligne : encaisser et expédier.
+ * `lit` allume la touche « Expédier » : c'est la prochaine commande à faire partir ; quand elle part,
+ * la lumière orange glisse jusqu'à la touche de la suivante.
+ */
+export function OrderQuickActions({
+  order,
+  compact = false,
+  lit = false,
+}: {
+  order: OrderListItemDto;
+  compact?: boolean;
+  lit?: boolean;
+}) {
   const action = useOrderAction();
   if (order.status !== 'PLACED') return null;
 
@@ -27,8 +42,8 @@ export function OrderQuickActions({ order, compact = false }: { order: OrderList
       {order.paymentStatus === 'UNPAID' && (
         <Button
           size="sm"
-          variant="secondary"
-          icon={<Banknote />}
+          variant="ghost"
+          icon={<Banknote strokeWidth={1.8} />}
           loading={pending === 'mark-paid'}
           disabled={action.isPending}
           onClick={(event) => {
@@ -41,7 +56,9 @@ export function OrderQuickActions({ order, compact = false }: { order: OrderList
       )}
       <Button
         size="sm"
-        icon={<Truck />}
+        lightId={NEXT_ACTION_LIGHT}
+        lit={lit}
+        icon={<Truck strokeWidth={1.8} />}
         loading={pending === 'fulfill'}
         disabled={action.isPending}
         onClick={(event) => {

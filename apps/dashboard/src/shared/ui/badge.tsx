@@ -1,52 +1,71 @@
 import type { LucideIcon } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/cn';
-import { snappy } from './motion';
-
-export type BadgeTone = 'brand' | 'sun' | 'accent' | 'success' | 'danger' | 'neutral' | 'outline' | 'draft';
-
-const tones: Record<BadgeTone, { box: string; dot: string }> = {
-  brand: { box: 'bg-brand-soft text-brand-ink', dot: 'bg-brand' },
-  sun: { box: 'bg-sun-soft text-sun-ink', dot: 'bg-sun' },
-  accent: { box: 'bg-accent-soft text-accent-ink', dot: 'bg-accent' },
-  success: { box: 'bg-success-soft text-success-ink', dot: 'bg-success' },
-  danger: { box: 'bg-danger-soft text-danger-ink', dot: 'bg-danger' },
-  neutral: { box: 'bg-surface-2 text-ink-2', dot: 'bg-ink-3' },
-  outline: {
-    box: 'bg-transparent text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line-strong)]',
-    dot: 'bg-ink-3',
-  },
-  draft: {
-    box: 'bg-transparent text-ink-2 outline-1 outline-dashed outline-offset-[-1px] outline-line-strong',
-    dot: 'bg-ink-3',
-  },
-};
+import { glide } from './motion';
 
 /**
- * Pastille d'état : point de couleur + libellé. Quand l'état change,
+ * États de l'instrument, lus au témoin lumineux :
+ * - `attention` : orange — il y a quelque chose à faire (`pulse` le fait respirer, un seul à la fois) ;
+ * - `on` : noir plein (blanc en sombre) — allumé, fait, actif ;
+ * - `off` : anneau creux — éteint, pas encore ;
+ * - `draft` : anneau pointillé — brouillon ;
+ * - `danger` : rouge — annulé, rupture, erreur.
+ * Le témoin accompagne toujours un libellé : la couleur n'est jamais seule à parler.
+ */
+export type BadgeTone = 'attention' | 'on' | 'off' | 'draft' | 'danger';
+
+/** Témoin lumineux seul. */
+export function Led({ tone, className, pulse = false }: { tone: BadgeTone; className?: string; pulse?: boolean }) {
+  const reduce = useReducedMotion();
+  const glow = pulse && tone === 'attention' && !reduce;
+  return (
+    <span aria-hidden className={cn('relative inline-flex size-2 shrink-0', className)}>
+      {glow && (
+        <motion.span
+          className="absolute inset-0 rounded-full bg-accent"
+          initial={{ opacity: 0.5, scale: 1 }}
+          animate={{ opacity: 0, scale: 2.6 }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: 'easeOut', repeatDelay: 0.6 }}
+        />
+      )}
+      <span
+        className={cn(
+          'relative size-2 rounded-full transition-[background-color,box-shadow] duration-300',
+          tone === 'attention' && 'bg-accent',
+          tone === 'on' && 'bg-ink',
+          tone === 'off' && 'shadow-[inset_0_0_0_1.5px_var(--color-ink-3)]',
+          tone === 'draft' && 'outline-[1.5px] outline-dashed outline-offset-[-1.5px] outline-ink-3',
+          tone === 'danger' && 'bg-danger',
+        )}
+      />
+    </span>
+  );
+}
+
+/**
+ * Indicateur d'état : témoin + libellé, sans fond. Quand l'état change,
  * l'ancien libellé s'efface vers le haut et le nouveau monte à sa place.
  */
 export function Badge({ tone, children, className }: { tone: BadgeTone; children: ReactNode; className?: string }) {
-  const t = tones[tone];
   return (
     <motion.span
       layout
-      transition={snappy}
+      transition={glide}
       className={cn(
-        'relative inline-flex h-6 items-center gap-1.5 overflow-hidden rounded-full px-2.5 align-middle text-[0.75rem] font-[650] whitespace-nowrap transition-colors duration-300',
-        t.box,
+        'relative inline-flex h-6 items-center gap-2 overflow-hidden align-middle text-[0.8125rem] font-[560] whitespace-nowrap',
+        tone === 'danger' ? 'text-danger-ink' : tone === 'attention' ? 'text-ink' : 'text-ink-2',
         className,
       )}
     >
-      <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full transition-colors duration-300', t.dot)} />
+      <Led tone={tone} />
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.span
           key={String(children)}
           initial={{ y: 10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -10, opacity: 0 }}
-          transition={snappy}
+          transition={glide}
         >
           {children}
         </motion.span>
@@ -55,34 +74,22 @@ export function Badge({ tone, children, className }: { tone: BadgeTone; children
   );
 }
 
-/** Icône dans une pastille ronde teintée : repère visuel des états vides et des étapes. */
+/** Pictogramme au trait, posé dans un petit creux : repère des états vides et des étapes. */
 export function IconBadge({
   icon: Icon,
   size = 'md',
-  tone = 'brand',
   className,
 }: {
   icon: LucideIcon;
   size?: 'sm' | 'md' | 'lg';
-  tone?: 'brand' | 'sun' | 'accent' | 'success' | 'neutral';
+  tone?: string;
   className?: string;
 }) {
-  const box = {
-    sm: 'size-8 rounded-[10px]',
-    md: 'size-10 rounded-xl',
-    lg: 'size-14 rounded-2xl',
-  }[size];
-  const glyph = { sm: 'size-4', md: 'size-[1.15rem]', lg: 'size-6' }[size];
-  const color = {
-    brand: 'bg-brand-soft text-brand-ink',
-    sun: 'bg-sun-soft text-sun-ink',
-    accent: 'bg-accent-soft text-accent-ink',
-    success: 'bg-success-soft text-success-ink',
-    neutral: 'bg-surface-2 text-ink-2',
-  }[tone];
+  const box = { sm: 'size-8 rounded-lg', md: 'size-10 rounded-[0.7rem]', lg: 'size-12 rounded-xl' }[size];
+  const glyph = { sm: 'size-4', md: 'size-[1.15rem]', lg: 'size-5' }[size];
   return (
-    <span aria-hidden className={cn('inline-flex shrink-0 items-center justify-center', box, color, className)}>
-      <Icon className={glyph} strokeWidth={2.1} />
+    <span aria-hidden className={cn('well inline-flex shrink-0 items-center justify-center text-ink', box, className)}>
+      <Icon className={glyph} strokeWidth={1.75} />
     </span>
   );
 }

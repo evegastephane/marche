@@ -10,9 +10,12 @@ import { ChevronDown } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/shared/lib/cn';
 
-/** Contrôle : filet fin au repos, halo bleu au focus, rouge si invalide. */
+/**
+ * Champ en creux : fond légèrement enfoncé au repos, face blanche et filet d'encre au focus,
+ * rouge si invalide.
+ */
 export const controlClasses =
-  'w-full rounded-xl bg-surface text-ink shadow-[inset_0_0_0_1px_var(--color-line-strong)] transition-[box-shadow,background-color] duration-200 ease-out-soft placeholder:text-ink-3 hover:shadow-[inset_0_0_0_1px_var(--color-ink-3)] focus-visible:shadow-[inset_0_0_0_1.5px_var(--color-brand),0_0_0_4px_var(--color-brand-soft)] focus-visible:outline-none aria-invalid:shadow-[inset_0_0_0_1.5px_var(--color-danger),0_0_0_4px_var(--color-danger-soft)] disabled:bg-surface-2 disabled:text-ink-3';
+  'w-full rounded-[0.7rem] bg-surface-2 text-ink shadow-[var(--shadow-well),inset_0_0_0_1px_var(--color-line)] transition-[box-shadow,background-color] duration-200 ease-out-soft placeholder:text-ink-3 hover:shadow-[var(--shadow-well),inset_0_0_0_1px_var(--color-line-strong)] focus-visible:bg-surface focus-visible:shadow-[inset_0_0_0_1.5px_var(--color-ink),0_0_0_4px_var(--color-surface-3)] focus-visible:outline-none aria-invalid:shadow-[inset_0_0_0_1.5px_var(--color-danger),0_0_0_4px_var(--color-danger-soft)] disabled:text-ink-3';
 
 export interface FieldProps {
   label: ReactNode;
@@ -28,7 +31,7 @@ export function Field({ label, hint, error, className, children }: FieldProps) {
   const describedBy = error ? `${id}-erreur` : hint ? `${id}-aide` : undefined;
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
-      <label htmlFor={id} className="text-[0.8125rem] font-[650] text-ink">
+      <label htmlFor={id} className="text-[0.8125rem] font-[600] text-ink">
         {label}
       </label>
       {children({
@@ -41,11 +44,11 @@ export function Field({ label, hint, error, className, children }: FieldProps) {
           <motion.p
             key="erreur"
             id={`${id}-erreur`}
-            className="text-[0.8125rem] font-semibold text-danger-ink"
+            className="text-[0.8125rem] font-[560] text-danger-ink"
             initial={{ opacity: 0, y: -4, x: 0 }}
-            animate={{ opacity: 1, y: 0, x: [0, -4, 4, -2, 0] }}
+            animate={{ opacity: 1, y: 0, x: [0, -3, 3, -1, 0] }}
             exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.28 }}
           >
             {error}
           </motion.p>
@@ -104,6 +107,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
       </select>
       <ChevronDown
         className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-ink-2"
+        strokeWidth={1.8}
         aria-hidden
       />
     </div>
@@ -118,9 +122,7 @@ export const InputWithSuffix = forwardRef<
   return (
     <div className="relative">
       <Input ref={ref} className={cn('tabular pr-16', className)} {...props} />
-      <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[0.8125rem] font-semibold text-ink-3">
-        {suffix}
-      </span>
+      <span className="legend pointer-events-none absolute top-1/2 right-3 -translate-y-1/2">{suffix}</span>
     </div>
   );
 });

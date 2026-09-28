@@ -1,91 +1,84 @@
 'use client';
 
 import { motion, useReducedMotion } from 'motion/react';
+import { useId } from 'react';
 
-const EASE_OUT = [0.22, 1, 0.36, 1] as const;
+/* Même dessin que le dashboard (apps/dashboard/src/shared/ui/brand.tsx), tracé sur le logo v2. */
+const BODY = 'M7 80H260L244 115H65L100 200H257L318 66H369L278 234H79Z';
+const ARROW = 'M316.4 70L326 49H254L294 8H369V66L366.8 70Z';
+const TRACE = 'M300 97H36L90 217H268L356 36';
+const EASE_OUT = [0.16, 1, 0.3, 1] as const;
+const PRESS = { type: 'spring', stiffness: 900, damping: 48, mass: 0.6 } as const;
 
 /**
- * Emblème Upsell (même dessin que le dashboard, apps/dashboard/src/shared/ui/brand.tsx) :
- * le chariot dont la poignée monte en flèche. Avec `intro`, il se dessine à l'arrivée.
+ * Emblème Upsell : le chariot dont la poignée jaillit en flèche, sur deux roues orange.
+ * La forme suit `currentColor`. Avec `intro`, il s'allume : le panier se trace, la flèche jaillit,
+ * les roues s'allument l'une après l'autre.
  */
 export function UpsellMark({ className, intro = false }: { className?: string; intro?: boolean }) {
   const reduce = useReducedMotion();
+  const maskId = `trace-${useId().replace(/[^a-zA-Z0-9-]/g, '')}`;
   const play = intro && !reduce;
   return (
-    <svg viewBox="0 0 100 80" className={className} aria-hidden style={{ overflow: 'visible' }}>
+    <svg viewBox="0 0 376 320" className={className} aria-hidden style={{ overflow: 'visible' }}>
+      {play && (
+        <mask id={maskId} maskUnits="userSpaceOnUse" x="-20" y="-20" width="420" height="360">
+          <motion.path
+            d={TRACE}
+            fill="none"
+            stroke="#fff"
+            strokeWidth={76}
+            strokeLinejoin="round"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 0.62, ease: EASE_OUT }}
+          />
+        </mask>
+      )}
+      <path d={BODY} fill="currentColor" mask={play ? `url(#${maskId})` : undefined} />
       <motion.path
-        d="M8 20 H21 Q24.5 20 26 23.5 L36.5 47 Q39 52.5 45 52.5 H65 Q70.5 52.5 72 47 L78 20"
-        fill="none"
-        stroke="#0b57f0"
-        strokeWidth={7.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        initial={play ? { pathLength: 0 } : false}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 0.7, ease: EASE_OUT }}
+        d={ARROW}
+        fill="currentColor"
+        style={{ transformBox: 'fill-box', transformOrigin: '0% 100%' }}
+        initial={play ? { opacity: 0, x: -26, y: 26, scale: 0.6 } : false}
+        animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+        transition={{ ...PRESS, delay: 0.42 }}
       />
-      <motion.path
-        d="M78 5 L90.5 18.5 Q91.5 20.5 89 20.5 H67 Q64.5 20.5 65.5 18.5 Z"
-        fill="#0b57f0"
-        stroke="#0b57f0"
-        strokeWidth={2}
-        strokeLinejoin="round"
-        style={{ transformBox: 'fill-box', transformOrigin: '50% 100%' }}
-        initial={play ? { opacity: 0, y: 10, scale: 0.6 } : false}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{
-          type: 'spring',
-          stiffness: 520,
-          damping: 18,
-          delay: 0.55,
-        }}
-      />
-      <g transform="rotate(-16 50 30)">
-        <motion.g
-          initial={play ? { opacity: 0, y: -22 } : false}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            type: 'spring',
-            stiffness: 420,
-            damping: 20,
-            delay: 0.35,
-          }}
-        >
-          <rect x={37} y={27} width={27} height={6.5} rx={3.25} fill="#ff5a2b" />
-        </motion.g>
-      </g>
-      <g transform="rotate(-16 52 40)">
-        <motion.g
-          initial={play ? { opacity: 0, y: -22 } : false}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            type: 'spring',
-            stiffness: 420,
-            damping: 20,
-            delay: 0.45,
-          }}
-        >
-          <rect x={40} y={37} width={25} height={6.5} rx={3.25} fill="#fdb52a" />
-        </motion.g>
-      </g>
-      {[45, 65].map((cx, i) => (
+      {[132, 239].map((cx, i) => (
         <motion.circle
           key={cx}
           cx={cx}
-          cy={66}
-          r={6}
-          fill="#ff5a2b"
+          cy={287}
+          r={25}
+          fill="#f66b21"
           style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
-          initial={play ? { scale: 0 } : false}
-          animate={{ scale: 1 }}
-          transition={{
-            type: 'spring',
-            stiffness: 600,
-            damping: 16,
-            delay: 0.62 + i * 0.07,
-          }}
+          initial={play ? { opacity: 0, scale: 0.3 } : false}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ ...PRESS, delay: 0.62 + i * 0.12 }}
         />
       ))}
     </svg>
+  );
+}
+
+/** Wordmark « Upsell » du logo, en masque : la couleur suit `currentColor`. */
+export function UpsellWordmark({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={className}
+      style={{
+        display: 'inline-block',
+        aspectRatio: '517 / 191',
+        height: '1em',
+        backgroundColor: 'currentColor',
+        maskImage: 'url(/brand/upsell-wordmark.png)',
+        WebkitMaskImage: 'url(/brand/upsell-wordmark.png)',
+        maskSize: 'contain',
+        WebkitMaskSize: 'contain',
+        maskRepeat: 'no-repeat',
+        WebkitMaskRepeat: 'no-repeat',
+      }}
+    />
   );
 }

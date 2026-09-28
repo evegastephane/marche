@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import type {
   Paginated,
+  ProductDto,
   StorefrontBrandDto,
   StorefrontCollectionDto,
   StorefrontProductCardDto,
   StorefrontProductDto,
 } from '@marche/contracts';
 import {
+  CatalogReadModel,
   CatalogStorefrontReadModel,
   type StorefrontProductFilter,
   type VariantSnapshot,
@@ -17,7 +19,10 @@ export type { VariantSnapshot, StorefrontProductFilter };
 /** API publique du module catalog (commandes, panier, site, storefront). */
 @Injectable()
 export class CatalogFacade {
-  constructor(private readonly storefront: CatalogStorefrontReadModel) {}
+  constructor(
+    private readonly storefront: CatalogStorefrontReadModel,
+    private readonly admin: CatalogReadModel,
+  ) {}
 
   /** R6 : titre, SKU et prix actuels des variantes, pour figer les lignes d'une commande. */
   snapshotVariants(variantIds: readonly string[]): Promise<Map<string, VariantSnapshot>> {
@@ -47,5 +52,10 @@ export class CatalogFacade {
 
   getPublishedProduct(slug: string): Promise<StorefrontProductDto | null> {
     return this.storefront.getProduct(slug);
+  }
+
+  /** Produit de la boutique courante, quel que soit son statut (campagnes). */
+  getProduct(id: string): Promise<ProductDto | null> {
+    return this.admin.getProduct(id);
   }
 }

@@ -1,4 +1,4 @@
-import { useAuth, useClerk, UserButton } from '@clerk/react';
+import { useAuth, useClerk } from '@clerk/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createStoreSchema, type CreateStoreInput, CURRENCIES, type Currency, type StoreDto } from '@marche/contracts';
 import { useQueryClient } from '@tanstack/react-query';
@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { type ChangeEvent, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { COUNTRIES, CURRENCY_NAMES } from '@/features/onboarding/countries';
+import { AccountMenu } from '@/features/shell/account-menu';
 import { ApiError } from '@/shared/api/client';
 import { useApi } from '@/shared/api/use-api';
 import { currencyLabel, slugify } from '@/shared/lib/format';
@@ -15,7 +16,7 @@ import { Button } from '@/shared/ui/button';
 import { Field, Input, Select } from '@/shared/ui/field';
 import { LiveName } from '@/shared/ui/live-name';
 import { Reveal } from '@/shared/ui/motion';
-import { PLATFORM_ROOT_DOMAIN, SiteAddress, siteHost } from '@/shared/ui/site-address';
+import { PLATFORM_ROOT_DOMAIN, siteHost } from '@/shared/ui/site-address';
 import { ThemeToggle } from '@/shared/ui/theme';
 
 export const Route = createFileRoute('/onboarding')({ component: Onboarding });
@@ -30,19 +31,19 @@ function Onboarding() {
   return (
     <div className="min-h-dvh">
       <header className="flex items-center justify-between px-4 py-4 sm:px-8">
-        <UpsellLogo intro className="text-[1.375rem]" />
+        <UpsellLogo intro className="text-[1.5rem]" />
         <div className="flex items-center gap-2">
           {orgId && (
             <Link
               to="/"
-              className="group inline-flex items-center gap-1.5 text-[0.875rem] font-semibold text-ink-2 no-underline hover:text-ink"
+              className="group inline-flex items-center gap-1.5 text-[0.875rem] font-[560] text-ink-2 no-underline hover:text-ink"
             >
-              <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
+              <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" strokeWidth={1.8} />
               <span className="max-sm:sr-only">Retour au tableau de bord</span>
             </Link>
           )}
           <ThemeToggle />
-          <UserButton />
+          <AccountMenu />
         </div>
       </header>
       <StoreForm />
@@ -95,23 +96,21 @@ function StoreForm() {
   return (
     <div className="mx-auto grid max-w-[76rem] gap-8 px-4 pt-4 pb-16 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-12 lg:pt-10">
       <Reveal delay={0.15} className="flex flex-col gap-6 lg:order-2">
-        <div className="relative flex min-h-[15rem] flex-col justify-between gap-8 overflow-hidden rounded-[1.75rem] bg-brand p-7 text-white shadow-float sm:min-h-[19rem] sm:p-10 lg:sticky lg:top-10">
-          <span
-            aria-hidden
-            className="pointer-events-none absolute -right-20 -bottom-24 size-72 rounded-full bg-white/10 blur-2xl"
-          />
-          <div className="relative flex items-start justify-between gap-6">
-            <LiveName name={name} placeholder="Votre boutique" className="text-[2.75rem] sm:text-[3.75rem]" />
-            <span className="inline-flex shrink-0 rounded-2xl bg-white p-2.5 shadow-lift">
-              <UpsellMark intro delay={0.4} className="h-9 w-auto sm:h-11" />
-            </span>
+        <div className="display-window flex min-h-[15rem] flex-col justify-between gap-8 rounded-[1.25rem] p-6 sm:min-h-[19rem] sm:p-9 lg:sticky lg:top-10">
+          <div className="flex items-start justify-between gap-6">
+            <span className="legend text-display-dim">Votre enseigne</span>
+            <UpsellMark intro delay={0.3} className="h-6 w-auto text-display-ink" />
           </div>
-          <div className="relative flex flex-wrap items-center gap-2.5">
-            <SiteAddress host={siteHost(slug)} className="bg-white text-[#0c1a3c] shadow-none" />
-            <span className="rounded-full bg-sun px-3 py-1.5 text-[0.8125rem] font-[750] text-[#0c1a3c]">
-              {currencyLabel(currency as Currency)}
+          <LiveName name={name} placeholder="Votre boutique" className="text-[2.5rem] sm:text-[3.5rem]" />
+          <div className="flex flex-col gap-3 border-t border-display-line pt-4">
+            <span className="tabular flex items-center gap-2.5 text-[0.9375rem] break-all">
+              <span aria-hidden className="size-2 shrink-0 rounded-full shadow-[inset_0_0_0_1.5px_var(--color-display-dim)]" />
+              {siteHost(slug)}
             </span>
-            {countryName && <span className="text-[0.875rem] font-semibold text-white/85">{countryName}</span>}
+            <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.875rem] text-display-dim">
+              <span>{currencyLabel(currency as Currency)}</span>
+              {countryName && <span>{countryName}</span>}
+            </span>
           </div>
         </div>
         <p className="hidden max-w-[52ch] text-ink-2 lg:block">
@@ -122,14 +121,13 @@ function StoreForm() {
 
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-8 lg:order-1">
         <Reveal className="flex flex-col gap-3">
-          <span className="eyebrow">Nouvelle boutique</span>
-          <h1 className="display text-[2.5rem] sm:text-[3.25rem]">Ouvrons votre boutique</h1>
+          <h1 className="display text-[2.25rem] sm:text-[3rem]">Ouvrons votre boutique</h1>
           <p className="max-w-[48ch] text-[1.0625rem] text-ink-2">
             Quelques informations suffisent pour ouvrir votre boutique. Le reste se règle ensuite.
           </p>
         </Reveal>
 
-        <Reveal delay={0.1} className="card flex flex-col gap-5 p-6 sm:p-7">
+        <Reveal delay={0.1} className="panel flex flex-col gap-5 p-6 sm:p-7">
           <Field label="Nom de la boutique" error={formState.errors.name?.message}>
             {(props) => (
               <Input
@@ -166,7 +164,7 @@ function StoreForm() {
                     onChange: () => setSlugTouched(true),
                   })}
                 />
-                <span className="tabular inline-flex max-w-[55%] shrink-0 items-center truncate rounded-r-xl bg-surface-2 px-3 text-[0.875rem] font-semibold whitespace-nowrap text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line-strong)]">
+                <span className="tabular inline-flex max-w-[55%] shrink-0 items-center truncate rounded-r-[0.7rem] bg-surface-3 px-3 text-[0.875rem] font-[500] whitespace-nowrap text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)]">
                   .{PLATFORM_ROOT_DOMAIN}
                 </span>
               </div>
@@ -213,14 +211,14 @@ function StoreForm() {
           {formError && (
             <p
               role="alert"
-              className="rounded-xl bg-danger-soft px-4 py-3 text-[0.875rem] font-semibold text-danger-ink"
+              className="rounded-xl bg-danger-soft px-4 py-3 text-[0.875rem] font-[560] text-danger-ink"
             >
               {formError}
             </p>
           )}
 
-          <Button type="submit" size="lg" loading={formState.isSubmitting} className="group self-start">
-            Ouvrir ma boutique <ArrowRight className="transition-transform group-hover:translate-x-0.5" />
+          <Button type="submit" variant="primary" size="lg" loading={formState.isSubmitting} className="group self-start">
+            Ouvrir ma boutique <ArrowRight className="transition-transform group-hover:translate-x-0.5" strokeWidth={1.8} />
           </Button>
         </Reveal>
       </form>

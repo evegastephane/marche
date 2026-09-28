@@ -13,8 +13,9 @@ import { Button } from '@/shared/ui/button';
 import { Card, CardHeader } from '@/shared/ui/card';
 import { PageHeader } from '@/shared/ui/feedback';
 import { Field, Input, InputWithSuffix, Select, Textarea } from '@/shared/ui/field';
-import { snappy } from '@/shared/ui/motion';
+import { glide as snappy } from '@/shared/ui/motion';
 import { Switch } from '@/shared/ui/switch';
+import { MediaGallery } from '../media/media-gallery';
 import { useBrands, useSaveProduct } from './api';
 import {
   type DraftErrors,
@@ -95,7 +96,7 @@ export function ProductForm({ product, currency }: { product?: ProductDto; curre
   };
 
   const saveButton = (
-    <Button type="submit" loading={save.isPending}>
+    <Button type="submit" variant="secondary" loading={save.isPending}>
       {product ? 'Enregistrer' : 'Créer le produit'}
     </Button>
   );
@@ -160,12 +161,19 @@ export function ProductForm({ product, currency }: { product?: ProductDto; curre
           </Card>
 
           <Card>
+            <CardHeader title="Photos" />
+            <div className="px-5 pb-6">
+              <MediaGallery label="Photos du produit" media={draft.media} onChange={(media) => update({ media })} />
+            </div>
+          </Card>
+
+          <Card>
             <CardHeader title="Prix et stock" />
             <div className="flex flex-col gap-5 px-5 pb-6">
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-surface-2 px-4 py-3">
+              <label className="well flex cursor-pointer items-start gap-3 rounded-xl px-4 py-3">
                 <Switch checked={draft.hasOptions} onChange={(checked) => update({ hasOptions: checked }, true)} />
                 <span className="flex flex-col">
-                  <span className="font-[650]">Plusieurs déclinaisons</span>
+                  <span className="font-[600]">Plusieurs déclinaisons</span>
                   <span className="text-[0.875rem] text-ink-2">
                     Tailles, couleurs, contenances… Chaque combinaison a son prix et son stock.
                   </span>
@@ -258,7 +266,7 @@ export function ProductForm({ product, currency }: { product?: ProductDto; curre
         <aside className="flex flex-col gap-4 lg:sticky lg:top-10">
           <Card as="fieldset" className="flex flex-col gap-3 p-5">
             <legend className="sr-only">Mise en vente</legend>
-            <p className="heading text-[1.0625rem]">Mise en vente</p>
+            <p className="heading text-[1rem]">Mise en vente</p>
             <PublishChoice
               checked={draft.publish}
               onSelect={() => update({ publish: true })}
@@ -286,7 +294,7 @@ export function ProductForm({ product, currency }: { product?: ProductDto; curre
               </motion.p>
             )}
           </AnimatePresence>
-          <Button type="submit" size="lg" loading={save.isPending} className="w-full">
+          <Button type="submit" variant="primary" size="lg" loading={save.isPending} className="w-full">
             {product ? 'Enregistrer' : 'Créer le produit'}
           </Button>
         </aside>
@@ -310,14 +318,14 @@ function PublishChoice({
     <label
       className={cn(
         'relative flex cursor-pointer items-start gap-3 rounded-xl px-3.5 py-3 transition-colors duration-200',
-        !checked && 'shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-surface-2',
+        !checked && 'hover:bg-surface-2',
       )}
     >
       {checked && (
         <motion.span
           layoutId="publish-choice"
           aria-hidden
-          className="absolute inset-0 rounded-xl bg-brand-soft shadow-[inset_0_0_0_1.5px_var(--color-brand)]"
+          className="absolute inset-0 rounded-xl bg-key shadow-[0_0_0_1px_var(--color-line-strong),var(--shadow-key)]"
           transition={snappy}
         />
       )}
@@ -325,14 +333,14 @@ function PublishChoice({
       <span
         aria-hidden
         className={cn(
-          'relative mt-0.5 inline-flex size-[1.125rem] shrink-0 items-center justify-center rounded-full transition-shadow duration-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand',
+          'relative mt-0.5 inline-flex size-[1.125rem] shrink-0 items-center justify-center rounded-full transition-shadow duration-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink',
           checked
-            ? 'shadow-[inset_0_0_0_5px_var(--color-brand)]'
+            ? 'shadow-[inset_0_0_0_5px_var(--color-ink)]'
             : 'shadow-[inset_0_0_0_1.5px_var(--color-line-strong)]',
         )}
       />
       <span className="relative flex flex-col">
-        <span className="font-[660]">{title}</span>
+        <span className="font-[600]">{title}</span>
         <span className="text-[0.8125rem] text-ink-2">{detail}</span>
       </span>
     </label>
@@ -390,7 +398,7 @@ function OptionEditor({
       </Field>
       <Field label="Valeurs" hint="Entrée ou virgule pour ajouter." error={valuesError}>
         {(props) => (
-          <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-xl bg-surface px-2 py-1.5 shadow-[inset_0_0_0_1px_var(--color-line-strong)] transition-shadow duration-200 focus-within:shadow-[inset_0_0_0_1.5px_var(--color-brand),0_0_0_4px_var(--color-brand-soft)]">
+          <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-[0.7rem] bg-surface-2 px-2 py-1.5 shadow-[var(--shadow-well),inset_0_0_0_1px_var(--color-line)] transition-[box-shadow,background-color] duration-200 focus-within:bg-surface focus-within:shadow-[inset_0_0_0_1.5px_var(--color-ink),0_0_0_4px_var(--color-surface-3)]">
             <AnimatePresence initial={false}>
               {option.values.map((value) => (
                 <motion.span
@@ -400,7 +408,7 @@ function OptionEditor({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.6 }}
                   transition={snappy}
-                  className="inline-flex h-7 items-center gap-1 rounded-full bg-brand pr-1 pl-3 text-[0.8125rem] font-[650] text-on-brand"
+                  className="inline-flex h-7 items-center gap-1 rounded-md bg-ink pr-1 pl-2.5 text-[0.8125rem] font-[560] text-canvas"
                 >
                   {value}
                   <button
@@ -411,9 +419,9 @@ function OptionEditor({
                         values: option.values.filter((v) => v !== value),
                       })
                     }
-                    className="-my-1 inline-flex size-7 items-center justify-center rounded-full text-white/80 hover:bg-white/20 hover:text-white"
+                    className="-my-1 inline-flex size-7 items-center justify-center rounded-md opacity-70 hover:bg-canvas/15 hover:opacity-100"
                   >
-                    <X className="size-3.5" />
+                    <X className="size-3.5" strokeWidth={2} />
                   </button>
                 </motion.span>
               ))}
@@ -502,8 +510,10 @@ function SingleVariant({
       </Field>
       {variant.id ? (
         <div className="flex flex-col gap-1.5">
-          <span className="text-[0.8125rem] font-[650]">Stock disponible</span>
-          <AnimatedNumber value={variant.available ?? 0} className="display text-[2rem] text-brand-ink" />
+          <span className="text-[0.8125rem] font-[600]">Stock disponible</span>
+          <span className="display-window flex h-10 items-center justify-end rounded-[0.7rem] px-3.5 max-md:h-11">
+            <AnimatedNumber value={variant.available ?? 0} className="readout text-[1.5rem]" />
+          </span>
         </div>
       ) : (
         <Field label="Quantité en stock" error={errors['variants.0.quantity']}>
@@ -547,12 +557,12 @@ function VariantTable({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="heading text-[1rem]">{plural(draft.variants.length, 'déclinaison', 'déclinaisons')}</p>
+        <p className="heading text-[0.9375rem]">{plural(draft.variants.length, 'déclinaison', 'déclinaisons')}</p>
         {isEdit && <p className="text-[0.8125rem] text-ink-2">Retirer une valeur archive ses déclinaisons.</p>}
       </div>
       <div
         aria-hidden
-        className="eyebrow hidden grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_6.5rem] gap-3 px-3.5 sm:grid"
+        className="legend hidden grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_6.5rem] gap-3 px-3.5 sm:grid"
       >
         <span>Déclinaison</span>
         <span>SKU</span>
@@ -573,7 +583,7 @@ function VariantTable({
             >
               <div className="flex flex-wrap items-center gap-1.5 sm:pt-2">
                 {variant.optionValues.map((value, j) => (
-                  <span key={j} className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[0.8125rem] font-[680]">
+                  <span key={j} className="well rounded-md px-2 py-0.5 text-[0.8125rem] font-[560]">
                     {value}
                   </span>
                 ))}
@@ -605,7 +615,7 @@ function VariantTable({
               </CellField>
               {variant.id ? (
                 <CellField label="Dispo">
-                  <span className="tabular flex h-9 items-center font-[700] text-brand-ink">
+                  <span className="tabular flex h-9 items-center font-[600] text-ink">
                     {variant.available ?? 0}
                   </span>
                 </CellField>

@@ -14,10 +14,10 @@ export const defaultTemplateSettingsSchema = themeSettingsBaseSchema;
 
 export const defaultTemplateSettings: ThemeSettings = {
   colors: {
-    primary: '#0B57F0',
+    primary: '#101115',
     background: '#FFFFFF',
-    foreground: '#0C1A3C',
-    accent: '#FDB52A',
+    foreground: '#101115',
+    accent: '#F66B21',
   },
   fonts: { heading: 'DM Sans', body: 'Inter' },
   logoMediaId: null,

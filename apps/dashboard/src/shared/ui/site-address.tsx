@@ -7,22 +7,28 @@ export function siteHost(slug: string): string {
   return `${slug || 'votre-boutique'}.${PLATFORM_ROOT_DOMAIN}`;
 }
 
-/** Adresse du site de la boutique, avec un témoin qui pulse quand le site est en ligne. */
+/**
+ * Adresse du site dans sa petite fenêtre d'afficheur, avec son témoin :
+ * allumé quand le site est en ligne, creux sinon.
+ */
 export function SiteAddress({ host, live = false, className }: { host: string; live?: boolean; className?: string }) {
   return (
     <span
       className={cn(
-        'tabular inline-flex max-w-full items-center gap-2 rounded-full bg-surface px-3 py-1.5 text-[0.8125rem] font-[650] text-ink shadow-[inset_0_0_0_1px_var(--color-line)]',
+        'display-window tabular inline-flex h-9 max-w-full items-center gap-2.5 rounded-[0.7rem] px-3 text-[0.8125rem] font-[500]',
         className,
       )}
     >
-      <span aria-hidden className="relative flex size-2 shrink-0">
-        {live && (
-          <span className="absolute inset-0 animate-ping rounded-full bg-success opacity-60 motion-reduce:hidden" />
-        )}
-        <span className={cn('relative size-2 rounded-full', live ? 'bg-success' : 'bg-ink-3')} />
+      <span aria-hidden className="relative inline-flex size-2 shrink-0">
+        <span
+          className={cn(
+            'size-2 rounded-full transition-colors duration-300',
+            live ? 'led-lit' : 'shadow-[inset_0_0_0_1.5px_var(--color-display-dim)]',
+          )}
+        />
       </span>
       <span className="truncate">{host}</span>
+      <span className="sr-only">{live ? '(en ligne)' : '(hors ligne)'}</span>
     </span>
   );
 }

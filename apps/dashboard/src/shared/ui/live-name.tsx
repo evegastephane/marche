@@ -1,9 +1,10 @@
 import { motion, useReducedMotion } from 'motion/react';
 import { cn } from '@/shared/lib/cn';
+import { press } from './motion';
 
 /**
- * Nom qui s'écrit en direct : chaque lettre ajoutée monte à sa place sur un ressort.
- * C'est l'interaction signature de la création de boutique.
+ * Nom qui s'écrit en direct sur l'afficheur : chaque lettre ajoutée tombe à sa place
+ * d'un cran, comme une case qui s'allume.
  */
 export function LiveName({ name, placeholder, className }: { name: string; placeholder: string; className?: string }) {
   const reduce = useReducedMotion();
@@ -19,9 +20,9 @@ export function LiveName({ name, placeholder, className }: { name: string; place
           key={`${index}-${char}`}
           aria-hidden
           className="inline-block whitespace-pre"
-          initial={reduce ? false : { y: '0.5em', opacity: 0, rotate: 6 }}
-          animate={{ y: 0, opacity: 1, rotate: 0 }}
-          transition={{ type: 'spring', stiffness: 520, damping: 26 }}
+          initial={reduce ? false : { y: '-0.35em', opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={press}
         >
           {char}
         </motion.span>

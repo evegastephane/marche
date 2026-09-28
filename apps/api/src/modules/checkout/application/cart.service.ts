@@ -105,6 +105,7 @@ export class CartService {
       phone: input.phone,
       shippingAddress: input.shippingAddress,
       note: input.note,
+      whatsappOptIn: input.whatsappOptIn,
     });
     await this.carts.delete(cart.storeId, cart.id);
     return result;

@@ -5,6 +5,7 @@ import type { UserProfile } from '../../src/modules/identity/domain/user.reposit
 import { ObjectStorage, type PresignedUpload } from '../../src/modules/media/application/media.ports.js';
 import { EmailSender, type OutgoingEmail } from '../../src/modules/notifications/application/email.port.js';
 import { StorefrontRevalidator } from '../../src/modules/sites/application/sites.ports.js';
+import { type TemplateMessage, WhatsAppSender } from '../../src/modules/campaigns/application/campaigns.ports.js';
 
 /** Annuaire Clerk simulé : les organisations sont créées en mémoire. */
 export class FakeOrganizationDirectory extends OrganizationDirectory {
@@ -95,5 +96,18 @@ export class RecordingRevalidator extends StorefrontRevalidator {
 
   tags(): string[] {
     return this.calls.flatMap((call) => call.tags);
+  }
+}
+
+/** WhatsApp simulé : les messages « envoyés » sont gardés en mémoire avec un identifiant Meta fictif. */
+export class FakeWhatsAppSender extends WhatsAppSender {
+  configured = true;
+  templateName: string | null = 'nouveau_produit';
+  usesHeaderImage = false;
+  readonly sent: TemplateMessage[] = [];
+
+  async sendTemplate(message: TemplateMessage): Promise<{ providerMessageId: string }> {
+    this.sent.push(message);
+    return { providerMessageId: `wamid.test.${this.sent.length}` };
   }
 }

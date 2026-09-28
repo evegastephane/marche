@@ -8,6 +8,7 @@ import { inject } from 'vitest';
 import { AppModule } from '../../src/app.module.js';
 import { WorkerModule } from '../../src/worker.module.js';
 import { StorefrontRevalidator } from '../../src/modules/sites/application/sites.ports.js';
+import { WhatsAppSender } from '../../src/modules/campaigns/application/campaigns.ports.js';
 import { UserDirectory } from '../../src/modules/identity/application/identity.ports.js';
 import { ObjectStorage } from '../../src/modules/media/application/media.ports.js';
 import { EmailSender } from '../../src/modules/notifications/application/email.port.js';
@@ -17,6 +18,7 @@ import { configureHttpApp } from '../../src/shared/infrastructure/http/http-setu
 import {
   FakeOrganizationDirectory,
   FakeUserDirectory,
+  FakeWhatsAppSender,
   InMemoryEmailSender,
   InMemoryObjectStorage,
   RecordingRevalidator,
@@ -43,6 +45,8 @@ export function testEnv(overrides: Record<string, string> = {}): NodeJS.ProcessE
     REDIS_URL: inject('redisUrl'),
     CLERK_AUTHORIZED_PARTIES: AUTHORIZED_PARTY,
     CLERK_WEBHOOK_SIGNING_SECRET: `whsec_${randomBytes(24).toString('base64')}`,
+    WHATSAPP_WEBHOOK_VERIFY_TOKEN: 'jeton-verification-whatsapp-tests',
+    WHATSAPP_APP_SECRET: 'cle-secrete-app-meta-tests',
     S3_ENDPOINT: 'http://localhost:1',
     S3_BUCKET: 'test-bucket',
     S3_ACCESS_KEY_ID: 'test',
@@ -67,6 +71,7 @@ export interface TestApp {
   organizations: FakeOrganizationDirectory;
   storage: InMemoryObjectStorage;
   emails: InMemoryEmailSender;
+  whatsapp: FakeWhatsAppSender;
   /** Jeton de session Clerk signé avec la clé de test. */
   token(claims: { sub: string; orgId?: string; orgRole?: 'admin' | 'member' }): Promise<string>;
   http(): ReturnType<typeof request>;
@@ -79,6 +84,7 @@ export async function createTestApp(envOverrides: Record<string, string> = {}): 
   const organizations = new FakeOrganizationDirectory();
   const storage = new InMemoryObjectStorage();
   const emails = new InMemoryEmailSender();
+  const whatsapp = new FakeWhatsAppSender();
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule.forRoot(config)] })
     .overrideProvider(OrganizationDirectory)
@@ -89,6 +95,8 @@ export async function createTestApp(envOverrides: Record<string, string> = {}): 
     .useValue(storage)
     .overrideProvider(EmailSender)
     .useValue(emails)
+    .overrideProvider(WhatsAppSender)
+    .useValue(whatsapp)
     .compile();
 
   const app = moduleRef.createNestApplication<NestExpressApplication>({ rawBody: true, logger: false });
@@ -103,6 +111,7 @@ export async function createTestApp(envOverrides: Record<string, string> = {}): 
     organizations,
     storage,
     emails,
+    whatsapp,
     token: ({ sub, orgId, orgRole }) => {
       const now = Math.floor(Date.now() / 1000);
       return new SignJWT({

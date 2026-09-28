@@ -23,6 +23,8 @@ export const checkoutSchema = z.object({
   phone: z.string().trim().max(30).optional(),
   shippingAddress: addressSchema,
   note: z.string().trim().max(500).optional(),
+  /** Case « Recevoir les nouveautés sur WhatsApp » : consentement explicite, jamais coché d'avance. */
+  whatsappOptIn: z.boolean().optional(),
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 

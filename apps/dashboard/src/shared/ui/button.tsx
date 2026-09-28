@@ -2,29 +2,39 @@ import { LoaderCircle } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { type ButtonHTMLAttributes, forwardRef, type ReactNode } from 'react';
 import { cn } from '@/shared/lib/cn';
-import { spring } from './motion';
+import { glide, press } from './motion';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent' | 'inverse';
+/**
+ * Touches de l'instrument :
+ * - `primary` : la touche orange, une seule par écran, celle de l'action à faire maintenant ;
+ * - `secondary` : touche blanche (noire en sombre) à arête ombrée ;
+ * - `ink` : touche noire, pour l'emphase sans l'orange ;
+ * - `ghost` : légende seule, pour les actions de repli ;
+ * - `danger` : action destructrice confirmée ;
+ * - `display` : touche posée dans la fenêtre noire de l'afficheur.
+ */
+export type ButtonVariant = 'primary' | 'secondary' | 'ink' | 'ghost' | 'danger' | 'display';
 type Size = 'sm' | 'md' | 'lg';
 
 const variants: Record<ButtonVariant, string> = {
-  primary:
-    'bg-brand text-on-brand shadow-[0_1px_0_rgb(255_255_255/0.18)_inset,0_6px_16px_-8px_var(--color-brand)] hover:bg-brand-strong',
-  secondary: 'bg-surface text-ink shadow-[inset_0_0_0_1px_var(--color-line-strong)] hover:bg-surface-2',
-  ghost: 'text-ink-2 hover:bg-surface-2 hover:text-ink',
-  danger: 'bg-danger text-white hover:brightness-95',
-  accent: 'bg-sun text-[#0c1a3c] hover:brightness-95',
-  inverse: 'bg-white text-[#0c1a3c] hover:bg-white/90',
+  primary: 'bg-accent text-on-accent shadow-key hover:bg-accent-strong active:shadow-key-pressed',
+  secondary:
+    'bg-key text-ink shadow-[0_0_0_1px_var(--color-line-strong),var(--shadow-key)] hover:bg-surface-2 active:bg-key-pressed active:shadow-[0_0_0_1px_var(--color-line-strong),var(--shadow-key-pressed)]',
+  ink: 'bg-ink text-canvas shadow-key hover:opacity-90 active:shadow-key-pressed',
+  ghost: 'text-ink-2 hover:bg-surface-2 hover:text-ink active:bg-surface-3',
+  danger: 'bg-danger text-white shadow-key hover:brightness-95 active:shadow-key-pressed',
+  display:
+    'text-display-ink shadow-[inset_0_0_0_1px_var(--color-display-line)] hover:bg-display-ink/8 active:bg-display-ink/12',
 };
 
 const sizes: Record<Size, string> = {
-  sm: 'h-8 gap-1.5 rounded-full px-3.5 text-[0.8125rem]',
-  md: 'h-10 gap-2 rounded-full px-4.5 text-[0.9375rem] max-md:h-11',
-  lg: 'h-12 gap-2.5 rounded-full px-6 text-base',
+  sm: 'h-8 gap-1.5 rounded-lg px-3 text-[0.8125rem] max-md:h-10 max-md:px-3.5',
+  md: 'h-10 gap-2 rounded-[0.7rem] px-4 text-[0.9375rem] max-md:h-11',
+  lg: 'h-12 gap-2.5 rounded-xl px-5 text-base',
 };
 
 const base =
-  'inline-flex shrink-0 select-none items-center justify-center font-[650] whitespace-nowrap no-underline duration-200 ease-out-soft disabled:pointer-events-none disabled:opacity-45 [&_svg]:size-[1.1em] [&_svg]:shrink-0';
+  'relative isolate inline-flex shrink-0 select-none items-center justify-center font-[600] whitespace-nowrap no-underline duration-200 ease-out-soft disabled:pointer-events-none disabled:opacity-45 [&_svg]:size-[1.1em] [&_svg]:shrink-0';
 
 type NativeProps = Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
@@ -36,11 +46,29 @@ export interface ButtonProps extends NativeProps {
   size?: Size;
   loading?: boolean;
   icon?: ReactNode;
+  /**
+   * Lumière orange partagée : la touche allumée porte la face orange `lightId`.
+   * Quand une autre touche du même `lightId` s'allume, la face glisse jusqu'à elle.
+   */
+  lit?: boolean;
+  lightId?: string;
 }
 
-/** Bouton : s'enfonce sous le doigt, l'icône laisse place au chargement sans décaler le texte. */
+/** Touche : s'enfonce d'un pixel sous le doigt ; le chargement prend la place de l'icône sans décaler la légende. */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'primary', size = 'md', loading = false, icon, className, children, disabled, type = 'button', ...props },
+  {
+    variant = 'secondary',
+    size = 'md',
+    loading = false,
+    icon,
+    lit = false,
+    lightId,
+    className,
+    children,
+    disabled,
+    type = 'button',
+    ...props
+  },
   ref,
 ) {
   const lead = loading ? (
@@ -65,24 +93,33 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     </motion.span>
   ) : null;
 
+  const shared = lightId !== undefined;
   return (
     <motion.button
       ref={ref}
       type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      whileTap={{ scale: 0.96 }}
-      whileHover={variant === 'primary' || variant === 'accent' ? { y: -1 } : undefined}
-      transition={spring}
+      whileTap={{ y: 1, scale: 0.985 }}
+      transition={press}
       className={cn(
         base,
-        'transition-[background-color,box-shadow,color,filter]',
-        variants[variant],
+        'transition-[background-color,box-shadow,color,opacity,filter]',
+        shared ? variants.secondary : variants[variant],
+        shared && lit && 'text-on-accent shadow-none hover:bg-transparent',
         sizes[size],
         className,
       )}
       {...props}
     >
+      {shared && lit && (
+        <motion.span
+          layoutId={lightId}
+          aria-hidden
+          className="absolute inset-0 -z-10 rounded-[inherit] bg-accent shadow-key"
+          transition={glide}
+        />
+      )}
       <AnimatePresence mode="popLayout" initial={false}>
         {lead}
       </AnimatePresence>
@@ -91,11 +128,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   );
 });
 
-/** Classes d'un bouton pour un lien (Link du routeur, <a>). */
-export function buttonClasses(variant: ButtonVariant = 'primary', size: Size = 'md', className?: string): string {
+/** Classes d'une touche pour un lien (Link du routeur, <a>). */
+export function buttonClasses(variant: ButtonVariant = 'secondary', size: Size = 'md', className?: string): string {
   return cn(
     base,
-    'transition-[background-color,box-shadow,color,filter,transform] hover:-translate-y-px active:translate-y-0 active:scale-[0.97]',
+    'transition-[background-color,box-shadow,color,opacity,transform] active:translate-y-px',
     variants[variant],
     sizes[size],
     className,

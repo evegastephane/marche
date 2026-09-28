@@ -19,6 +19,9 @@ const MESSAGES: Partial<Record<ErrorCode, string>> = {
   UNAUTHENTICATED: 'Votre session a expiré. Reconnectez-vous.',
   FORBIDDEN: 'Votre rôle ne permet pas cette action. Demandez au propriétaire de la boutique.',
   RATE_LIMITED: 'Trop de demandes d’un coup. Patientez quelques secondes.',
+  WHATSAPP_NOT_CONFIGURED: 'L’envoi WhatsApp n’est pas encore activé sur Upsell.',
+  NO_RECIPIENTS: 'Aucun client n’a encore accepté de recevoir vos nouveautés sur WhatsApp.',
+  PRODUCT_NOT_ACTIVE: 'Mettez ce produit en vente avant de l’envoyer à vos clients.',
   INTERNAL_ERROR: 'Le serveur a rencontré un problème. Réessayez dans un instant.',
 };
 

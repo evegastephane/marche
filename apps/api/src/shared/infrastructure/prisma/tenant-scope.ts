@@ -18,6 +18,8 @@ export const TENANT_MODELS: ReadonlySet<string> = new Set([
   'Order',
   'OrderLine',
   'Site',
+  'Campaign',
+  'CampaignMessage',
 ]);
 
 const WHERE_OPERATIONS: ReadonlySet<string> = new Set([

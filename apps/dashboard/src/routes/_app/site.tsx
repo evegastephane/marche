@@ -1,24 +1,22 @@
 import { FONT_CHOICES, type SiteDto, type StoreDto, type ThemeSettings } from '@marche/contracts';
 import { createFileRoute } from '@tanstack/react-router';
-import { ExternalLink, Globe, PowerOff, Rocket } from 'lucide-react';
+import { ExternalLink, Eye, Globe, PowerOff, Rocket } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useCurrentStore } from '@/features/shell/use-current-store';
 import { ApercuSite } from '@/features/site/apercu';
-import { useCollections, useSite, useSiteAction } from '@/features/site/api';
+import { useCollections, usePreviewLink, useSite, useSiteAction } from '@/features/site/api';
 import { errorMessage } from '@/shared/api/client';
-import { cn } from '@/shared/lib/cn';
 import { formatDateTime } from '@/shared/lib/format';
-import { Badge } from '@/shared/ui/badge';
+import { Badge, Led } from '@/shared/ui/badge';
 import { UpsellMark } from '@/shared/ui/brand';
 import { Button, buttonClasses } from '@/shared/ui/button';
 import { Card, CardHeader } from '@/shared/ui/card';
 import { LoadError, PageHeader, Skeleton } from '@/shared/ui/feedback';
 import { Field, Input, Select } from '@/shared/ui/field';
-import { LiveName } from '@/shared/ui/live-name';
-import { EASE_OUT, riseIn, snappy } from '@/shared/ui/motion';
-import { SiteAddress } from '@/shared/ui/site-address';
+import { EASE_OUT, glide as snappy, riseIn } from '@/shared/ui/motion';
+import { SiteAddress, siteHost } from '@/shared/ui/site-address';
 import { Switch } from '@/shared/ui/switch';
 
 export const Route = createFileRoute('/_app/site')({ component: SitePage });
@@ -48,37 +46,43 @@ function SansSite({ store }: { store: StoreDto }) {
       <PageHeader title="Site" />
       <motion.section
         variants={riseIn}
-        className="relative isolate flex flex-col items-start gap-6 overflow-hidden rounded-[1.75rem] bg-brand px-7 py-10 text-white shadow-float sm:px-12 sm:py-14"
+        className="panel grid items-center gap-8 p-6 sm:p-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]"
       >
-        <UpsellMark
-          mono="#ffffff"
-          className="pointer-events-none absolute -right-10 -bottom-12 -z-10 h-64 w-auto opacity-[0.12]"
-        />
-        <span className="inline-flex rounded-2xl bg-white p-3 shadow-lift">
-          <UpsellMark intro delay={0.2} className="h-10 w-auto" />
-        </span>
-        <h2 className="display max-w-[14ch] text-[2.5rem] sm:text-[3.5rem]">Votre boutique en ligne</h2>
-        <p className="max-w-[52ch] text-[1.0625rem] text-white/85">
-          Un clic suffit : le site reprend le nom de {store.name}, vos produits en vente et votre stock à jour. Vous
-          réglerez ensuite couleurs et textes.
-        </p>
-        <Button
-          variant="accent"
-          size="lg"
-          icon={<Rocket />}
-          loading={action.isPending}
-          onClick={() =>
-            action.mutate(
-              { type: 'generate' },
-              {
-                onSuccess: () => toast('Votre site est en ligne'),
-                onError: (error) => toast.error(errorMessage(error)),
-              },
-            )
-          }
-        >
-          Mettre mon site en ligne
-        </Button>
+        <div className="flex flex-col items-start gap-5">
+          <h2 className="display max-w-[16ch] text-[2rem] sm:text-[2.75rem]">Votre boutique en ligne, en un clic</h2>
+          <p className="max-w-[52ch] text-[1.0625rem] text-ink-2">
+            Le site reprend le nom de {store.name}, vos produits en vente et votre stock à jour. Vous réglerez ensuite
+            couleurs et textes.
+          </p>
+          <Button
+            variant="primary"
+            size="lg"
+            icon={<Rocket strokeWidth={1.8} />}
+            loading={action.isPending}
+            onClick={() =>
+              action.mutate(
+                { type: 'generate' },
+                {
+                  onSuccess: () => toast('Votre site est en ligne'),
+                  onError: (error) => toast.error(errorMessage(error)),
+                },
+              )
+            }
+          >
+            Mettre mon site en ligne
+          </Button>
+        </div>
+        <div className="display-window flex flex-col gap-4 rounded-2xl p-5 sm:p-6">
+          <span className="legend flex items-center justify-between text-display-dim">
+            Adresse du site
+            <UpsellMark className="h-4 w-auto text-display-ink" />
+          </span>
+          <span className="readout text-[1.375rem] break-all sm:text-[1.625rem]">{siteHost(store.slug)}</span>
+          <span className="flex items-center gap-2 text-[0.8125rem] text-display-dim">
+            <span aria-hidden className="size-2 rounded-full shadow-[inset_0_0_0_1.5px_var(--color-display-dim)]" />
+            Hors ligne tant que vous n’avez pas appuyé
+          </span>
+        </div>
       </motion.section>
     </div>
   );
@@ -86,6 +90,7 @@ function SansSite({ store }: { store: StoreDto }) {
 
 function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
   const action = useSiteAction();
+  const preview = usePreviewLink();
   const collections = useCollections();
   const [settings, setSettings] = useState<ThemeSettings>(() => structuredClone(site.draftThemeSettings));
   const [dirty, setDirty] = useState(false);
@@ -169,42 +174,35 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
 
       <motion.section
         variants={riseIn}
-        className="relative isolate flex flex-col gap-6 overflow-hidden rounded-[1.75rem] bg-brand px-6 py-8 text-white shadow-float sm:px-10 lg:flex-row lg:items-end lg:justify-between"
+        className="panel flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between"
       >
-        <UpsellMark
-          mono="#ffffff"
-          className="pointer-events-none absolute -right-8 -bottom-10 -z-10 h-52 w-auto opacity-[0.12]"
-        />
-        <div className="flex min-w-0 flex-col gap-4">
-          <LiveName name={store.name} placeholder="" className="text-[2.25rem] sm:text-[3rem]" />
-          <div className="flex flex-wrap items-center gap-2.5">
-            <Badge
-              tone={online ? 'success' : 'neutral'}
-              className={online ? 'bg-white text-success-ink' : 'bg-white/15 text-white'}
-            >
-              {online ? 'En ligne' : 'Hors ligne'}
-            </Badge>
+        <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <h2 className="heading text-[1.25rem]">{store.name}</h2>
+            <Badge tone={online ? 'on' : 'off'}>{online ? 'En ligne' : 'Hors ligne'}</Badge>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
             <a
               href={site.url}
               target="_blank"
               rel="noreferrer"
-              className="no-underline transition-transform hover:-translate-y-px"
+              className="max-w-full no-underline transition-transform duration-200 hover:-translate-y-px"
+              aria-label={`Ouvrir le site ${host}`}
             >
-              <SiteAddress host={host} live={online} className="bg-white text-[#0c1a3c] shadow-none" />
+              <SiteAddress host={host} live={online} />
             </a>
             {site.publishedAt && (
-              <span className="text-[0.8125rem] text-white/75">Publié le {formatDateTime(site.publishedAt)}</span>
+              <span className="text-[0.8125rem] text-ink-2">Publié le {formatDateTime(site.publishedAt)}</span>
             )}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href={site.url} target="_blank" rel="noreferrer" className={buttonClasses('inverse')}>
-            <ExternalLink /> Voir le site
+          <a href={site.url} target="_blank" rel="noreferrer" className={buttonClasses('secondary')}>
+            <ExternalLink strokeWidth={1.8} /> Voir le site
           </a>
           <Button
-            variant={online ? 'ghost' : 'accent'}
-            className={online ? 'text-white hover:bg-white/12 hover:text-white' : undefined}
-            icon={online ? <PowerOff /> : <Globe />}
+            variant={online ? 'ghost' : 'primary'}
+            icon={online ? <PowerOff strokeWidth={1.8} /> : <Globe strokeWidth={1.8} />}
             loading={pending === 'publish' || pending === 'unpublish'}
             onClick={togglePublished}
           >
@@ -231,9 +229,9 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                   className="group flex cursor-pointer items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-2"
                 >
                   <motion.span
-                    className="relative size-11 shrink-0 overflow-hidden rounded-xl shadow-[inset_0_0_0_1px_rgb(12_26_60/0.18)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand"
+                    className="relative size-11 shrink-0 overflow-hidden rounded-[0.7rem] shadow-[inset_0_0_0_1px_rgb(16_17_21/0.16),var(--shadow-key)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
                     animate={{ backgroundColor: settings.colors[key] }}
-                    whileHover={{ scale: 1.06, rotate: -3 }}
+                    whileHover={{ scale: 1.05 }}
                     transition={snappy}
                   >
                     <input
@@ -245,7 +243,7 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                     />
                   </motion.span>
                   <span className="flex min-w-0 flex-col">
-                    <span className="font-[650]">{label}</span>
+                    <span className="font-[600]">{label}</span>
                     <span className="tabular truncate text-[0.75rem] text-ink-2">
                       {settings.colors[key]} · {hint}
                     </span>
@@ -360,7 +358,7 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                   )}
                 </Field>
               )}
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-surface-2 px-4 py-3">
+              <label className="well flex cursor-pointer items-start gap-3 rounded-xl px-4 py-3">
                 <Switch
                   checked={settings.announcement.enabled}
                   onChange={(enabled) =>
@@ -371,7 +369,7 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                   }
                 />
                 <span className="flex flex-col">
-                  <span className="font-[650]">Bandeau d’annonce</span>
+                  <span className="font-[600]">Bandeau d’annonce</span>
                   <span className="text-[0.875rem] text-ink-2">
                     Une ligne en haut de chaque page : livraison, horaires…
                   </span>
@@ -414,17 +412,16 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
 
         <motion.div variants={riseIn} className="flex flex-col gap-4 lg:sticky lg:top-10">
           <ApercuSite settings={settings} storeName={store.name} host={host} />
-          <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
+          <div className="panel flex flex-wrap items-center justify-between gap-3 p-4">
             <span className="flex items-center gap-2 text-[0.875rem] text-ink-2">
               <motion.span
                 aria-hidden
-                className={cn(
-                  'size-2 shrink-0 rounded-full transition-colors duration-300',
-                  dirty ? 'bg-sun' : site.hasUnpublishedChanges ? 'bg-brand' : 'bg-success',
-                )}
+                className="inline-flex"
                 animate={{ scale: dirty ? [1, 1.4, 1] : 1 }}
                 transition={{ duration: 0.3 }}
-              />
+              >
+                <Led tone={dirty ? 'attention' : site.hasUnpublishedChanges ? 'draft' : 'on'} />
+              </motion.span>
               <AnimatePresence mode="wait" initial={false}>
                 <motion.span
                   key={dirty ? 'dirty' : site.hasUnpublishedChanges ? 'draft' : 'ok'}
@@ -443,6 +440,29 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
             </span>
             <div className="flex flex-wrap gap-2">
               <Button
+                variant="ghost"
+                icon={<Eye strokeWidth={1.8} />}
+                disabled={dirty}
+                title={dirty ? 'Enregistrez d’abord pour voir vos modifications' : undefined}
+                loading={preview.isPending}
+                onClick={() => {
+                  // Onglet ouvert tout de suite (sinon bloqué comme fenêtre surgissante), rempli dès que le lien arrive.
+                  const tab = window.open('', '_blank');
+                  preview.mutate(undefined, {
+                    onSuccess: ({ previewUrl }) => {
+                      if (tab) tab.location.href = previewUrl;
+                      else window.location.assign(previewUrl);
+                    },
+                    onError: (error) => {
+                      tab?.close();
+                      toast.error(errorMessage(error));
+                    },
+                  });
+                }}
+              >
+                Aperçu
+              </Button>
+              <Button
                 variant="secondary"
                 disabled={!dirty || busy !== null}
                 loading={busy === 'save'}
@@ -451,6 +471,7 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                 Enregistrer
               </Button>
               <Button
+                variant={online ? 'primary' : 'secondary'}
                 disabled={!hasChanges || busy !== null}
                 loading={busy === 'publish'}
                 onClick={() => (dirty ? saveDraft(true) : publishTheme())}

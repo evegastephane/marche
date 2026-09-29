@@ -55,3 +55,16 @@ export async function updateCartLine(variantId: string, quantity: number): Promi
     return failure(error);
   }
 }
+
+/** Plusieurs articles d'un geste : l'appareil et ses accessoires, ou un pack. Tout ou rien. */
+export async function addManyToCart(lines: { variantId: string; quantity: number }[]): Promise<CartActionResult> {
+  if (lines.length === 0) return { ok: false, message: 'Rien à ajouter.' };
+  try {
+    const site = await currentSite();
+    const cart = await ensureCart(site);
+    const updated = await storefrontWrite.addLines(site, cart.id, lines.slice(0, 10));
+    return { ok: true, itemsCount: updated.itemsCount };
+  } catch (error) {
+    return failure(error);
+  }
+}

@@ -7,6 +7,8 @@ function submitted() {
   return SpecialRequest.submit(
     {
       storeId: 's1',
+      type: 'CONFIGURATION',
+      details: [],
       productId: 'p1',
       productTitle: 'iPhone 12',
       productSlug: 'iphone-12',

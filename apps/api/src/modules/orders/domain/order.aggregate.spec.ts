@@ -60,6 +60,18 @@ describe('Order : machine à états', () => {
     expect(() => order.cancel('trop tard', now)).toThrow(InvalidOrderTransitionError);
   });
 
+  it('note les IMEI à l’expédition : un par exemplaire au plus, sans doublon', () => {
+    const order = placed();
+    const lineId = order.lines[0]!.id;
+    expect(() => order.fulfill(now, [{ lineId, values: ['111', '222', '333'] }])).toThrow(/Plus de numéros/);
+    expect(() => placed().fulfill(now, [{ lineId: 'inconnue', values: ['111'] }])).toThrow(/Ligne de commande inconnue/);
+    const other = placed();
+    expect(() => other.fulfill(now, [{ lineId: other.lines[0]!.id, values: ['351234', '351234'] }])).toThrow(/deux fois/);
+    const ok = placed();
+    ok.fulfill(now, [{ lineId: ok.lines[0]!.id, values: [' 351234567890123 ', ''] }]);
+    expect(ok.lines[0]!.serialNumbers).toEqual(['351234567890123']);
+  });
+
   it('annuler retourne l’état précédent (PLACED ⇒ stock à libérer)', () => {
     expect(placed().cancel('client', now)).toBe('PLACED');
     expect(draft().cancel('doublon', now)).toBe('DRAFT');

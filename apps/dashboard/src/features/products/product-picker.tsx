@@ -21,12 +21,15 @@ export function ProductPicker({
   exclude,
   onPick,
   title = 'Ajouter des produits',
+  alreadyLabel = 'Déjà dans ce catalogue',
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   exclude: Set<string>;
   onPick: (products: ProductListItemDto[]) => void;
   title?: string;
+  /** Précision d'un produit déjà choisi (grisé). */
+  alreadyLabel?: string;
 }) {
   const [q, setQ] = useState('');
   const [picked, setPicked] = useState<Map<string, ProductListItemDto>>(new Map());
@@ -88,7 +91,7 @@ export function ProductPicker({
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate font-[600]">{product.title}</span>
                   <span className="text-[0.8125rem] text-ink-2">
-                    {already ? 'Déjà dans ce catalogue' : PRODUCT_STATUS[product.status].label}
+                    {already ? alreadyLabel : PRODUCT_STATUS[product.status].label}
                   </span>
                 </span>
               </button>

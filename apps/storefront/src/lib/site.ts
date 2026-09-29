@@ -17,6 +17,9 @@ export const CART_COOKIE = 'cart_id';
 /** Jeton d'aperçu du brouillon (30 min), posé par /preview?token=… depuis l'éditeur du dashboard. */
 export const PREVIEW_COOKIE = 'sf_preview';
 
+/** Présent quand le site est affiché dans l'éditeur du dashboard (aperçu en direct, iframe). */
+export const EMBED_COOKIE = 'sf_embed';
+
 export const cartCookieOptions = {
   httpOnly: true,
   sameSite: 'lax' as const,

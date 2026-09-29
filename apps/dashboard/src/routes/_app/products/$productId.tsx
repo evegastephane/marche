@@ -24,18 +24,26 @@ function ProduitDetail() {
           to="/products"
           className="group inline-flex items-center gap-1.5 text-[0.875rem] font-[560] text-ink-2 no-underline hover:text-ink"
         >
-          <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" strokeWidth={1.8} /> Produits
+          <ArrowLeft
+            className="size-4 transition-transform group-hover:-translate-x-0.5"
+            strokeWidth={1.8}
+          />{' '}
+          Produits
         </Link>
       </motion.div>
       {product.error ? (
-        product.error instanceof ApiError && product.error.code === 'NOT_FOUND' ? (
+        product.error instanceof ApiError &&
+        product.error.code === 'NOT_FOUND' ? (
           <div className="panel">
             <EmptyState icon={PackageX} title="Produit introuvable">
               Il a peut-être été supprimé, ou appartient à une autre boutique.
             </EmptyState>
           </div>
         ) : (
-          <LoadError message={errorMessage(product.error)} onRetry={() => void product.refetch()} />
+          <LoadError
+            message={errorMessage(product.error)}
+            onRetry={() => void product.refetch()}
+          />
         )
       ) : product.data && store.data ? (
         // La clé réinitialise le formulaire si le produit change de version.
@@ -43,6 +51,8 @@ function ProduitDetail() {
           key={`${product.data.id}-${product.data.version}`}
           product={product.data}
           currency={store.data.currency}
+          storeType={store.data.type}
+          verticalSettings={store.data.verticalSettings}
         />
       ) : (
         <div className="flex flex-col gap-4">

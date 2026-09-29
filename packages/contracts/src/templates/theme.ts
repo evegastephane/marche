@@ -21,12 +21,36 @@ export const FONT_CHOICES = [
 ] as const;
 export const fontSchema = z.enum(FONT_CHOICES);
 
-export const themeColorsSchema = z.object({
-  primary: hexColorSchema,
+/**
+ * Rôles de couleur d'une palette. Chaque template les interprète dans son monde
+ * (papier et encre, comptoir et étiquette, mur et panneau), mais tous ont les mêmes rôles.
+ */
+export const paletteColorsSchema = z.object({
+  /** Fond de page. */
   background: hexColorSchema,
+  /** Texte posé sur le fond. */
   foreground: hexColorSchema,
+  /** Texte secondaire sur le fond. */
+  muted: hexColorSchema,
+  /** Panneaux, cartes, étiquettes. */
+  surface: hexColorSchema,
+  /** Texte posé sur les panneaux. */
+  surfaceForeground: hexColorSchema,
+  /** Filets et séparations. */
+  line: hexColorSchema,
+  /** Action principale (Ajouter au panier, Commander). */
+  primary: hexColorSchema,
+  /** Mise en avant (annonce, état, écriture manuscrite…). */
   accent: hexColorSchema,
 });
+export type PaletteColors = z.infer<typeof paletteColorsSchema>;
+
+/** Palette préréglée d'un template : le marchand choisit parmi elles, jamais une couleur libre. */
+export interface Palette {
+  id: string;
+  name: string;
+  colors: PaletteColors;
+}
 
 /** Lien interne ("/collections/ete") ou externe en https. */
 const linkSchema = z
@@ -102,8 +126,12 @@ export type Section = z.infer<typeof sectionSchema>;
 export type SectionType = Section['type'];
 
 export const themeSettingsBaseSchema = z.object({
-  colors: themeColorsSchema,
-  fonts: z.object({ heading: fontSchema, body: fontSchema }),
+  /** Template du site (natif, cahier du tailleur…) ; en brouillon, il change avant d'être publié. */
+  template: z.string().trim().min(1).max(40).default('default'),
+  /** Palette choisie parmi celles du template ; vide = la première. */
+  palette: z.string().trim().max(40).default(''),
+  /** Polices choisies par le marchand ; seuls les templates qui le permettent les lisent. */
+  fonts: z.object({ heading: fontSchema, body: fontSchema }).default({ heading: 'DM Sans', body: 'Inter' }),
   logoMediaId: z.uuid().nullable().default(null),
   announcement: z.object({
     enabled: z.boolean().default(false),

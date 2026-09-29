@@ -20,5 +20,12 @@ export const qk = {
   inventoryList: (store: string, filters: object) => ['store', store, 'inventory', 'list', filters] as const,
   movements: (store: string, variantId: string) => ['store', store, 'inventory', 'movements', variantId] as const,
   campaigns: (store: string) => ['store', store, 'campaigns'] as const,
+  bundles: (store: string) => ['store', store, 'bundles'] as const,
+  bundleList: (store: string, filters: object) => ['store', store, 'bundles', 'list', filters] as const,
+  bundle: (store: string, id: string) => ['store', store, 'bundles', 'detail', id] as const,
+  requests: (store: string) => ['store', store, 'requests'] as const,
+  requestList: (store: string, filters: object) => ['store', store, 'requests', 'list', filters] as const,
+  request: (store: string, id: string) => ['store', store, 'requests', 'detail', id] as const,
+  requestSummary: (store: string) => ['store', store, 'requests', 'summary'] as const,
   site: (store: string) => ['store', store, 'site'] as const,
 };

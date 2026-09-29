@@ -23,6 +23,7 @@ function parseRequestOptions(value: Prisma.JsonValue): { name: string; value: st
 function toData(row: SpecialRequestRow): SpecialRequestData {
   return {
     storeId: row.storeId,
+    type: row.type,
     productId: row.productId,
     productTitle: row.productTitle,
     productSlug: row.productSlug,
@@ -33,6 +34,7 @@ function toData(row: SpecialRequestRow): SpecialRequestData {
     email: row.email,
     phone: row.phone,
     note: row.note,
+    details: parseRequestOptions(row.details),
     currency: row.currency as Currency,
     status: row.status,
     quotedUnitPriceAmount: row.quotedUnitPriceAmount,
@@ -67,9 +69,14 @@ export class PrismaSpecialRequestRepository extends SpecialRequestRepository {
   }
 
   async insert(request: SpecialRequest): Promise<void> {
-    const { options, ...data } = request.snapshot();
+    const { options, details, ...data } = request.snapshot();
     await this.txHost.tx.specialRequest.create({
-      data: { id: request.id, ...data, options: options as Prisma.InputJsonValue },
+      data: {
+        id: request.id,
+        ...data,
+        options: options as Prisma.InputJsonValue,
+        details: details as Prisma.InputJsonValue,
+      },
     });
   }
 
@@ -100,6 +107,7 @@ export class PrismaSpecialRequestsReadModel extends SpecialRequestsReadModel {
   async list(query: SpecialRequestListQuery): Promise<Paginated<SpecialRequestDto>> {
     const and: Prisma.SpecialRequestWhereInput[] = [];
     if (query.status) and.push({ status: query.status });
+    if (query.type) and.push({ type: query.type });
     if (query.cursor) {
       const [createdAt, id] = decodeCursor(query.cursor, 2);
       const at = new Date(String(createdAt));

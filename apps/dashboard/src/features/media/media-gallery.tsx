@@ -23,11 +23,14 @@ export function MediaGallery({
   onChange,
   max = 20,
   label = 'Photos',
+  renderBadge,
 }: {
   media: MediaDto[];
   onChange: (media: MediaDto[]) => void;
   max?: number;
   label?: string;
+  /** Repère posé en bas à droite d'une vignette (couleur de la photo…). */
+  renderBadge?: (item: MediaDto) => ReactNode;
 }) {
   const upload = useUploadImage();
   const inputId = useId();
@@ -118,6 +121,7 @@ export function MediaGallery({
                   Principale
                 </span>
               )}
+              {renderBadge && <span className="absolute right-1.5 bottom-1.5">{renderBadge(item)}</span>}
               <span className="absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100">
                 {index > 0 && (
                   <TileButton label="Déplacer vers la gauche" onClick={() => move(index, -1)}>

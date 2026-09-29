@@ -4,6 +4,7 @@ import { StoresModule } from '../stores/stores.module.js';
 import { SiteRevalidationService } from './application/site-revalidation.service.js';
 import { GenerateSiteUseCase, SiteDtoMapper, SiteUseCases } from './application/site.use-cases.js';
 import {
+  PreviewThemeStore,
   PreviewTokens,
   SiteHostCache,
   SiteRepository,
@@ -14,6 +15,7 @@ import {
   HttpStorefrontRevalidator,
   JosePreviewTokens,
   PrismaSiteRepository,
+  RedisPreviewThemeStore,
 } from './infrastructure/sites.adapters.js';
 import { SitesController } from './interface/sites.controller.js';
 import { SitesEventHandlers } from './interface/sites.event-handlers.js';
@@ -25,6 +27,7 @@ import { SitesFacade } from './sites.facade.js';
   providers: [
     { provide: SiteRepository, useClass: PrismaSiteRepository },
     { provide: PreviewTokens, useClass: JosePreviewTokens },
+    { provide: PreviewThemeStore, useClass: RedisPreviewThemeStore },
     { provide: StorefrontRevalidator, useClass: HttpStorefrontRevalidator },
     { provide: SiteHostCache, useClass: RedisSiteHostCache },
     SiteDtoMapper,

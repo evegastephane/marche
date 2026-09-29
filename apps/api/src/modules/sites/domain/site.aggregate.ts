@@ -97,10 +97,17 @@ export class Site extends AggregateRoot {
     this.data = { ...this.data, draftThemeSettings: clone(settings), updatedAt: now };
   }
 
-  /** Le brouillon devient le thème en ligne. */
-  publishTheme(now: Date): void {
+  /** Le brouillon devient le thème en ligne, avec son template (changer de template se publie aussi). */
+  publishTheme(now: Date, templateVersion: (templateId: string) => string): void {
     if (!this.hasUnpublishedChanges) return;
-    this.data = { ...this.data, themeSettings: clone(this.data.draftThemeSettings), updatedAt: now };
+    const templateId = this.data.draftThemeSettings.template;
+    this.data = {
+      ...this.data,
+      templateId,
+      templateVersion: templateVersion(templateId),
+      themeSettings: clone(this.data.draftThemeSettings),
+      updatedAt: now,
+    };
     this.record(createEvent('sites.theme.published', this.data.storeId, this.id, { subdomain: this.data.subdomain }, now));
   }
 

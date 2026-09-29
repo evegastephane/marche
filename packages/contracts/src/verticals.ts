@@ -42,6 +42,20 @@ export const OPTION_TYPE_LABELS: Record<OptionType, string> = {
   text: 'Autre',
 };
 
+/** Nature d'une option d'après son nom (« Taille », « Couleur », « Stockage »…), pour les options saisies sans nature. */
+export function inferOptionType(name: string): OptionType {
+  const n = name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  if (n.includes('pointure')) return 'shoe_size';
+  if (n.includes('taille') && !n.includes('ecran')) return 'size';
+  if (n.includes('couleur') || n.includes('coloris')) return 'color';
+  if (n.includes('stockage') || n.includes('capacite')) return 'storage';
+  if (n.includes('memoire') || n.includes('ram')) return 'memory';
+  if (n.includes('ecran')) return 'screen';
+  if (n.includes('etat')) return 'condition';
+  if (n.includes('modele')) return 'model';
+  return 'text';
+}
+
 /** Couleur d'une pastille : #RRGGBB. */
 export const swatchSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/, { error: 'Couleur attendue au format #RRGGBB' });
 
@@ -76,12 +90,13 @@ export const OPTION_PRESETS: Partial<Record<OptionType, string[]>> = {
   condition: ['Neuf', 'Reconditionné – Excellent', 'Reconditionné – Très bon', 'Reconditionné – Bon'],
 };
 
-/** Explication de l'état, affichée sous les cartes « État » du site. */
+/** Explication de l'état, affichée sous les cartes « État » du site (la boutique peut la réécrire). */
 export const CONDITION_HINTS: Record<string, string> = {
   Neuf: 'Jamais utilisé, emballage d’origine.',
   'Reconditionné – Excellent': 'Comme neuf : aucune trace visible, testé et garanti.',
   'Reconditionné – Très bon': 'Micro-rayures à peine visibles, parfaitement fonctionnel.',
   'Reconditionné – Bon': 'Traces d’usage visibles, parfaitement fonctionnel. Le meilleur prix.',
+  Occasion: 'Déjà utilisé, vendu en l’état après vérification du fonctionnement.',
 };
 
 // ───────────── Sortes d'articles ─────────────
@@ -380,16 +395,116 @@ export const sizeGuideSchema = z.object({
 });
 export type SizeGuide = z.infer<typeof sizeGuideSchema>;
 
-/** Réglages propres au type de boutique (guides des tailles pour la mode). */
+// ───────────── Réglages propres au type de boutique ─────────────
+
+const policyText = z.string().trim().max(400).default('');
+
+/** Mode : échange d'une taille qui ne va pas. */
+export const sizeExchangeSchema = z.object({
+  enabled: z.boolean(),
+  days: z.number().int().min(1).max(90),
+  conditions: policyText,
+});
+
+/** Mode : commandes sur mesure (délai de confection, acompte, mesures demandées au client). */
+export const madeToMeasureSchema = z.object({
+  enabled: z.boolean(),
+  leadTimeDays: z.number().int().min(1).max(120),
+  depositPercent: z.number().int().min(0).max(100),
+  measurements: z.array(z.string().trim().min(1).max(40)).min(1).max(12),
+});
+
+/** Mode : le site se range par rayon (Femme, Homme, Enfant), d'après l'attribut « Rayon » des produits. */
+export const departmentsSchema = z.object({ enabled: z.boolean() });
+
+/** Tech : garantie proposée par défaut sur les appareils. */
+export const warrantySettingsSchema = z.object({
+  defaultMonths: z.number().int().min(0).max(60),
+  terms: policyText,
+});
+
+/** Tech : un état proposé (Neuf, Reconditionné…) et son explication affichée sur le site. */
+export const conditionSettingSchema = z.object({
+  value: z.string().trim().min(1).max(40),
+  description: z.string().trim().max(200).default(''),
+  enabled: z.boolean().default(true),
+});
+export type ConditionSetting = z.infer<typeof conditionSettingSchema>;
+
+/** Tech : reprise de l'ancien appareil, proposée sur les fiches des appareils. */
+export const tradeInSchema = z.object({
+  enabled: z.boolean(),
+  text: z.string().trim().max(300).default(''),
+});
+
+/** Tech : IMEI ou numéro de série noté à l'expédition de chaque appareil. */
+export const serialNumbersSchema = z.object({ enabled: z.boolean() });
+
+/** Tech : retours et service après-vente. */
+export const returnsSchema = z.object({
+  enabled: z.boolean(),
+  days: z.number().int().min(1).max(90),
+  conditions: policyText,
+  afterSalesContact: z.string().trim().max(120).default(''),
+});
+
+/** Réglages propres au type de boutique : chaque clé ne s'applique qu'à son type (Mode ou Tech). */
 export const verticalSettingsSchema = z.object({
+  // Mode
   sizeGuides: z
     .object({
       CLOTHING: sizeGuideSchema.optional(),
       SHOES: sizeGuideSchema.optional(),
     })
     .optional(),
+  sizeExchange: sizeExchangeSchema.optional(),
+  madeToMeasure: madeToMeasureSchema.optional(),
+  departments: departmentsSchema.optional(),
+  // Tech
+  warranty: warrantySettingsSchema.optional(),
+  conditions: z.array(conditionSettingSchema).min(1).max(8).optional(),
+  tradeIn: tradeInSchema.optional(),
+  serialNumbers: serialNumbersSchema.optional(),
+  returns: returnsSchema.optional(),
 });
 export type VerticalSettings = z.infer<typeof verticalSettingsSchema>;
+
+/** Mesures demandées par défaut pour une commande sur mesure. */
+export const DEFAULT_MEASUREMENTS = [
+  'Tour de poitrine',
+  'Tour de taille',
+  'Tour de hanches',
+  'Largeur d’épaules',
+  'Longueur de manche',
+  'Longueur totale',
+];
+
+/** Valeurs de départ des réglages, quand la boutique ne les a pas encore touchés. */
+export const DEFAULT_VERTICAL_SETTINGS = {
+  sizeExchange: { enabled: false, days: 7, conditions: 'Article non porté, étiquettes attachées.' },
+  madeToMeasure: { enabled: false, leadTimeDays: 10, depositPercent: 50, measurements: DEFAULT_MEASUREMENTS },
+  departments: { enabled: false },
+  warranty: { defaultMonths: 12, terms: '' },
+  conditions: Object.entries(CONDITION_HINTS).map(([value, description]) => ({
+    value,
+    description,
+    enabled: value !== 'Occasion',
+  })),
+  tradeIn: { enabled: false, text: 'Apportez votre ancien téléphone : nous le reprenons en déduction du prix.' },
+  serialNumbers: { enabled: false },
+  returns: { enabled: false, days: 7, conditions: 'Appareil complet, dans sa boîte, sans dommage.', afterSalesContact: '' },
+} satisfies Required<Omit<VerticalSettings, 'sizeGuides'>>;
+
+/** États proposés par la boutique (réglage Tech), sinon ceux par défaut. */
+export function conditionsFor(settings: VerticalSettings | null | undefined): ConditionSetting[] {
+  return (settings?.conditions ?? DEFAULT_VERTICAL_SETTINGS.conditions).filter((c) => c.enabled);
+}
+
+/** Explication d'un état : celle de la boutique, sinon celle par défaut. */
+export function conditionDescription(settings: VerticalSettings | null | undefined, value: string): string | undefined {
+  const own = settings?.conditions?.find((c) => c.value === value)?.description;
+  return own || CONDITION_HINTS[value];
+}
 
 export const DEFAULT_SIZE_GUIDES: { CLOTHING: SizeGuide; SHOES: SizeGuide } = {
   CLOTHING: {
@@ -449,3 +564,49 @@ export const FILTERABLE_ATTRIBUTES: AttributeField[] = [
       .map((field) => [field.key, field] as const),
   ).values(),
 ];
+
+// ───────────── Services affichés sur le site ─────────────
+
+/** Ce que le site montre des réglages de la boutique : seulement ce qui est activé et propre à son type. */
+export interface StorefrontServicesDto {
+  sizeExchange: { days: number; conditions: string } | null;
+  madeToMeasure: { leadTimeDays: number; depositPercent: number; measurements: string[] } | null;
+  /** Rayons (Femme, Homme, Enfant…) qui ont des produits en vente ; vide si le réglage est coupé. */
+  departments: { value: string; label: string }[];
+  warranty: { defaultMonths: number; terms: string } | null;
+  conditions: { value: string; description: string }[];
+  tradeIn: { text: string } | null;
+  returns: { days: number; conditions: string; afterSalesContact: string } | null;
+  /** L'IMEI ou le numéro de série de l'appareil est noté sur la commande. */
+  serialNumbers: boolean;
+}
+
+export function storefrontServices(
+  type: StoreType,
+  settings: VerticalSettings | null | undefined,
+  departmentsWithProducts: string[] = [],
+): StorefrontServicesDto {
+  const fashion = type === 'FASHION';
+  const on = <T extends { enabled: boolean }>(value: T | undefined): T | null => (value?.enabled ? value : null);
+  const exchange = fashion ? on(settings?.sizeExchange) : null;
+  const measure = fashion ? on(settings?.madeToMeasure) : null;
+  const tradeIn = fashion ? null : on(settings?.tradeIn);
+  const returns = fashion ? null : on(settings?.returns);
+  return {
+    sizeExchange: exchange && { days: exchange.days, conditions: exchange.conditions },
+    madeToMeasure: measure && {
+      leadTimeDays: measure.leadTimeDays,
+      depositPercent: measure.depositPercent,
+      measurements: measure.measurements,
+    },
+    departments:
+      fashion && settings?.departments?.enabled
+        ? AUDIENCES.filter((a) => departmentsWithProducts.includes(a.value)).map((a) => ({ value: a.value, label: a.label }))
+        : [],
+    warranty: !fashion && settings?.warranty ? { defaultMonths: settings.warranty.defaultMonths, terms: settings.warranty.terms } : null,
+    conditions: fashion ? [] : conditionsFor(settings).map((c) => ({ value: c.value, description: c.description || CONDITION_HINTS[c.value] || '' })),
+    tradeIn: tradeIn && { text: tradeIn.text },
+    returns: returns && { days: returns.days, conditions: returns.conditions, afterSalesContact: returns.afterSalesContact },
+    serialNumbers: !fashion && Boolean(settings?.serialNumbers?.enabled),
+  };
+}

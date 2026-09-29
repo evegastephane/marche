@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
+import { CartServices } from '@/components/shop/services';
 import { formatMoney } from '@/lib/format';
 import { CART_COOKIE } from '@/lib/site';
 import { getCart, getStore } from '@/lib/storefront-api';
@@ -117,6 +118,7 @@ export default async function CartPage({ params }: { params: Promise<{ site: str
               </Link>
             )}
             <p className="text-center text-sm text-muted">{store.name} · paiement à la réception</p>
+            <CartServices className="text-center" />
           </div>
         </>
       )}

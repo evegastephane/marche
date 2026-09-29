@@ -3,6 +3,8 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   type GenerateSiteInput,
   generateSiteSchema,
+  type PreviewThemeInput,
+  previewThemeSchema,
   type PreviewTokenDto,
   type SiteDto,
   type UpdateDraftThemeInput,
@@ -68,5 +70,14 @@ export class SitesController {
   @HttpCode(200)
   previewToken(): Promise<PreviewTokenDto> {
     return this.sites.createPreviewToken();
+  }
+
+  /** Aperçu en direct de l'éditeur : réglages non enregistrés d'une session d'aperçu. */
+  @Put('preview-theme')
+  @HttpCode(204)
+  @Roles('ADMIN')
+  @ApiZodBody(previewThemeSchema)
+  async previewTheme(@ZodBody(previewThemeSchema) input: PreviewThemeInput): Promise<void> {
+    await this.sites.previewTheme(input.session, input.settings);
   }
 }

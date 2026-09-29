@@ -1,6 +1,14 @@
 import { useAuth, useClerk } from '@clerk/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createStoreSchema, type CreateStoreInput, CURRENCIES, type Currency, type StoreDto } from '@marche/contracts';
+import {
+  createStoreSchema,
+  type CreateStoreInput,
+  CURRENCIES,
+  type Currency,
+  STORE_TYPE_LABELS,
+  type StoreDto,
+  type StoreType,
+} from '@marche/contracts';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, Navigate, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
@@ -9,6 +17,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import type { z } from 'zod';
 import { COUNTRIES, CURRENCY_NAMES } from '@/features/onboarding/countries';
 import { AccountMenu } from '@/features/shell/account-menu';
+import { StoreTypePicker } from '@/features/verticals/store-type-picker';
 import { ApiError } from '@/shared/api/client';
 import { useApi } from '@/shared/api/use-api';
 import { currencyLabel, slugify } from '@/shared/lib/format';
@@ -65,10 +74,11 @@ function StoreForm() {
     defaultValues: { name: '', slug: '', country: 'SN', currency: 'XOF', type: 'FASHION' },
   });
   const { register, handleSubmit, setValue, setError, control, formState } = form;
-  const [name, slug, currency, country] = useWatch({
+  const [name, slug, currency, country, type] = useWatch({
     control,
-    name: ['name', 'slug', 'currency', 'country'],
+    name: ['name', 'slug', 'currency', 'country', 'type'],
   });
+  const storeType: StoreType = type ?? 'FASHION';
   const countryName = COUNTRIES.find((c) => c.code === country)?.name;
 
   const onSubmit = handleSubmit(async (values) => {
@@ -109,6 +119,7 @@ function StoreForm() {
               {siteHost(slug)}
             </span>
             <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.875rem] text-display-dim">
+              <span>{STORE_TYPE_LABELS[storeType].label}</span>
               <span>{currencyLabel(currency as Currency)}</span>
               {countryName && <span>{countryName}</span>}
             </span>
@@ -129,6 +140,20 @@ function StoreForm() {
         </Reveal>
 
         <Reveal delay={0.1} className="panel flex flex-col gap-5 p-6 sm:p-7">
+          <div className="flex flex-col gap-1.5">
+            <span aria-hidden className="text-[0.8125rem] font-[600] text-ink">
+              Que vendez-vous ?
+            </span>
+            <StoreTypePicker
+              label="Que vendez-vous ?"
+              value={storeType}
+              onChange={(next) => setValue('type', next, { shouldDirty: true })}
+            />
+            <span className="text-[0.8125rem] text-ink-2">
+              Il règle les fiches produit et votre site. Vous pourrez le changer dans les paramètres.
+            </span>
+          </div>
+
           <Field label="Nom de la boutique" error={formState.errors.name?.message}>
             {(props) => (
               <Input

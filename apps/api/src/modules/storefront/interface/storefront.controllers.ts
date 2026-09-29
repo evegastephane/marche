@@ -60,7 +60,7 @@ export class StorefrontCatalogController {
   /** Boutique, thème et navigation (UC-43). */
   @Get('store')
   store(@Storefront() storefront: StorefrontRequestContext): Promise<StorefrontStoreDto> {
-    return this.queries.store(storefront.preview);
+    return this.queries.store(storefront.preview, storefront.previewSession);
   }
 
   @Get('products')

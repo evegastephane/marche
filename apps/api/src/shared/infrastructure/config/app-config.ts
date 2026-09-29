@@ -76,6 +76,16 @@ export const envSchema = z
 
     RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
 
+    /**
+     * Le worker (outbox, e-mails, mise à jour des sites) tourne dans le processus de l'API.
+     * « auto » : oui en développement (un seul `npm run dev` suffit), non ailleurs (deux processus en production).
+     */
+    WORKER_IN_API: z.enum(['auto', 'true', 'false']).default('auto'),
+
+    /** Catalogue d'appareils : clé MobileAPI.dev (sans clé, seul le catalogue déjà importé est consulté). */
+    MOBILEAPI_KEY: optionalString,
+    MOBILEAPI_URL: z.url().default('https://api.mobileapi.dev'),
+
     BULL_BOARD_USER: optionalString,
     BULL_BOARD_PASSWORD: optionalString,
 
@@ -119,6 +129,8 @@ export type Env = z.infer<typeof envSchema>;
 export interface AppConfig {
   env: Env['NODE_ENV'];
   isProduction: boolean;
+  /** Le worker tourne dans le processus de l'API (développement). */
+  workerInApi: boolean;
   port: number;
   logLevel: Env['LOG_LEVEL'];
   databaseUrl: string;
@@ -164,6 +176,7 @@ export interface AppConfig {
     urlScheme: 'http' | 'https';
   };
   rateLimit: { perMinute: number };
+  devices: { mobileApiKey?: string; mobileApiUrl: string };
   dashboard: { url: string };
   bullBoard: { user: string; password: string } | null;
   observe: { appKey: string; appSecret: string } | null;
@@ -191,6 +204,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
   return {
     env: env.NODE_ENV,
     isProduction: env.NODE_ENV === 'production',
+    workerInApi: env.WORKER_IN_API === 'auto' ? env.NODE_ENV === 'development' : env.WORKER_IN_API === 'true',
     port: env.PORT,
     logLevel: env.LOG_LEVEL,
     databaseUrl: env.DATABASE_URL,
@@ -237,6 +251,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
       urlScheme: env.SITE_URL_SCHEME,
     },
     rateLimit: { perMinute: env.RATE_LIMIT_PER_MINUTE },
+    devices: { mobileApiKey: env.MOBILEAPI_KEY, mobileApiUrl: env.MOBILEAPI_URL.replace(/\/+$/, '') },
     dashboard: { url: env.DASHBOARD_URL.replace(/\/+$/, '') },
     bullBoard:
       env.BULL_BOARD_USER && env.BULL_BOARD_PASSWORD

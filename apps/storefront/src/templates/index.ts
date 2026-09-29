@@ -1,22 +1,23 @@
-import type { StorefrontStoreDto } from '@marche/contracts';
-import type { ComponentType, ReactNode } from 'react';
+import { atelierTemplate } from './atelier';
+import { boiteTemplate } from './boite';
+import { couvertureTemplate } from './couverture';
 import { Footer, Header } from './default/components/chrome';
+import { CatalogPage, ProductPage } from './default/pages';
 import { HomeSections } from './default/sections';
+import { devantureTemplate } from './devanture';
+import { enseigneTemplate } from './enseigne';
+import { patronTemplate } from './patron';
+import type { StorefrontTemplate } from './types';
+import { vitrineTemplate } from './vitrine';
 
-/**
- * Contrat d'un template (Abstract Factory, docs/ARCHITECTURE.md §5.5) : une famille cohérente
- * d'en-tête, pied de page et sections. Ajouter un template = ajouter une entrée au registre.
- */
-export interface StorefrontTemplate {
-  id: string;
-  Header: ComponentType<{ store: StorefrontStoreDto; cartCount: number }>;
-  Footer: ComponentType<{ store: StorefrontStoreDto }>;
-  HomeSections: (props: { site: string; store: StorefrontStoreDto }) => ReactNode;
-}
+export type { CatalogPageProps, ProductPageProps, StorefrontTemplate } from './types';
 
-const defaultTemplate: StorefrontTemplate = { id: 'default', Header, Footer, HomeSections };
+const defaultTemplate: StorefrontTemplate = { id: 'default', Header, Footer, HomeSections, ProductPage, CatalogPage };
 
-const TEMPLATES: Record<string, StorefrontTemplate> = { [defaultTemplate.id]: defaultTemplate };
+/** Registre des templates : ajouter un template = ajouter une entrée (et son manifeste dans les contrats). */
+const TEMPLATES: Record<string, StorefrontTemplate> = Object.fromEntries(
+  [defaultTemplate, atelierTemplate, patronTemplate, couvertureTemplate, vitrineTemplate, boiteTemplate, enseigneTemplate, devantureTemplate].map((t) => [t.id, t]),
+);
 
 export function getTemplate(id: string): StorefrontTemplate {
   return TEMPLATES[id] ?? defaultTemplate;

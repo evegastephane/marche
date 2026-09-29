@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import type { SiteStatus, ThemeSettings } from '@marche/contracts';
+import { getTemplate, type SiteStatus, type ThemeSettings } from '@marche/contracts';
 import { JsonCache } from '../../shared/infrastructure/cache/json-cache.js';
 import { TenantContext } from '../../shared/infrastructure/cls/tenant-context.js';
-import { type PreviewClaims, PreviewTokens, SiteRepository } from './application/sites.ports.js';
+import { type PreviewClaims, PreviewThemeStore, PreviewTokens, SiteRepository } from './application/sites.ports.js';
 import { hostCacheKey } from './infrastructure/site-host.cache.js';
 
 export interface ResolvedSite {
@@ -18,6 +18,7 @@ export class SitesFacade {
   constructor(
     private readonly sites: SiteRepository,
     private readonly previews: PreviewTokens,
+    private readonly previewThemes: PreviewThemeStore,
     private readonly cache: JsonCache,
     private readonly tenant: TenantContext,
   ) {}
@@ -35,15 +36,24 @@ export class SitesFacade {
     return resolved;
   }
 
-  /** Thème à afficher pour la boutique courante : brouillon en aperçu, sinon thème en ligne. */
-  async currentTheme(preview: boolean): Promise<{ templateId: string; templateVersion: string; theme: ThemeSettings } | null> {
+  /**
+   * Thème à afficher pour la boutique courante : en aperçu, les réglages en cours d'édition de la session
+   * (aperçu en direct) ou à défaut le brouillon ; sinon le thème en ligne.
+   */
+  async currentTheme(
+    preview: boolean,
+    session?: string,
+  ): Promise<{ templateId: string; templateVersion: string; theme: ThemeSettings } | null> {
     const site = await this.sites.findCurrent();
     if (!site) return null;
     const s = site.snapshot();
+    const live = preview && session ? await this.previewThemes.find(site.id, session) : null;
+    const theme = live ?? (preview ? s.draftThemeSettings : s.themeSettings);
+    // En aperçu, le brouillon peut déjà porter un autre template.
     return {
-      templateId: s.templateId,
-      templateVersion: s.templateVersion,
-      theme: preview ? s.draftThemeSettings : s.themeSettings,
+      templateId: theme.template,
+      templateVersion: getTemplate(theme.template)?.manifest.version ?? s.templateVersion,
+      theme,
     };
   }
 

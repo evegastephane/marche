@@ -19,6 +19,9 @@ async function bootstrap(): Promise<void> {
   if (!config.isProduction) setupSwagger(app);
   await app.listen(config.port);
   app.get(Logger).log(`API démarrée sur le port ${config.port}`, 'Bootstrap');
+  if (config.workerInApi) {
+    app.get(Logger).log('Worker intégré : relais de l’outbox et files BullMQ actifs dans ce processus', 'Bootstrap');
+  }
 }
 
 await bootstrap();

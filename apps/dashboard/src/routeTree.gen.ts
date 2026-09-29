@@ -29,6 +29,8 @@ import { Route as AppOrdersNewRouteImport } from './routes/_app/orders/new'
 import { Route as AppProductsIndexRouteImport } from './routes/_app/products/index'
 import { Route as AppProductsProductIdRouteImport } from './routes/_app/products/$productId'
 import { Route as AppProductsNewRouteImport } from './routes/_app/products/new'
+import { Route as AppRequestsIndexRouteImport } from './routes/_app/requests/index'
+import { Route as AppRequestsRequestIdRouteImport } from './routes/_app/requests/$requestId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -130,6 +132,16 @@ const AppProductsNewRoute = AppProductsNewRouteImport.update({
   path: '/products/new',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRequestsIndexRoute = AppRequestsIndexRouteImport.update({
+  id: '/requests/',
+  path: '/requests/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRequestsRequestIdRoute = AppRequestsRequestIdRouteImport.update({
+  id: '/requests/$requestId',
+  path: '/requests/$requestId',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -147,10 +159,12 @@ export interface FileRoutesByFullPath {
   '/orders/new': typeof AppOrdersNewRoute
   '/products/$productId': typeof AppProductsProductIdRoute
   '/products/new': typeof AppProductsNewRoute
+  '/requests/$requestId': typeof AppRequestsRequestIdRoute
   '/collections/': typeof AppCollectionsIndexRoute
   '/customers/': typeof AppCustomersIndexRoute
   '/orders/': typeof AppOrdersIndexRoute
   '/products/': typeof AppProductsIndexRoute
+  '/requests/': typeof AppRequestsIndexRoute
 }
 export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
@@ -168,10 +182,12 @@ export interface FileRoutesByTo {
   '/orders/new': typeof AppOrdersNewRoute
   '/products/$productId': typeof AppProductsProductIdRoute
   '/products/new': typeof AppProductsNewRoute
+  '/requests/$requestId': typeof AppRequestsRequestIdRoute
   '/collections': typeof AppCollectionsIndexRoute
   '/customers': typeof AppCustomersIndexRoute
   '/orders': typeof AppOrdersIndexRoute
   '/products': typeof AppProductsIndexRoute
+  '/requests': typeof AppRequestsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -191,10 +207,12 @@ export interface FileRoutesById {
   '/_app/orders/new': typeof AppOrdersNewRoute
   '/_app/products/$productId': typeof AppProductsProductIdRoute
   '/_app/products/new': typeof AppProductsNewRoute
+  '/_app/requests/$requestId': typeof AppRequestsRequestIdRoute
   '/_app/collections/': typeof AppCollectionsIndexRoute
   '/_app/customers/': typeof AppCustomersIndexRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
   '/_app/products/': typeof AppProductsIndexRoute
+  '/_app/requests/': typeof AppRequestsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -214,10 +232,12 @@ export interface FileRouteTypes {
     | '/orders/new'
     | '/products/$productId'
     | '/products/new'
+    | '/requests/$requestId'
     | '/collections/'
     | '/customers/'
     | '/orders/'
     | '/products/'
+    | '/requests/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/onboarding'
@@ -235,10 +255,12 @@ export interface FileRouteTypes {
     | '/orders/new'
     | '/products/$productId'
     | '/products/new'
+    | '/requests/$requestId'
     | '/collections'
     | '/customers'
     | '/orders'
     | '/products'
+    | '/requests'
   id:
     | '__root__'
     | '/_app'
@@ -257,10 +279,12 @@ export interface FileRouteTypes {
     | '/_app/orders/new'
     | '/_app/products/$productId'
     | '/_app/products/new'
+    | '/_app/requests/$requestId'
     | '/_app/collections/'
     | '/_app/customers/'
     | '/_app/orders/'
     | '/_app/products/'
+    | '/_app/requests/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -412,6 +436,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProductsNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/requests/': {
+      id: '/_app/requests/'
+      path: '/requests'
+      fullPath: '/requests/'
+      preLoaderRoute: typeof AppRequestsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/requests/$requestId': {
+      id: '/_app/requests/$requestId'
+      path: '/requests/$requestId'
+      fullPath: '/requests/$requestId'
+      preLoaderRoute: typeof AppRequestsRequestIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -428,10 +466,12 @@ interface AppRouteChildren {
   AppOrdersNewRoute: typeof AppOrdersNewRoute
   AppProductsProductIdRoute: typeof AppProductsProductIdRoute
   AppProductsNewRoute: typeof AppProductsNewRoute
+  AppRequestsRequestIdRoute: typeof AppRequestsRequestIdRoute
   AppCollectionsIndexRoute: typeof AppCollectionsIndexRoute
   AppCustomersIndexRoute: typeof AppCustomersIndexRoute
   AppOrdersIndexRoute: typeof AppOrdersIndexRoute
   AppProductsIndexRoute: typeof AppProductsIndexRoute
+  AppRequestsIndexRoute: typeof AppRequestsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -447,10 +487,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppOrdersNewRoute: AppOrdersNewRoute,
   AppProductsProductIdRoute: AppProductsProductIdRoute,
   AppProductsNewRoute: AppProductsNewRoute,
+  AppRequestsRequestIdRoute: AppRequestsRequestIdRoute,
   AppCollectionsIndexRoute: AppCollectionsIndexRoute,
   AppCustomersIndexRoute: AppCustomersIndexRoute,
   AppOrdersIndexRoute: AppOrdersIndexRoute,
   AppProductsIndexRoute: AppProductsIndexRoute,
+  AppRequestsIndexRoute: AppRequestsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

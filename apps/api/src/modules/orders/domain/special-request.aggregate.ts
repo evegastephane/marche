@@ -1,4 +1,4 @@
-import type { Currency, SpecialRequestStatus } from '@marche/contracts';
+import type { Currency, SpecialRequestStatus, SpecialRequestType } from '@marche/contracts';
 import { AggregateRoot } from '../../../shared/domain/aggregate-root.js';
 import { createEvent } from '../../../shared/domain/domain-event.js';
 import { ConflictError, ValidationError } from '../../../shared/domain/domain-error.js';
@@ -6,6 +6,8 @@ import { newId } from '../../../shared/domain/id.js';
 
 export interface SpecialRequestData {
   storeId: string;
+  /** Sur commande, reprise de l'ancien appareil, ou sur mesure. */
+  type: SpecialRequestType;
   productId: string | null;
   productTitle: string;
   productSlug: string | null;
@@ -17,6 +19,8 @@ export interface SpecialRequestData {
   email: string;
   phone: string;
   note: string | null;
+  /** Mesures du client (sur mesure) ou appareil à reprendre (reprise). */
+  details: { name: string; value: string }[];
   currency: Currency;
   status: SpecialRequestStatus;
   quotedUnitPriceAmount: number | null;
@@ -58,6 +62,7 @@ export class SpecialRequest extends AggregateRoot {
     const request = new SpecialRequest(newId(), {
       ...input,
       options: input.options.map((option) => ({ ...option })),
+      details: input.details.map((detail) => ({ ...detail })),
       status: 'NEW',
       quotedUnitPriceAmount: null,
       quotedDelay: null,
@@ -71,7 +76,7 @@ export class SpecialRequest extends AggregateRoot {
         'orders.special-request.received',
         input.storeId,
         request.id,
-        { productTitle: input.productTitle, quantity: input.quantity },
+        { productTitle: input.productTitle, quantity: input.quantity, type: input.type },
         now,
       ),
     );

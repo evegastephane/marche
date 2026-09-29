@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { DeviceCatalog } from '../src/modules/devices/application/devices.ports.js';
 import { createStoreFor, createTestApp, STOREFRONT_TOKEN, type TestApp, uniqueSlug } from './support/test-app.js';
 
 describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)', () => {
@@ -322,5 +323,123 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
       .set(admin())
       .send({ entries: [{ variantId: first!.id, onHand: 3, expectedOnHand: 99 }] });
     expect(stale.status).toBe(409);
+  });
+
+  it('reprise : refusée tant que la boutique ne la propose pas, puis reçue avec l’appareil à reprendre', async () => {
+    const request = {
+      type: 'TRADE_IN',
+      productSlug: phone.slug,
+      options: [{ name: 'Stockage', value: '256 Go' }],
+      details: [
+        { name: 'Modèle', value: 'iPhone 11' },
+        { name: 'État', value: 'Traces d’usage' },
+      ],
+      firstName: 'Fatou',
+      email: 'fatou@example.com',
+      phone: '+221770000001',
+    };
+    const refused = await t.http().post('/storefront/v1/special-requests').set(shop()).send(request);
+    expect(refused.status).toBe(422);
+
+    const enabled = await t
+      .http()
+      .patch('/api/v1/stores/current')
+      .set(admin())
+      .send({
+        verticalSettings: {
+          tradeIn: { enabled: true, text: 'Nous reprenons votre ancien téléphone.' },
+          serialNumbers: { enabled: true },
+        },
+      });
+    expect(enabled.status, JSON.stringify(enabled.body)).toBe(200);
+    const store = await t.http().get('/storefront/v1/store').set(shop());
+    expect(store.body.services).toMatchObject({
+      tradeIn: { text: 'Nous reprenons votre ancien téléphone.' },
+      serialNumbers: true,
+      sizeExchange: null,
+    });
+
+    const received = await t.http().post('/storefront/v1/special-requests').set(shop()).send(request);
+    expect(received.status, JSON.stringify(received.body)).toBe(201);
+    const list = await t.http().get('/api/v1/special-requests?type=TRADE_IN').set(admin());
+    expect(list.body.items[0]).toMatchObject({ type: 'TRADE_IN', details: request.details, options: request.options });
+
+    // Le sur mesure est un service de boutique de mode : refusé ici.
+    const measure = await t
+      .http()
+      .post('/storefront/v1/special-requests')
+      .set(shop())
+      .send({ ...request, type: 'MADE_TO_MEASURE' });
+    expect(measure.status).toBe(422);
+  });
+
+  it('IMEI : noté à l’expédition, un par exemplaire au plus', async () => {
+    const created = await t
+      .http()
+      .post('/api/v1/orders')
+      .set(admin())
+      .send({
+        customer: { email: 'ibou@example.com', firstName: 'Ibou' },
+        lines: [{ variantId: phone.variants[0]!.id, quantity: 1 }],
+      });
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    const placed = await t
+      .http()
+      .post(`/api/v1/orders/${created.body.id}/place`)
+      .set({ ...admin(), 'idempotency-key': randomUUID() });
+    expect(placed.status, JSON.stringify(placed.body)).toBe(200);
+    const lineId = placed.body.lines[0].id as string;
+
+    const tooMany = await t
+      .http()
+      .post(`/api/v1/orders/${created.body.id}/fulfill`)
+      .set(admin())
+      .send({ serialNumbers: [{ lineId, values: ['356938035643809', '356938035643817'] }] });
+    expect(tooMany.status).toBe(422);
+
+    const shipped = await t
+      .http()
+      .post(`/api/v1/orders/${created.body.id}/fulfill`)
+      .set(admin())
+      .send({ serialNumbers: [{ lineId, values: ['356938035643809'] }] });
+    expect(shipped.status, JSON.stringify(shipped.body)).toBe(200);
+    expect(shipped.body).toMatchObject({ status: 'FULFILLED', lines: [{ serialNumbers: ['356938035643809'] }] });
+  });
+
+  it('catalogue d’appareils : sans clé du service, seules les fiches déjà connues sont proposées', async () => {
+    const empty = await t.http().get('/api/v1/devices/search?q=galaxy').set(admin());
+    expect(empty.body).toEqual({ items: [], online: false });
+    const offline = await t.http().post('/api/v1/devices/import').set(admin()).send({ ref: 'online:123' });
+    expect(offline.status).toBe(503);
+    expect(offline.body.code).toBe('DEVICE_SERVICE_DISABLED');
+
+    const record = await t.moduleRef.get(DeviceCatalog, { strict: false }).save(
+      {
+        provider: 'mobileapi',
+        providerId: `e2e-${randomUUID()}`,
+        brand: 'Samsung',
+        name: 'Galaxy A54 5G',
+        kind: 'PHONE',
+        year: 2023,
+        attributes: { model: 'Galaxy A54 5G', screenSize: 6.4, network5g: true },
+        storages: ['128 Go', '256 Go'],
+        colors: [{ value: 'Noir', hex: '#111111' }],
+        description: 'Le Samsung Galaxy A54 5G offre un écran de 6,4 pouces.',
+      },
+      {},
+      'samsung galaxy a54 5g',
+    );
+    const found = await t.http().get('/api/v1/devices/search?q=Galaxy%20A54').set(admin());
+    expect(found.body.items).toEqual([
+      { ref: `catalog:${record.id}`, brand: 'Samsung', name: 'Samsung Galaxy A54 5G', year: 2023, source: 'catalog' },
+    ]);
+    const sheet = await t.http().post('/api/v1/devices/import').set(admin()).send({ ref: `catalog:${record.id}` });
+    expect(sheet.status).toBe(200);
+    expect(sheet.body).toMatchObject({
+      name: 'Samsung Galaxy A54 5G',
+      kind: 'PHONE',
+      storages: ['128 Go', '256 Go'],
+      attributes: { screenSize: 6.4 },
+    });
   });
 });

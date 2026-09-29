@@ -26,6 +26,8 @@ export interface OrderLineData {
   tracksInventory: boolean;
   /** Ligne libre (commande sur demande) : hors catalogue, au prix convenu, sans stock réservé. */
   custom: boolean;
+  /** IMEI ou numéros de série notés à l'expédition (au plus un par exemplaire). */
+  serialNumbers?: string[];
 }
 
 export type NewOrderLine = Omit<OrderLineData, 'id'>;
@@ -250,10 +252,26 @@ export class Order extends AggregateRoot {
     );
   }
 
-  /** UC-33 : PLACED → FULFILLED (le use case consomme le stock réservé). */
-  fulfill(now: Date): void {
+  /**
+   * UC-33 : PLACED → FULFILLED (le use case consomme le stock réservé). Les IMEI ou numéros de série
+   * des appareils expédiés se notent ici : au plus un par exemplaire, sans doublon dans la commande.
+   */
+  fulfill(now: Date, serials: readonly { lineId: string; values: readonly string[] }[] = []): void {
     this.state = this.state.fulfill();
-    this.data = { ...this.data, status: this.state.status, fulfilledAt: now, updatedAt: now };
+    const byLine = new Map(serials.map((entry) => [entry.lineId, entry.values.map((v) => v.trim()).filter(Boolean)]));
+    const all = [...byLine.values()].flat();
+    if (new Set(all).size !== all.length) {
+      throw new ValidationError('DUPLICATE_SERIAL', 'Le même IMEI ou numéro de série est saisi deux fois');
+    }
+    for (const [lineId, values] of byLine) {
+      const line = this.data.lines.find((l) => l.id === lineId);
+      if (!line) throw new ValidationError('VALIDATION_FAILED', 'Ligne de commande inconnue');
+      if (values.length > line.quantity) {
+        throw new ValidationError('TOO_MANY_SERIALS', `Plus de numéros que d'exemplaires pour « ${line.productTitle} »`);
+      }
+    }
+    const lines = this.data.lines.map((line) => (byLine.has(line.id) ? { ...line, serialNumbers: byLine.get(line.id) } : line));
+    this.data = { ...this.data, lines, status: this.state.status, fulfilledAt: now, updatedAt: now };
     this.record(
       createEvent('orders.order.fulfilled', this.data.storeId, this.id, { number: this.data.number, email: this.data.email }, now),
     );

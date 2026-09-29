@@ -10,6 +10,7 @@ import {
   productKindSchema,
   type SizeGuide,
   type StoreType,
+  type StorefrontServicesDto,
 } from './verticals.js';
 
 /** Paramètre répétable « type:valeur » (ex. o=size:M&o=color:Bleu), normalisé en liste. */
@@ -79,6 +80,8 @@ export interface StorefrontStoreDto {
   type: StoreType;
   /** Guides des tailles de la boutique (ou ceux par défaut), affichés sur les fiches Mode. */
   sizeGuides: { CLOTHING: SizeGuide; SHOES: SizeGuide };
+  /** Services propres au type de boutique : échange, sur mesure, rayons, garantie, reprise, retours. */
+  services: StorefrontServicesDto;
   templateId: string;
   templateVersion: string;
   theme: ThemeSettings;

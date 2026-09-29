@@ -12,9 +12,9 @@ import { ActorContext } from '../../../shared/application/actor-context.port.js'
 import { Clock } from '../../../shared/application/clock.port.js';
 import { OutboxPort } from '../../../shared/application/outbox.port.js';
 import { UnitOfWork } from '../../../shared/application/unit-of-work.port.js';
-import { NotFoundError } from '../../../shared/domain/domain-error.js';
+import { NotFoundError, ValidationError } from '../../../shared/domain/domain-error.js';
 import { CatalogFacade } from '../../catalog/catalog.facade.js';
-import { StoresFacade } from '../../stores/stores.facade.js';
+import { type StoreSettings, StoresFacade } from '../../stores/stores.facade.js';
 import { SpecialRequestRepository } from '../domain/order.repositories.js';
 import { InvalidRequestTransitionError, SpecialRequest } from '../domain/special-request.aggregate.js';
 import { CreateDraftOrderUseCase } from './order.use-cases.js';
@@ -43,6 +43,7 @@ export class SpecialRequestUseCases {
     const product = await this.catalog.getPublishedProduct(input.productSlug);
     if (!product) throw new NotFoundError('Produit', input.productSlug);
     const settings = await this.stores.getSettings(this.actor.storeId);
+    const details = this.checkDetails(input, settings);
     // Une valeur par option du produit ; les valeurs peuvent être absentes du catalogue (c'est le but).
     const known = new Map(product.options.map((option) => [option.name.toLowerCase(), option.name]));
     const options = [
@@ -66,6 +67,8 @@ export class SpecialRequestUseCases {
         email: input.email,
         phone: input.phone,
         note: input.note ?? null,
+        type: input.type,
+        details,
         currency: settings.currency,
       },
       this.clock.now(),
@@ -75,6 +78,28 @@ export class SpecialRequestUseCases {
       await this.outbox.addAll(request.pullEvents());
     });
     return { id: request.id, productTitle: product.title };
+  }
+
+  /**
+   * Reprise (boutique Tech) et sur mesure (boutique Mode) ne sont reçues que si la boutique les propose.
+   * Pour le sur mesure, seules les mesures demandées par la boutique sont gardées.
+   */
+  private checkDetails(input: SpecialRequestInput, settings: StoreSettings): { name: string; value: string }[] {
+    const vertical = settings.verticalSettings;
+    if (input.type === 'TRADE_IN') {
+      if (settings.type !== 'ELECTRONICS' || !vertical.tradeIn?.enabled) {
+        throw new ValidationError('SERVICE_UNAVAILABLE', 'La boutique ne propose pas la reprise');
+      }
+      return input.details.slice(0, 6);
+    }
+    if (input.type === 'MADE_TO_MEASURE') {
+      if (settings.type !== 'FASHION' || !vertical.madeToMeasure?.enabled) {
+        throw new ValidationError('SERVICE_UNAVAILABLE', 'La boutique ne propose pas le sur mesure');
+      }
+      const asked = new Set(vertical.madeToMeasure.measurements.map((m: string) => m.toLowerCase()));
+      return input.details.filter((d) => asked.has(d.name.toLowerCase()));
+    }
+    return [];
   }
 
   list(query: SpecialRequestListQuery): Promise<Paginated<SpecialRequestDto>> {

@@ -8,7 +8,9 @@ import {
   type PublicOrderDto,
   STOREFRONT_HEADERS,
   type StorefrontBrandDto,
+  type SpecialRequestReceiptDto,
   type StorefrontCollectionDto,
+  type StorefrontFacetsDto,
   type StorefrontProductCardDto,
   type StorefrontProductDto,
   type StorefrontSort,
@@ -33,7 +35,8 @@ export class StorefrontApiError extends Error {
 interface CallOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
-  query?: Record<string, string | number | undefined>;
+  /** Un tableau devient un paramètre répété (o=size:M&o=color:Bleu). */
+  query?: Record<string, string | number | string[] | undefined>;
   /** Lecture mise en cache (tags revalidés par le worker de l'API). */
   tags?: string[];
   idempotencyKey?: string;
@@ -46,7 +49,8 @@ interface CallOptions {
 async function call<T>(site: string, path: string, options: CallOptions = {}): Promise<T> {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(options.query ?? {})) {
-    if (value !== undefined && value !== '') search.set(key, String(value));
+    if (Array.isArray(value)) for (const item of value) search.append(key, item);
+    else if (value !== undefined && value !== '') search.set(key, String(value));
   }
   const url = `${env.apiUrl}/storefront/v1${path}${search.size ? `?${search}` : ''}`;
   const requestHeaders: Record<string, string> = {
@@ -99,11 +103,21 @@ async function orNotFound<T>(promise: Promise<T>): Promise<T> {
 /** Boutique et thème, dédupliqués sur une même requête (layout + page). */
 export const getStore = cache((site: string) => orNotFound(call<StorefrontStoreDto>(site, '/store', { tags: [] })));
 
-export async function getProducts(
-  site: string,
-  storeId: string,
-  query: { collection?: string; sort?: StorefrontSort; limit?: number; cursor?: string } = {},
-) {
+/** Filtres du catalogue du site (paramètres de l'API storefront). */
+export type ProductQuery = {
+  collection?: string;
+  brand?: string;
+  sort?: StorefrontSort;
+  limit?: number;
+  cursor?: string;
+  kind?: string;
+  o?: string[];
+  a?: string[];
+  priceMin?: number;
+  priceMax?: number;
+};
+
+export async function getProducts(site: string, storeId: string, query: ProductQuery = {}) {
   return call<Paginated<StorefrontProductCardDto>>(site, '/products', { query, tags: [`catalog:${storeId}`, `store:${storeId}`] });
 }
 
@@ -120,6 +134,10 @@ export async function getCollection(site: string, storeId: string, slug: string)
   return orNotFound(
     call<StorefrontCollectionDto>(site, `/collections/${encodeURIComponent(slug)}`, { tags: [`catalog:${storeId}`] }),
   );
+}
+
+export async function getFacets(site: string, storeId: string, query: { collection?: string; kind?: string } = {}) {
+  return call<StorefrontFacetsDto>(site, '/facets', { query, tags: [`catalog:${storeId}`] });
 }
 
 export async function getBrands(site: string, storeId: string) {
@@ -152,6 +170,10 @@ export const storefrontWrite = {
   createCart: (site: string) => call<CartDto>(site, '/carts', { method: 'POST' }),
   addLine: (site: string, cartId: string, variantId: string, quantity: number) =>
     call<CartDto>(site, `/carts/${cartId}/lines`, { method: 'POST', body: { variantId, quantity } }),
+  addLines: (site: string, cartId: string, lines: { variantId: string; quantity: number }[]) =>
+    call<CartDto>(site, `/carts/${cartId}/lines/batch`, { method: 'POST', body: { lines } }),
+  specialRequest: (site: string, body: unknown) =>
+    call<SpecialRequestReceiptDto>(site, '/special-requests', { method: 'POST', body }),
   updateLine: (site: string, cartId: string, variantId: string, quantity: number) =>
     call<CartDto>(site, `/carts/${cartId}/lines/${variantId}`, { method: 'PATCH', body: { quantity } }),
   removeLine: (site: string, cartId: string, variantId: string) =>

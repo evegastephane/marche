@@ -19,6 +19,8 @@ export interface StorefrontRequestContext {
   subdomain: string;
   /** Aperçu du thème en brouillon (jeton valide), le site peut alors être hors ligne. */
   preview: boolean;
+  /** Session d'aperçu en direct (éditeur du dashboard), quand le jeton en porte une. */
+  previewSession?: string;
   /** Le site accepte des commandes (en ligne et hors aperçu). */
   acceptsOrders: boolean;
 }
@@ -83,6 +85,7 @@ export class StorefrontGuard implements CanActivate {
       siteId: site.siteId,
       subdomain: site.subdomain,
       preview,
+      previewSession: preview ? claims?.session : undefined,
       acceptsOrders: site.status === 'PUBLISHED' && !preview,
     };
     return true;

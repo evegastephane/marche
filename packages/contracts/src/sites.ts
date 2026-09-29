@@ -15,6 +15,13 @@ export const updateDraftThemeSchema = z.object({
 });
 export type UpdateDraftThemeInput = z.infer<typeof updateDraftThemeSchema>;
 
+/** Réglages en cours d'édition, montrés en direct dans l'aperçu du dashboard (jamais enregistrés). */
+export const previewThemeSchema = z.object({
+  session: z.uuid(),
+  settings: z.unknown(),
+});
+export type PreviewThemeInput = z.infer<typeof previewThemeSchema>;
+
 export interface SiteDto {
   id: string;
   subdomain: string;
@@ -33,5 +40,10 @@ export interface SiteDto {
 export interface PreviewTokenDto {
   token: string;
   expiresAt: string;
+  /** Aperçu dans un nouvel onglet. */
   previewUrl: string;
+  /** Aperçu intégré à l'éditeur du dashboard (iframe). */
+  embedUrl: string;
+  /** Session d'aperçu : les réglages non enregistrés envoyés par l'éditeur s'y rattachent. */
+  session: string;
 }

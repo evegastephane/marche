@@ -1,3 +1,4 @@
+import type { ThemeSettings } from '@marche/contracts';
 import type { Site } from '../domain/site.aggregate.js';
 
 export abstract class SiteRepository {
@@ -13,12 +14,23 @@ export abstract class SiteRepository {
 export interface PreviewClaims {
   siteId: string;
   storeId: string;
+  /** Session d'aperçu (identifiant du jeton) ; absente des jetons émis avant l'aperçu en direct. */
+  session?: string;
 }
 
-/** Jetons d'aperçu du thème en brouillon (HS256, 30 min). */
+/** Jetons d'aperçu du thème en brouillon (HS256, 30 min). Chaque jeton ouvre sa propre session. */
 export abstract class PreviewTokens {
-  abstract sign(claims: PreviewClaims): Promise<{ token: string; expiresAt: Date }>;
+  abstract sign(claims: Omit<PreviewClaims, 'session'>): Promise<{ token: string; expiresAt: Date; session: string }>;
   abstract verify(token: string): Promise<PreviewClaims | null>;
+}
+
+/**
+ * Réglages non enregistrés d'une session d'aperçu : l'éditeur les envoie à chaque modification,
+ * le site les affiche à la place du brouillon, sans jamais toucher au brouillon ni au thème en ligne.
+ */
+export abstract class PreviewThemeStore {
+  abstract save(siteId: string, session: string, settings: ThemeSettings): Promise<void>;
+  abstract find(siteId: string, session: string): Promise<ThemeSettings | null>;
 }
 
 /** Revalidation du cache du storefront (Next.js revalidateTag). */

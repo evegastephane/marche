@@ -177,28 +177,77 @@ describe('Génération du site et parcours acheteur (e2e)', () => {
 
   it('édite le thème en brouillon, le prévisualise puis le publie', async () => {
     const site = await t.http().get('/api/v1/site').set(admin());
-    const invalid = await t.http().put('/api/v1/site/theme').set(admin()).send({ settings: { colors: 'rouge' } });
+    const invalid = await t.http().put('/api/v1/site/theme').set(admin()).send({ settings: { sections: 'rouge' } });
     expect(invalid.status).toBe(422);
 
     const draft = structuredClone(site.body.draftThemeSettings);
-    draft.colors.primary = '#AA0000';
+    draft.palette = 'nuit';
     draft.announcement = { enabled: true, text: 'Livraison offerte dès 50 €' };
     const updated = await t.http().put('/api/v1/site/theme').set(admin()).send({ settings: draft });
     expect(updated.status).toBe(200);
     expect(updated.body.hasUnpublishedChanges).toBe(true);
 
     const live = await t.http().get('/storefront/v1/store').set(shop());
-    expect(live.body.theme.colors.primary).not.toBe('#AA0000');
+    expect(live.body.theme.palette).not.toBe('nuit');
 
     const preview = await t.http().post('/api/v1/site/preview-token').set(admin());
     expect(preview.body.previewUrl).toContain(`https://${slug}.marche.test/preview?token=`);
     const previewed = await t.http().get('/storefront/v1/store').set(shop({ 'x-preview-token': preview.body.token }));
-    expect(previewed.body).toMatchObject({ preview: true, theme: { colors: { primary: '#AA0000' } } });
+    expect(previewed.body).toMatchObject({ preview: true, theme: { palette: 'nuit' } });
 
     const published = await t.http().post('/api/v1/site/theme/publish').set(admin());
     expect(published.body.hasUnpublishedChanges).toBe(false);
     const after = await t.http().get('/storefront/v1/store').set(shop());
     expect(after.body.theme.announcement.text).toBe('Livraison offerte dès 50 €');
+
+    // Changer de template : une palette d'un autre template est refusée, puis le changement se publie.
+    const wrongPalette = await t
+      .http()
+      .put('/api/v1/site/theme')
+      .set(admin())
+      .send({ settings: { ...published.body.draftThemeSettings, template: 'atelier', palette: 'nuit' } });
+    expect(wrongPalette.status).toBe(422);
+    const switched = await t
+      .http()
+      .put('/api/v1/site/theme')
+      .set(admin())
+      .send({ settings: { ...published.body.draftThemeSettings, template: 'atelier', palette: 'kraft' } });
+    expect(switched.status).toBe(200);
+    expect(switched.body.templateId).toBe('default');
+    const republished = await t.http().post('/api/v1/site/theme/publish').set(admin());
+    expect(republished.body.templateId).toBe('atelier');
+    const atelier = await t.http().get('/storefront/v1/store').set(shop());
+    expect(atelier.body).toMatchObject({ templateId: 'atelier', theme: { template: 'atelier', palette: 'kraft' } });
+  });
+
+  it('aperçu en direct : les réglages en cours s’affichent dans la session, sans toucher au brouillon', async () => {
+    const site = await t.http().get('/api/v1/site').set(admin());
+    const preview = await t.http().post('/api/v1/site/preview-token').set(admin());
+    expect(preview.body.embedUrl).toContain(`https://${slug}.marche.test/preview/embed?token=`);
+    expect(preview.body.session).toMatch(/^[0-9a-f-]{36}$/);
+
+    const editing = { ...site.body.draftThemeSettings, template: 'boite', palette: 'bleu-nuit' };
+    const sent = await t.http().put('/api/v1/site/preview-theme').set(admin()).send({ session: preview.body.session, settings: editing });
+    expect(sent.status).toBe(204);
+
+    const headers = shop({ 'x-preview-token': preview.body.token });
+    const previewed = await t.http().get('/storefront/v1/store').set(headers);
+    expect(previewed.body).toMatchObject({ preview: true, templateId: 'boite', theme: { template: 'boite', palette: 'bleu-nuit' } });
+
+    // Une autre session d'aperçu (un autre onglet) montre toujours le brouillon enregistré.
+    const other = await t.http().post('/api/v1/site/preview-token').set(admin());
+    const draft = await t.http().get('/storefront/v1/store').set(shop({ 'x-preview-token': other.body.token }));
+    expect(draft.body.theme.template).toBe(site.body.draftThemeSettings.template);
+
+    // Le brouillon et le site en ligne n'ont pas bougé ; une palette étrangère au template est refusée.
+    expect((await t.http().get('/api/v1/site').set(admin())).body.draftThemeSettings).toEqual(site.body.draftThemeSettings);
+    expect((await t.http().get('/storefront/v1/store').set(shop())).body.templateId).toBe(site.body.templateId);
+    const wrong = await t
+      .http()
+      .put('/api/v1/site/preview-theme')
+      .set(admin())
+      .send({ session: preview.body.session, settings: { ...editing, palette: 'kraft' } });
+    expect(wrong.status).toBe(422);
   });
 
   it('met le site hors ligne : 404 pour les visiteurs, aperçu possible mais sans commande', async () => {

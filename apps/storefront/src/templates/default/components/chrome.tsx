@@ -2,6 +2,7 @@ import type { StorefrontStoreDto } from '@marche/contracts';
 import { ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 import { imageProps } from './media';
+import { navLinks } from '../../shared';
 import { CartCount } from './motion';
 import { UpsellMark } from '@/components/upsell-mark';
 
@@ -16,7 +17,7 @@ const mobileNavLink =
 /** En-tête : annonce, nom ou logo de la boutique, catalogues, panier avec son compteur. */
 export function Header({ store, cartCount }: { store: StorefrontStoreDto; cartCount: number }) {
   const { announcement } = store.theme;
-  const collections = store.navigation.collections.slice(0, 5);
+  const collections = navLinks(store);
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur-xl supports-[backdrop-filter]:bg-bg/75">
       {announcement.enabled && announcement.text && (
@@ -35,7 +36,7 @@ export function Header({ store, cartCount }: { store: StorefrontStoreDto; cartCo
             Tous les produits
           </Link>
           {collections.map((c) => (
-            <Link key={c.slug} href={`/collections/${c.slug}`} className={navLink}>
+            <Link key={c.key} href={c.href} className={navLink}>
               {c.title}
             </Link>
           ))}
@@ -61,7 +62,7 @@ export function Header({ store, cartCount }: { store: StorefrontStoreDto; cartCo
             Tous les produits
           </Link>
           {collections.map((c) => (
-            <Link key={c.slug} href={`/collections/${c.slug}`} className={mobileNavLink}>
+            <Link key={c.key} href={c.href} className={mobileNavLink}>
               {c.title}
             </Link>
           ))}

@@ -393,6 +393,7 @@ model OrderLine {
   lineTotalAmount Int             @map("line_total_amount")
   tracksInventory Boolean         @default(true) @map("tracks_inventory") // la ligne a réservé du stock
   custom          Boolean         @default(false) // ligne libre (commande sur demande), hors catalogue
+  serialNumbers   String[]        @default([]) @map("serial_numbers") // IMEI ou n° de série notés à l'expédition
   position        Int
   order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variant         ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
@@ -564,6 +565,12 @@ enum SpecialRequestStatus {
   CONVERTED
 }
 
+enum SpecialRequestType {
+  CONFIGURATION
+  TRADE_IN
+  MADE_TO_MEASURE
+}
+
 /// Commande sur demande : une configuration absente du stock, demandée depuis le site.
 model SpecialRequest {
   id                    String               @id @default(uuid(7)) @db.Uuid
@@ -579,6 +586,9 @@ model SpecialRequest {
   email                 String
   phone                 String
   note                  String?
+  /// Mesures du client (sur mesure) ou appareil repris : [{ name, value }].
+  details               Json                 @default("[]")
+  type                  SpecialRequestType   @default(CONFIGURATION)
   currency              String               @db.Char(3)
   status                SpecialRequestStatus @default(NEW)
   quotedUnitPriceAmount Int?                 @map("quoted_unit_price_amount")
@@ -593,4 +603,32 @@ model SpecialRequest {
 
   @@index([storeId, status, createdAt(sort: Desc)])
   @@map("special_requests")
+}
+
+// ───────────── devices (catalogue partagé, hors boutique) ─────────────
+
+/// Fiche d'un appareil connu (téléphone, tablette, montre…), partagée par toutes les boutiques.
+/// Une fiche importée d'un service en ligne y reste : les boutiques suivantes la trouvent sans nouvelle requête.
+model DeviceModel {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  provider    String // « mobileapi »
+  providerId  String   @map("provider_id")
+  brand       String
+  name        String
+  /// Nom complet normalisé (« apple iphone 12 ») pour la recherche.
+  searchName  String   @map("search_name")
+  kind        String // PHONE, TABLET, WATCH, COMPUTER
+  year        Int?
+  attributes  Json
+  storages    String[] @default([])
+  colors      Json     @default("[]")
+  description String
+  /// Réponse brute du service, gardée pour réinterpréter la fiche sans nouvelle requête.
+  raw         Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([provider, providerId])
+  @@index([searchName])
+  @@map("device_models")
 }

@@ -44,6 +44,8 @@ describe('createStoreSchema', () => {
       currency: 'XOF',
       country: 'SN',
       timezone: 'Africa/Dakar',
+      // Type de boutique facultatif à la création : Mode par défaut.
+      type: 'FASHION',
     });
   });
 

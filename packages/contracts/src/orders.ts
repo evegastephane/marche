@@ -99,7 +99,21 @@ export interface OrderLineDto {
   tracksInventory: boolean;
   /** Ligne libre (commande sur demande) : hors catalogue, sans réservation de stock. */
   custom: boolean;
+  /** IMEI ou numéros de série des appareils expédiés (boutique Tech). */
+  serialNumbers: string[];
 }
+
+/** Expédition : IMEI ou numéros de série notés pour chaque ligne d'appareil (facultatif). */
+export const fulfillOrderSchema = z
+  .object({
+    serialNumbers: z
+      .array(z.object({ lineId: z.uuid(), values: z.array(z.string().trim().min(3).max(40)).max(50) }))
+      .max(100)
+      .default([]),
+  })
+  .optional()
+  .transform((input) => input ?? { serialNumbers: [] });
+export type FulfillOrderInput = z.infer<typeof fulfillOrderSchema>;
 
 /** Remise d'un pack appliquée à une commande (ou à un panier). */
 export interface OrderDiscount {

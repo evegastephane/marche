@@ -12,6 +12,7 @@ import { HealthController } from './shared/infrastructure/health/health.controll
 import { basicAuth } from './shared/infrastructure/http/basic-auth.middleware.js';
 import { ProblemDetailsFilter } from './shared/infrastructure/http/problem-details.js';
 import { observeModules } from './shared/infrastructure/observe/observe.js';
+import { QueueWorkersModule } from './shared/infrastructure/queue/queue-workers.module.js';
 import { QUEUE_NAMES } from './shared/infrastructure/queue/queues.js';
 import { createThrottlingModule } from './shared/infrastructure/throttling/throttling.module.js';
 
@@ -39,6 +40,8 @@ export class AppModule {
         ...observeModules(config, 'api'),
         ...bullBoardModules(config),
         ...DOMAIN_MODULES,
+        // En développement, le worker tourne ici : le site se met à jour et les e-mails partent sans second processus.
+        ...(config.workerInApi ? [QueueWorkersModule] : []),
       ],
       controllers: [HealthController],
       providers: [

@@ -57,6 +57,7 @@ function toDomain(row: OrderRow): Order {
         quantity: line.quantity,
         tracksInventory: line.tracksInventory,
         custom: line.custom,
+        serialNumbers: line.serialNumbers,
       })),
       subtotalAmount: row.subtotalAmount,
       discounts: parseDiscounts(row.discounts),
@@ -159,6 +160,7 @@ export class PrismaOrderRepository extends OrderRepository {
         lineTotalAmount: lineTotal(line),
         tracksInventory: line.tracksInventory,
         custom: line.custom,
+        serialNumbers: line.serialNumbers ?? [],
         position,
       })),
     });

@@ -5,6 +5,7 @@ import {
   type OptionType,
   type Paginated,
   sizeGuideFor,
+  storefrontServices,
   type StorefrontFacetsDto,
   type StorefrontFacetsQuery,
   type PublicOrderDto,
@@ -51,9 +52,9 @@ export class StorefrontQueries {
   ) {}
 
   /** Boutique, thème (brouillon en aperçu), navigation et médias du thème. */
-  async store(preview: boolean): Promise<StorefrontStoreDto> {
+  async store(preview: boolean, previewSession?: string): Promise<StorefrontStoreDto> {
     const settings = await this.stores.getSettings(this.actor.storeId);
-    const site = await this.sites.currentTheme(preview);
+    const site = await this.sites.currentTheme(preview, previewSession);
     if (!site) throw new NotFoundError('Boutique');
     const [collections, hasProducts] = await Promise.all([
       this.catalog.listPublishedCollections(),
@@ -62,6 +63,10 @@ export class StorefrontQueries {
     const heroImages = site.theme.sections.flatMap((section) =>
       section.type === 'hero' && section.imageMediaId ? [section.imageMediaId] : [],
     );
+    const departments =
+      settings.type === 'FASHION' && settings.verticalSettings.departments?.enabled
+        ? ((await this.catalog.facets({}))?.attributes.find((group) => group.key === 'audience')?.values.map((v) => v.value) ?? [])
+        : [];
     const logoId = site.theme.logoMediaId ?? settings.logoMediaId;
     const media = await this.media.getMany([...heroImages, ...(logoId ? [logoId] : [])]);
     return {
@@ -77,6 +82,7 @@ export class StorefrontQueries {
         CLOTHING: sizeGuideFor('CLOTHING', settings.verticalSettings)!,
         SHOES: sizeGuideFor('SHOES', settings.verticalSettings)!,
       },
+      services: storefrontServices(settings.type, settings.verticalSettings, departments),
       templateId: site.templateId,
       templateVersion: site.templateVersion,
       theme: site.theme,

@@ -2,6 +2,7 @@ import { Link, Outlet, useRouterState } from '@tanstack/react-router';
 import {
   Boxes,
   House,
+  Inbox,
   Layers,
   type LucideIcon,
   Megaphone,
@@ -16,6 +17,7 @@ import {
 import { motion } from 'motion/react';
 import { useState } from 'react';
 import { useOverview } from '@/features/home/api';
+import { useRequestSummary } from '@/features/requests/api';
 import { cn } from '@/shared/lib/cn';
 import { Led } from '@/shared/ui/badge';
 import { UpsellLogo, UpsellMark } from '@/shared/ui/brand';
@@ -28,6 +30,7 @@ import { StoreSwitcher } from './store-switcher';
 type NavTo =
   | '/'
   | '/orders'
+  | '/requests'
   | '/customers'
   | '/campaigns'
   | '/products'
@@ -54,6 +57,7 @@ const NAV: NavGroup[] = [
     label: 'Vendre',
     items: [
       { to: '/orders', label: 'Commandes', icon: ReceiptText },
+      { to: '/requests', label: 'Demandes', icon: Inbox },
       { to: '/customers', label: 'Clients', icon: Users },
       { to: '/campaigns', label: 'Campagnes', icon: Megaphone },
     ],
@@ -87,8 +91,13 @@ const PHONE_KEYS: NavItem[] = [
 /** Témoin orange sur « Commandes » tant qu'il reste des commandes à expédier. */
 function useAttention(): Partial<Record<NavTo, number>> {
   const overview = useOverview('30d');
+  const requests = useRequestSummary();
   const toShip = overview.data?.ordersToFulfill ?? 0;
-  return toShip > 0 ? { '/orders': toShip } : {};
+  const toAnswer = requests.data?.newCount ?? 0;
+  return {
+    ...(toShip > 0 ? { '/orders': toShip } : {}),
+    ...(toAnswer > 0 ? { '/requests': toAnswer } : {}),
+  };
 }
 
 export function AppShell() {
@@ -152,13 +161,20 @@ function NavKey({
             />
           )}
           <item.icon
-            className={cn('relative size-[1.125rem] transition-colors', isActive ? 'text-ink' : 'text-ink-3 group-hover:text-ink')}
+            className={cn(
+              'relative size-[1.125rem] transition-colors',
+              isActive ? 'text-ink' : 'text-ink-3 group-hover:text-ink',
+            )}
             strokeWidth={1.8}
           />
-          <span className={cn('relative flex-1', isActive && 'text-ink')}>{item.label}</span>
+          <span className={cn('relative flex-1', isActive && 'text-ink')}>
+            {item.label}
+          </span>
           {attention !== undefined && (
             <span className="relative flex items-center gap-2">
-              <span className="tabular text-[0.8125rem] font-[500] text-ink-2">{attention}</span>
+              <span className="tabular text-[0.8125rem] font-[500] text-ink-2">
+                {attention}
+              </span>
               <Led tone="attention" />
               <span className="sr-only">à expédier</span>
             </span>
@@ -169,22 +185,39 @@ function NavKey({
   );
 }
 
-function NavGroups({ knob, onNavigate }: { knob: string; onNavigate?: () => void }) {
+function NavGroups({
+  knob,
+  onNavigate,
+}: {
+  knob: string;
+  onNavigate?: () => void;
+}) {
   const attention = useAttention();
   let index = 0;
   return (
     <>
       {NAV.map((group) => (
         <div key={group.label ?? 'accueil'} className="flex flex-col gap-0.5">
-          {group.label && <p className="legend px-3 pt-4 pb-1.5">{group.label}</p>}
+          {group.label && (
+            <p className="legend px-3 pt-4 pb-1.5">{group.label}</p>
+          )}
           {group.items.map((item) => (
             <motion.div
               key={item.to}
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.36, ease: EASE_OUT, delay: 0.15 + index++ * 0.025 }}
+              transition={{
+                duration: 0.36,
+                ease: EASE_OUT,
+                delay: 0.15 + index++ * 0.025,
+              }}
             >
-              <NavKey item={item} knob={knob} attention={attention[item.to]} onNavigate={onNavigate} />
+              <NavKey
+                item={item}
+                knob={knob}
+                attention={attention[item.to]}
+                onNavigate={onNavigate}
+              />
             </motion.div>
           ))}
         </div>
@@ -203,7 +236,10 @@ function Sidebar() {
       <div className="mx-3">
         <StoreSwitcher />
       </div>
-      <nav aria-label="Navigation principale" className="flex flex-1 flex-col overflow-y-auto px-3 pt-1 pb-4">
+      <nav
+        aria-label="Navigation principale"
+        className="flex flex-1 flex-col overflow-y-auto px-3 pt-1 pb-4"
+      >
         <NavGroups knob="nav-knob" />
       </nav>
       <div className="flex flex-col gap-3 border-t border-line px-3 py-4">
@@ -217,7 +253,11 @@ function Sidebar() {
 function MobileHeader() {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b border-line bg-canvas px-3 lg:hidden">
-      <UpsellMark intro className="h-6 w-auto shrink-0 text-ink" title="Upsell" />
+      <UpsellMark
+        intro
+        className="h-6 w-auto shrink-0 text-ink"
+        title="Upsell"
+      />
       <div className="min-w-0 flex-1">
         <StoreSwitcher compact />
       </div>
@@ -236,7 +276,9 @@ function BottomNav() {
   const [more, setMore] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const onPhoneKey = PHONE_KEYS.some((item) =>
-    item.to === '/' ? pathname === '/' : pathname === item.to || pathname.startsWith(`${item.to}/`),
+    item.to === '/'
+      ? pathname === '/'
+      : pathname === item.to || pathname.startsWith(`${item.to}/`),
   );
 
   return (
@@ -258,16 +300,31 @@ function BottomNav() {
             {({ isActive }) => (
               <>
                 {isActive && (
-                  <motion.span layoutId="bottom-knob" className="well absolute inset-0 rounded-xl" transition={glide} />
+                  <motion.span
+                    layoutId="bottom-knob"
+                    className="well absolute inset-0 rounded-xl"
+                    transition={glide}
+                  />
                 )}
                 <span className="relative inline-flex">
-                  <item.icon className={cn('size-5', isActive && 'text-ink')} strokeWidth={1.8} />
-                  {attention[item.to] !== undefined && <Led tone="attention" className="absolute -top-0.5 -right-1.5" />}
+                  <item.icon
+                    className={cn('size-5', isActive && 'text-ink')}
+                    strokeWidth={1.8}
+                  />
+                  {attention[item.to] !== undefined && (
+                    <Led
+                      tone="attention"
+                      className="absolute -top-0.5 -right-1.5"
+                    />
+                  )}
                 </span>
                 <span className={cn('relative', isActive && 'text-ink')}>
                   {item.label}
                   {attention[item.to] !== undefined && (
-                    <span className="sr-only"> ({attention[item.to]} à expédier)</span>
+                    <span className="sr-only">
+                      {' '}
+                      ({attention[item.to]} à expédier)
+                    </span>
                   )}
                 </span>
               </>
@@ -280,10 +337,19 @@ function BottomNav() {
           className="relative flex h-14 flex-col items-center justify-center gap-1 rounded-xl text-[0.6875rem] font-[560] text-ink-3"
         >
           {!onPhoneKey && (
-            <motion.span layoutId="bottom-knob" className="well absolute inset-0 rounded-xl" transition={glide} />
+            <motion.span
+              layoutId="bottom-knob"
+              className="well absolute inset-0 rounded-xl"
+              transition={glide}
+            />
           )}
-          <Menu className={cn('relative size-5', !onPhoneKey && 'text-ink')} strokeWidth={1.8} />
-          <span className={cn('relative', !onPhoneKey && 'text-ink')}>Plus</span>
+          <Menu
+            className={cn('relative size-5', !onPhoneKey && 'text-ink')}
+            strokeWidth={1.8}
+          />
+          <span className={cn('relative', !onPhoneKey && 'text-ink')}>
+            Plus
+          </span>
         </button>
       </motion.nav>
       <Dialog open={more} onOpenChange={setMore} title="Toutes les rubriques">

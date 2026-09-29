@@ -1,14 +1,36 @@
 import type { OrderDto } from '@marche/contracts';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { ArrowLeft, Ban, Banknote, Mail, MapPin, Phone, Send, Truck } from 'lucide-react';
+import {
+  ArrowLeft,
+  Ban,
+  Banknote,
+  Mail,
+  MapPin,
+  Phone,
+  Send,
+  Truck,
+} from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { type OrderAction, useOrder, useOrderAction, usePlaceOrder } from '@/features/orders/api';
+import {
+  type OrderAction,
+  useOrder,
+  useOrderAction,
+  usePlaceOrder,
+} from '@/features/orders/api';
+import { SerialsDialog } from '@/features/orders/serials-dialog';
 import { ORDER_STATUS, PAYMENT_STATUS } from '@/features/orders/status';
+import { useCurrentStore } from '@/features/shell/use-current-store';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { cn } from '@/shared/lib/cn';
-import { currencyLabel, formatAmount, formatDateTime, formatMoney, orderNumber } from '@/shared/lib/format';
+import {
+  currencyLabel,
+  formatAmount,
+  formatDateTime,
+  formatMoney,
+  orderNumber,
+} from '@/shared/lib/format';
 import { AnimatedNumber } from '@/shared/ui/animated-number';
 import { Badge, Led } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
@@ -33,7 +55,11 @@ function CommandeDetail() {
           to="/orders"
           className="group inline-flex items-center gap-1.5 text-[0.875rem] font-[560] text-ink-2 no-underline hover:text-ink"
         >
-          <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" strokeWidth={1.8} /> Commandes
+          <ArrowLeft
+            className="size-4 transition-transform group-hover:-translate-x-0.5"
+            strokeWidth={1.8}
+          />{' '}
+          Commandes
         </Link>
       </motion.div>
       {order.isPending ? (
@@ -45,11 +71,15 @@ function CommandeDetail() {
         order.error instanceof ApiError && order.error.code === 'NOT_FOUND' ? (
           <div className="panel">
             <EmptyState icon={Ban} title="Commande introuvable">
-              Elle a peut-être été supprimée, ou appartient à une autre boutique.
+              Elle a peut-être été supprimée, ou appartient à une autre
+              boutique.
             </EmptyState>
           </div>
         ) : (
-          <LoadError message={errorMessage(order.error)} onRetry={() => void order.refetch()} />
+          <LoadError
+            message={errorMessage(order.error)}
+            onRetry={() => void order.refetch()}
+          />
         )
       ) : (
         <Detail order={order.data} />
@@ -62,9 +92,18 @@ function Detail({ order }: { order: OrderDto }) {
   const action = useOrderAction();
   const place = usePlaceOrder();
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [shipOpen, setShipOpen] = useState(false);
+  const store = useCurrentStore();
+  // Boutique Tech avec l'IMEI activé : expédier ouvre la saisie des numéros.
+  const askSerials =
+    store.data?.type === 'ELECTRONICS' &&
+    Boolean(store.data.verticalSettings.serialNumbers?.enabled) &&
+    order.lines.some((line) => !line.custom);
   const status = ORDER_STATUS[order.status];
   const payment = PAYMENT_STATUS[order.paymentStatus];
-  const canPay = order.paymentStatus === 'UNPAID' && (order.status === 'PLACED' || order.status === 'FULFILLED');
+  const canPay =
+    order.paymentStatus === 'UNPAID' &&
+    (order.status === 'PLACED' || order.status === 'FULFILLED');
   const canShip = order.status === 'PLACED';
   const canCancel = order.status === 'PLACED' || order.status === 'DRAFT';
   const canPlace = order.status === 'DRAFT' && order.lines.length > 0;
@@ -99,11 +138,17 @@ function Detail({ order }: { order: OrderDto }) {
           </h1>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.875rem] text-ink-2">
             <Badge tone={status.tone}>{status.label}</Badge>
-            {order.status !== 'DRAFT' && order.status !== 'CANCELLED' && <Badge tone={payment.tone}>{payment.label}</Badge>}
+            {order.status !== 'DRAFT' && order.status !== 'CANCELLED' && (
+              <Badge tone={payment.tone}>{payment.label}</Badge>
+            )}
             <span>
-              {order.placedAt ? `Passée le ${formatDateTime(order.placedAt)}` : `Créée le ${formatDateTime(order.createdAt)}`}
+              {order.placedAt
+                ? `Passée le ${formatDateTime(order.placedAt)}`
+                : `Créée le ${formatDateTime(order.createdAt)}`}
               {' · '}
-              {order.source === 'STOREFRONT' ? 'depuis le site' : 'saisie dans Upsell'}
+              {order.source === 'STOREFRONT'
+                ? 'depuis le site'
+                : 'saisie dans Upsell'}
             </span>
           </div>
         </div>
@@ -125,7 +170,9 @@ function Detail({ order }: { order: OrderDto }) {
                 icon={<Banknote strokeWidth={1.8} />}
                 loading={pending === 'mark-paid'}
                 disabled={action.isPending}
-                onClick={() => run({ type: 'mark-paid' }, 'Commande marquée payée')}
+                onClick={() =>
+                  run({ type: 'mark-paid' }, 'Commande marquée payée')
+                }
               >
                 Marquer payée
               </Button>
@@ -139,10 +186,13 @@ function Detail({ order }: { order: OrderDto }) {
                 onClick={() =>
                   place.mutate(order.id, {
                     onSuccess: (placed) =>
-                      toast('Commande passée, stock réservé', { description: orderNumber(placed.number) }),
+                      toast('Commande passée, stock réservé', {
+                        description: orderNumber(placed.number),
+                      }),
                     onError: (error) =>
                       toast.error(
-                        error instanceof ApiError && error.code === 'INSUFFICIENT_STOCK'
+                        error instanceof ApiError &&
+                          error.code === 'INSUFFICIENT_STOCK'
                           ? 'Stock insuffisant pour au moins un article.'
                           : errorMessage(error),
                       ),
@@ -158,7 +208,14 @@ function Detail({ order }: { order: OrderDto }) {
                 icon={<Truck strokeWidth={1.8} />}
                 loading={pending === 'fulfill'}
                 disabled={action.isPending}
-                onClick={() => run({ type: 'fulfill' }, 'Commande expédiée, stock mis à jour')}
+                onClick={() =>
+                  askSerials
+                    ? setShipOpen(true)
+                    : run(
+                        { type: 'fulfill' },
+                        'Commande expédiée, stock mis à jour',
+                      )
+                }
               >
                 Expédier
               </Button>
@@ -175,7 +232,10 @@ function Detail({ order }: { order: OrderDto }) {
         >
           <span className="font-[650]">
             Annulée
-            {order.cancelledAt ? ` le ${formatDateTime(order.cancelledAt)}` : ''} :
+            {order.cancelledAt
+              ? ` le ${formatDateTime(order.cancelledAt)}`
+              : ''}{' '}
+            :
           </span>{' '}
           {order.cancelReason}
         </motion.p>
@@ -191,26 +251,53 @@ function Detail({ order }: { order: OrderDto }) {
         className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-8"
       >
         <Card className="overflow-hidden">
-          <CardHeader title="Articles" count={order.lines.reduce((sum, l) => sum + l.quantity, 0)} />
+          <CardHeader
+            title="Articles"
+            count={order.lines.reduce((sum, l) => sum + l.quantity, 0)}
+          />
           <ul className="divide-y divide-line border-t border-line">
             {order.lines.map((line) => (
-              <li key={line.id} className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 px-5 py-3.5">
+              <li
+                key={line.id}
+                className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 px-5 py-3.5"
+              >
                 <span className="min-w-0">
-                  <span className="block truncate font-[600]">{line.productTitle}</span>
+                  <span className="block truncate font-[600]">
+                    {line.productTitle}
+                  </span>
                   <span className="block truncate text-[0.8125rem] text-ink-2">
-                    {line.variantTitle !== 'Par défaut' ? `${line.variantTitle} · ` : ''}
+                    {line.variantTitle !== 'Par défaut'
+                      ? `${line.variantTitle} · `
+                      : ''}
                     {line.sku}
                   </span>
+                  {line.serialNumbers.length > 0 && (
+                    <span className="tabular mt-1 block text-[0.8125rem] break-all text-ink">
+                      <span className="text-ink-2">
+                        {line.serialNumbers.length > 1
+                          ? 'IMEI / n° : '
+                          : 'IMEI / n° '}
+                      </span>
+                      {line.serialNumbers.join(', ')}
+                    </span>
+                  )}
                 </span>
                 <span className="tabular text-right">
-                  <span className="block font-[600]">{formatMoney(line.lineTotalAmount, order.currency)}</span>
+                  <span className="block font-[600]">
+                    {formatMoney(line.lineTotalAmount, order.currency)}
+                  </span>
                   <span className="block text-[0.8125rem] text-ink-2">
-                    {line.quantity} × {formatMoney(line.unitPriceAmount, order.currency)}
+                    {line.quantity} ×{' '}
+                    {formatMoney(line.unitPriceAmount, order.currency)}
                   </span>
                 </span>
               </li>
             ))}
-            {order.lines.length === 0 && <li className="px-5 py-6 text-ink-2">Aucun article pour l’instant.</li>}
+            {order.lines.length === 0 && (
+              <li className="px-5 py-6 text-ink-2">
+                Aucun article pour l’instant.
+              </li>
+            )}
           </ul>
           <dl className="tabular flex flex-col gap-1.5 border-t border-line px-5 py-4 text-ink-2">
             <div className="flex justify-between">
@@ -222,7 +309,11 @@ function Detail({ order }: { order: OrderDto }) {
                 Livraison
                 {order.shippingMethod ? ` (${order.shippingMethod})` : ''}
               </dt>
-              <dd>{order.shippingAmount === 0 ? 'Offerte' : formatMoney(order.shippingAmount, order.currency)}</dd>
+              <dd>
+                {order.shippingAmount === 0
+                  ? 'Offerte'
+                  : formatMoney(order.shippingAmount, order.currency)}
+              </dd>
             </div>
           </dl>
           <div className="display-window mx-3 mb-3 flex items-end justify-between gap-4 rounded-xl px-4 py-3.5">
@@ -233,7 +324,9 @@ function Detail({ order }: { order: OrderDto }) {
                 format={(n) => formatAmount(Math.round(n), order.currency)}
                 className="readout text-[2rem]"
               />
-              <span className="text-[0.875rem] text-display-dim">{currencyLabel(order.currency)}</span>
+              <span className="text-[0.875rem] text-display-dim">
+                {currencyLabel(order.currency)}
+              </span>
             </span>
           </div>
         </Card>
@@ -244,12 +337,33 @@ function Detail({ order }: { order: OrderDto }) {
         </div>
       </motion.div>
 
+      {askSerials && (
+        <SerialsDialog
+          key={order.id}
+          order={order}
+          open={shipOpen}
+          onOpenChange={setShipOpen}
+          loading={pending === 'fulfill'}
+          onConfirm={(serialNumbers) =>
+            run(
+              { type: 'fulfill', serialNumbers },
+              'Commande expédiée, stock mis à jour',
+              () => setShipOpen(false),
+            )
+          }
+        />
+      )}
+
       <CancelDialog
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         loading={pending === 'cancel'}
         wasPlaced={order.status === 'PLACED'}
-        onConfirm={(reason) => run({ type: 'cancel', reason }, 'Commande annulée', () => setCancelOpen(false))}
+        onConfirm={(reason) =>
+          run({ type: 'cancel', reason }, 'Commande annulée', () =>
+            setCancelOpen(false),
+          )
+        }
       />
     </>
   );
@@ -258,32 +372,54 @@ function Detail({ order }: { order: OrderDto }) {
 function Client({ order }: { order: OrderDto }) {
   const customer = order.customer;
   const address = order.shippingAddress;
-  const name = customer ? [customer.firstName, customer.lastName].filter(Boolean).join(' ') : '';
+  const name = customer
+    ? [customer.firstName, customer.lastName].filter(Boolean).join(' ')
+    : '';
   return (
     <Card className="overflow-hidden">
       <CardHeader title="Client" />
       <div className="flex flex-col gap-3 px-5 pb-5">
-        <p className="text-[1.0625rem] font-[600]">{name || order.email || 'Client non renseigné'}</p>
+        <p className="text-[1.0625rem] font-[600]">
+          {name || order.email || 'Client non renseigné'}
+        </p>
         <ul className="flex flex-col gap-2 text-[0.9375rem] text-ink-2">
           {(customer?.email ?? order.email) && (
             <li className="flex items-center gap-2.5">
-              <Mail className="size-4 shrink-0 text-ink-3" strokeWidth={1.8} aria-hidden />
-              <a href={`mailto:${customer?.email ?? order.email}`} className="truncate text-ink">
+              <Mail
+                className="size-4 shrink-0 text-ink-3"
+                strokeWidth={1.8}
+                aria-hidden
+              />
+              <a
+                href={`mailto:${customer?.email ?? order.email}`}
+                className="truncate text-ink"
+              >
                 {customer?.email ?? order.email}
               </a>
             </li>
           )}
           {(customer?.phone ?? address?.phone) && (
             <li className="flex items-center gap-2.5">
-              <Phone className="size-4 shrink-0 text-ink-3" strokeWidth={1.8} aria-hidden />
-              <a href={`tel:${customer?.phone ?? address?.phone}`} className="text-ink">
+              <Phone
+                className="size-4 shrink-0 text-ink-3"
+                strokeWidth={1.8}
+                aria-hidden
+              />
+              <a
+                href={`tel:${customer?.phone ?? address?.phone}`}
+                className="text-ink"
+              >
                 {customer?.phone ?? address?.phone}
               </a>
             </li>
           )}
           {address && (
             <li className="flex items-start gap-2.5">
-              <MapPin className="mt-0.5 size-4 shrink-0 text-ink-3" strokeWidth={1.8} aria-hidden />
+              <MapPin
+                className="mt-0.5 size-4 shrink-0 text-ink-3"
+                strokeWidth={1.8}
+                aria-hidden
+              />
               <address className="not-italic text-ink">
                 {address.firstName} {address.lastName}
                 <br />
@@ -296,7 +432,8 @@ function Client({ order }: { order: OrderDto }) {
                 )}
                 <br />
                 {[address.postalCode, address.city].filter(Boolean).join(' ')}
-                {address.region ? `, ${address.region}` : ''} · {address.country}
+                {address.region ? `, ${address.region}` : ''} ·{' '}
+                {address.country}
               </address>
             </li>
           )}
@@ -325,7 +462,8 @@ function Suivi({ order }: { order: OrderDto }) {
       ? { label: 'Annulée', at: order.cancelledAt, cancelled: true }
       : { label: 'Expédiée', at: order.fulfilledAt },
   ];
-  const waiting = order.status === 'CANCELLED' ? -1 : steps.findIndex((step) => !step.at);
+  const waiting =
+    order.status === 'CANCELLED' ? -1 : steps.findIndex((step) => !step.at);
   return (
     <Card className="overflow-hidden">
       <CardHeader title="Suivi" />
@@ -339,15 +477,25 @@ function Suivi({ order }: { order: OrderDto }) {
               ? 'attention'
               : 'off';
           return (
-            <li key={step.label} className="relative flex gap-3.5 pb-4 last:pb-0">
+            <li
+              key={step.label}
+              className="relative flex gap-3.5 pb-4 last:pb-0"
+            >
               {index < steps.length - 1 && (
-                <span aria-hidden className="absolute top-4 bottom-0 left-[0.1875rem] w-px bg-line-strong">
+                <span
+                  aria-hidden
+                  className="absolute top-4 bottom-0 left-[0.1875rem] w-px bg-line-strong"
+                >
                   {steps[index + 1]?.at && (
                     <motion.span
                       className="block h-full w-full origin-top bg-ink"
                       initial={{ scaleY: 0 }}
                       animate={{ scaleY: 1 }}
-                      transition={{ duration: 0.3, ease: EASE_OUT, delay: 0.2 + index * 0.14 }}
+                      transition={{
+                        duration: 0.3,
+                        ease: EASE_OUT,
+                        delay: 0.2 + index * 0.14,
+                      }}
                     />
                   )}
                 </span>
@@ -361,9 +509,20 @@ function Suivi({ order }: { order: OrderDto }) {
                 <Led tone={tone} pulse={tone === 'attention'} />
               </motion.span>
               <span className="flex flex-col">
-                <span className={cn('font-[600]', !step.at && 'font-[500] text-ink-3')}>{step.label}</span>
+                <span
+                  className={cn(
+                    'font-[600]',
+                    !step.at && 'font-[500] text-ink-3',
+                  )}
+                >
+                  {step.label}
+                </span>
                 <span className="tabular text-[0.8125rem] text-ink-2">
-                  {step.at ? formatDateTime(step.at) : index === waiting ? 'en attente' : 'à venir'}
+                  {step.at
+                    ? formatDateTime(step.at)
+                    : index === waiting
+                      ? 'en attente'
+                      : 'à venir'}
                 </span>
               </span>
             </li>

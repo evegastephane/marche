@@ -4,6 +4,7 @@ import type {
   CreateDraftOrderInput,
   CustomerInput,
   CustomOrderLineInput,
+  FulfillOrderInput,
   OrderDto,
   OrderLineInput,
   UpdateDraftOrderInput,
@@ -193,9 +194,9 @@ export class OrderLifecycleUseCases {
     });
   }
 
-  fulfill(orderId: string): Promise<OrderDto> {
+  fulfill(orderId: string, serials: FulfillOrderInput['serialNumbers'] = []): Promise<OrderDto> {
     return this.mutate(orderId, async (order) => {
-      order.fulfill(this.clock.now());
+      order.fulfill(this.clock.now(), serials);
       await this.inventory.commit(order.reservedLines(), order.id);
     });
   }

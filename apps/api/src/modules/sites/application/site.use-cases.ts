@@ -16,12 +16,19 @@ import { NotFoundError, ValidationError } from '../../../shared/domain/domain-er
 import { CatalogFacade } from '../../catalog/catalog.facade.js';
 import { StoresFacade } from '../../stores/stores.facade.js';
 import { Site } from '../domain/site.aggregate.js';
-import { PreviewTokens, SiteHostCache, SiteRepository } from './sites.ports.js';
+import { PreviewThemeStore, PreviewTokens, SiteHostCache, SiteRepository } from './sites.ports.js';
 
 function requireTemplate(templateId: string): TemplateDefinition {
   const template = getTemplate(templateId);
   if (!template) throw new ValidationError('VALIDATION_FAILED', `Template inconnu : ${templateId}`);
   return template;
+}
+
+/** Template désigné par des réglages reçus, avant validation. */
+function templateOf(settings: unknown): string | undefined {
+  if (typeof settings !== 'object' || settings === null) return undefined;
+  const template = (settings as { template?: unknown }).template;
+  return typeof template === 'string' ? template : undefined;
 }
 
 /** Valide des réglages de thème avec le schéma du template (422 détaillé sinon). */
@@ -144,6 +151,7 @@ export class SiteUseCases {
     private readonly sites: SiteRepository,
     private readonly hostCache: SiteHostCache,
     private readonly previews: PreviewTokens,
+    private readonly previewThemes: PreviewThemeStore,
     private readonly urls: PublicUrls,
     private readonly uow: UnitOfWork,
     private readonly outbox: OutboxPort,
@@ -155,14 +163,20 @@ export class SiteUseCases {
     return this.mapper.toDto(await this.current());
   }
 
+  /**
+   * UC-41 : le brouillon peut changer de template (galerie du dashboard) ; il est validé
+   * par le schéma du template qu'il désigne (palette comprise).
+   */
   updateDraftTheme(settings: unknown): Promise<SiteDto> {
     return this.mutate((site) => {
-      site.updateDraftTheme(parseThemeSettings(requireTemplate(site.templateId), settings), this.clock.now());
+      site.updateDraftTheme(parseThemeSettings(requireTemplate(templateOf(settings) ?? site.templateId), settings), this.clock.now());
     });
   }
 
   publishTheme(): Promise<SiteDto> {
-    return this.mutate((site) => site.publishTheme(this.clock.now()));
+    return this.mutate((site) =>
+      site.publishTheme(this.clock.now(), (templateId) => requireTemplate(templateId).manifest.version),
+    );
   }
 
   publish(): Promise<SiteDto> {
@@ -176,12 +190,25 @@ export class SiteUseCases {
   /** Jeton d'aperçu (30 min) pour afficher le brouillon dans l'éditeur du dashboard. */
   async createPreviewToken(): Promise<PreviewTokenDto> {
     const site = await this.current();
-    const { token, expiresAt } = await this.previews.sign({ siteId: site.id, storeId: site.storeId });
+    const { token, expiresAt, session } = await this.previews.sign({ siteId: site.id, storeId: site.storeId });
+    const origin = this.urls.site(site.subdomain);
     return {
       token,
       expiresAt: expiresAt.toISOString(),
-      previewUrl: `${this.urls.site(site.subdomain)}/preview?token=${encodeURIComponent(token)}`,
+      previewUrl: `${origin}/preview?token=${encodeURIComponent(token)}`,
+      embedUrl: `${origin}/preview/embed?token=${encodeURIComponent(token)}`,
+      session,
     };
+  }
+
+  /**
+   * Aperçu en direct : les réglages en cours d'édition, validés comme un brouillon, s'affichent
+   * dans la session d'aperçu. Ni le brouillon ni le site en ligne ne changent.
+   */
+  async previewTheme(session: string, settings: unknown): Promise<void> {
+    const site = await this.current();
+    const parsed = parseThemeSettings(requireTemplate(templateOf(settings) ?? site.templateId), settings);
+    await this.previewThemes.save(site.id, session, parsed);
   }
 
   private async current(): Promise<Site> {

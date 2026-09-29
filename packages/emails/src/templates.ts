@@ -135,17 +135,29 @@ export function renderMerchantNewOrder(props: MerchantNewOrderProps): RenderedEm
 
 export interface OrderShippedProps extends OrderEmailBase {
   orderUrl: string;
+  /** Appareils expédiés et leurs IMEI ou numéros de série (garantie, déclaration de vol). */
+  devices?: { label: string; serials: string[] }[];
 }
 
 export function renderOrderShipped(props: OrderShippedProps): RenderedEmail {
   const number = formatOrderNumber(props.orderNumber);
+  const devices = (props.devices ?? []).filter((d) => d.serials.length > 0);
   const subject = `${props.storeName} : votre commande ${number} est en route`;
   const body = html`
     ${paragraph(greeting(props.customerName))}
     ${paragraph(`Bonne nouvelle : votre commande ${number} a été expédiée.`)}
+    ${devices.length > 0 ? paragraph('Gardez les numéros de vos appareils : ils servent pour la garantie.') : ''}
+    ${devices.map((d) => muted(`${d.label} : ${d.serials.join(', ')}`))}
     <p style="margin:24px 0">${button('Voir ma commande', props.orderUrl)}</p>
   `;
-  const text = [greeting(props.customerName), '', `Votre commande ${number} a été expédiée.`, '', props.orderUrl].join('\n');
+  const text = [
+    greeting(props.customerName),
+    '',
+    `Votre commande ${number} a été expédiée.`,
+    ...devices.map((d) => `${d.label} : ${d.serials.join(', ')}`),
+    '',
+    props.orderUrl,
+  ].join('\n');
   return {
     subject,
     html: layout({ storeName: props.storeName, preheader: subject, title: 'Commande expédiée', body }),
@@ -193,6 +205,10 @@ export interface SpecialRequestEmailBase {
 }
 
 export interface MerchantSpecialRequestProps extends SpecialRequestEmailBase {
+  /** Sur commande (défaut), reprise de l'ancien appareil, ou sur mesure. */
+  kind?: 'CONFIGURATION' | 'TRADE_IN' | 'MADE_TO_MEASURE';
+  /** Mesures du client ou appareil à reprendre. */
+  details?: { name: string; value: string }[];
   customerName: string;
   phone: string;
   email: string;
@@ -203,16 +219,27 @@ export interface MerchantSpecialRequestProps extends SpecialRequestEmailBase {
 /** Au marchand : un client demande une configuration absente du stock. */
 export function renderMerchantSpecialRequest(props: MerchantSpecialRequestProps): RenderedEmail {
   const item = props.configuration ? `${props.productTitle} (${props.configuration})` : props.productTitle;
-  const subject = `Demande : ${item}`;
+  const kind = props.kind ?? 'CONFIGURATION';
+  const subject = kind === 'TRADE_IN' ? `Reprise : ${item}` : kind === 'MADE_TO_MEASURE' ? `Sur mesure : ${item}` : `Demande : ${item}`;
+  const intro =
+    kind === 'TRADE_IN'
+      ? `${props.customerName} veut ${props.quantity} × ${item} et faire reprendre son ancien appareil.`
+      : kind === 'MADE_TO_MEASURE'
+        ? `${props.customerName} demande ${props.quantity} × ${item} sur mesure.`
+        : `${props.customerName} demande ${props.quantity} × ${item}.`;
+  const details = props.details ?? [];
+  const detailsTitle = kind === 'TRADE_IN' ? 'Appareil à reprendre' : 'Mesures';
   const body = html`
-    ${paragraph(`${props.customerName} demande ${props.quantity} × ${item}.`)}
+    ${paragraph(intro)}
+    ${details.length > 0 ? paragraph(`${detailsTitle} : ${details.map((d) => `${d.name} ${d.value}`).join(' · ')}`) : ''}
     ${props.note ? paragraph(`« ${props.note} »`) : ''}
     ${muted(`Téléphone : ${props.phone} · E-mail : ${props.email}`)}
     ${paragraph('Répondez avec un prix et un délai, ou refusez la demande.')}
     <p style="margin:24px 0">${button('Traiter la demande', props.requestAdminUrl)}</p>
   `;
   const text = [
-    `${props.customerName} demande ${props.quantity} × ${item}.`,
+    intro,
+    ...(details.length > 0 ? [`${detailsTitle} : ${details.map((d) => `${d.name} ${d.value}`).join(' · ')}`] : []),
     ...(props.note ? [`« ${props.note} »`] : []),
     `Téléphone : ${props.phone}`,
     `E-mail : ${props.email}`,

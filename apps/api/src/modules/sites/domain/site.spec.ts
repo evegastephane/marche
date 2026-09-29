@@ -32,7 +32,10 @@ describe('prefillSettings (Prototype + préremplissage)', () => {
   it('valide des réglages avec le schéma du template', () => {
     const template = getTemplate('default');
     if (!template) throw new Error('template absent');
-    expect(() => parseThemeSettings(template, { colors: 'rouge' })).toThrow(/Réglages de thème invalides/);
+    expect(() => parseThemeSettings(template, { sections: 'rouge' })).toThrow(/Réglages de thème invalides/);
+    expect(() => parseThemeSettings(template, { ...defaultTemplateSettings, palette: 'kraft' })).toThrow(
+      /Réglages de thème invalides/,
+    );
     expect(parseThemeSettings(template, defaultTemplateSettings)).toEqual(defaultTemplateSettings);
   });
 });
@@ -54,12 +57,21 @@ describe('Site', () => {
   it('publie le brouillon du thème', () => {
     const site = generate();
     const draft = structuredClone(defaultTemplateSettings);
-    draft.colors.primary = '#000000';
+    draft.palette = 'nuit';
     site.updateDraftTheme(draft, now);
     expect(site.hasUnpublishedChanges).toBe(true);
-    site.publishTheme(now);
+    site.publishTheme(now, () => '2.0.0');
     expect(site.hasUnpublishedChanges).toBe(false);
-    expect(site.snapshot().themeSettings.colors.primary).toBe('#000000');
+    expect(site.snapshot().themeSettings.palette).toBe('nuit');
+  });
+
+  it('change de template en brouillon, puis le publie avec sa version', () => {
+    const site = generate();
+    const draft = { ...structuredClone(defaultTemplateSettings), template: 'atelier', palette: 'kraft' };
+    site.updateDraftTheme(draft, now);
+    expect(site.templateId).toBe('default');
+    site.publishTheme(now, (id) => (id === 'atelier' ? '1.0.0' : '0'));
+    expect(site.snapshot()).toMatchObject({ templateId: 'atelier', templateVersion: '1.0.0' });
   });
 
   it('se met hors ligne puis en ligne', () => {

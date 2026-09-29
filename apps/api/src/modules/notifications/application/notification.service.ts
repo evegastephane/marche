@@ -96,6 +96,12 @@ export class NotificationService {
       customerName: order.customerName,
       currency: order.currency,
       orderUrl: `${this.urls.site(store.slug)}/orders/${order.publicToken}`,
+      devices: order.lines
+        .filter((line) => line.serialNumbers.length > 0)
+        .map((line) => ({
+          label: line.variantTitle && line.variantTitle !== 'Par défaut' ? `${line.productTitle} (${line.variantTitle})` : line.productTitle,
+          serials: line.serialNumbers,
+        })),
     });
     await this.email.send({
       to: [order.email],
@@ -114,6 +120,8 @@ export class NotificationService {
     const store = await this.stores.getSettings(event.storeId);
     const rendered = renderMerchantSpecialRequest({
       storeName: store.name,
+      kind: request.type,
+      details: request.details,
       productTitle: request.productTitle,
       configuration: request.options.map((option) => option.value).join(' / '),
       quantity: request.quantity,

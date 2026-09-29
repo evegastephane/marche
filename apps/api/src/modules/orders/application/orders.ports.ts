@@ -22,7 +22,14 @@ export interface OrderSummary {
   email: string | null;
   customerName: string | null;
   currency: Currency;
-  lines: { productTitle: string; variantTitle: string; quantity: number; unitPriceAmount: number; lineTotalAmount: number }[];
+  lines: {
+    productTitle: string;
+    variantTitle: string;
+    quantity: number;
+    unitPriceAmount: number;
+    lineTotalAmount: number;
+    serialNumbers: string[];
+  }[];
   subtotalAmount: number;
   discounts: OrderDiscount[];
   discountAmount: number;

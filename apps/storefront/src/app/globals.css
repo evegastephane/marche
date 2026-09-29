@@ -1,8 +1,9 @@
 @import 'tailwindcss';
 
 /*
- * Template « default » : épuré, tout vient du thème du marchand (couleurs, polices),
- * injecté en variables CSS par s/[site]/layout.tsx. Par défaut, la palette Upsell (noir, blanc, orange).
+ * Sites des boutiques : quatre templates (natif, cahier du tailleur, vitrine du vendeur,
+ * devanture peinte) habillés par la palette choisie. Les rôles de couleur et les polices
+ * arrivent en variables CSS depuis s/[site]/layout.tsx (lib/theme.ts).
  */
 @theme inline {
   --color-primary: var(--sf-primary, #101115);
@@ -11,12 +12,15 @@
   --color-on-accent: var(--sf-on-accent, #101115);
   --color-bg: var(--sf-bg, #ffffff);
   --color-fg: var(--sf-fg, #101115);
-  --color-muted: color-mix(in oklab, var(--sf-fg, #101115) 64%, var(--sf-bg, #ffffff));
-  --color-line: color-mix(in oklab, var(--sf-fg, #101115) 11%, var(--sf-bg, #ffffff));
-  --color-soft: color-mix(in oklab, var(--sf-fg, #101115) 4.5%, var(--sf-bg, #ffffff));
+  --color-muted: var(--sf-muted, #595b62);
+  --color-line: var(--sf-line, #e4e4e0);
+  --color-surface: var(--sf-surface, #f4f4f1);
+  --color-on-surface: var(--sf-surface-fg, #101115);
+  --color-soft: color-mix(in oklab, var(--sf-fg, #101115) 5%, var(--sf-bg, #ffffff));
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --font-heading: var(--sf-font-heading, ui-sans-serif, system-ui, sans-serif);
   --font-body: var(--sf-font-body, ui-sans-serif, system-ui, sans-serif);
+  --font-hand: var(--sf-font-hand, var(--sf-font-heading, ui-sans-serif));
 }
 
 @layer base {
@@ -41,18 +45,31 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--color-fg);
     outline-offset: 2px;
+  }
+
+  input,
+  textarea {
+    caret-color: var(--color-accent);
   }
 
   a {
     text-underline-offset: 0.2em;
   }
+
+  html {
+    scrollbar-color: color-mix(in oklab, var(--color-fg) 28%, transparent) transparent;
+  }
+
+  dialog::backdrop {
+    background: rgb(10 10 12 / 0.55);
+  }
 }
 
 @layer utilities {
   .tabular {
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: tabular-nums lining-nums;
   }
 
   /*
@@ -64,6 +81,13 @@
     animation-delay: var(--sf-delay, 0ms);
   }
 
+  @keyframes sf-sheet {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+  }
+
   @keyframes sf-rise {
     from {
       opacity: 0;
@@ -71,9 +95,343 @@
     }
   }
 
+  /* ───── Le cahier du tailleur ───── */
+
+  /* Papier ligné : une règle toutes les 2rem et la marge rouge du cahier. */
+  .ruled-paper {
+    background-color: var(--color-bg);
+    background-image:
+      linear-gradient(to right, transparent 3.25rem, color-mix(in oklab, var(--color-primary) 45%, transparent) 3.25rem, color-mix(in oklab, var(--color-primary) 45%, transparent) calc(3.25rem + 1px), transparent calc(3.25rem + 1px)),
+      repeating-linear-gradient(to bottom, transparent 0, transparent calc(2rem - 1px), var(--color-line) calc(2rem - 1px), var(--color-line) 2rem);
+    background-attachment: local;
+  }
+
+  /* Bande d'adhésif qui tient une photo collée. */
+  .tape {
+    position: absolute;
+    width: 5.5rem;
+    height: 1.6rem;
+    background: color-mix(in oklab, var(--color-surface) 62%, transparent);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+    backdrop-filter: saturate(0.8);
+  }
+
+  /* Perforation d'un bon de commande. */
+  .perforated {
+    background-image: radial-gradient(circle at 50% 50%, var(--color-bg) 0.28rem, transparent 0.3rem);
+    background-size: 0.9rem 0.9rem;
+    background-repeat: repeat-x;
+  }
+
+  /* ───── La vitrine du vendeur ───── */
+
+  /* Tablette de verre : un filet de lumière sur le bord avant, l'ombre dessous. */
+  .glass-shelf {
+    position: relative;
+    /* L'éclairage de la vitrine tombe d'en haut sur l'appareil. */
+    background: radial-gradient(120% 75% at 50% 0%, color-mix(in oklab, var(--color-fg) 8%, transparent), transparent 72%);
+  }
+
+  .glass-shelf::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 0.75rem;
+    border-top: 1.5px solid color-mix(in oklab, var(--color-fg) 55%, transparent);
+    background: linear-gradient(to bottom, color-mix(in oklab, var(--color-fg) 18%, transparent), transparent);
+    pointer-events: none;
+  }
+
+  /* Ombre de présentoir sous un appareil posé. */
+  .stand-shadow {
+    background: radial-gradient(closest-side, rgb(0 0 0 / 0.42), transparent);
+  }
+
+  /* ───── La devanture peinte ───── */
+
+  /* Panneau peint : double filet autour d'un aplat. */
+  .painted-frame {
+    box-shadow:
+      inset 0 0 0 3px var(--color-line),
+      inset 0 0 0 7px var(--color-surface),
+      inset 0 0 0 9px var(--color-line);
+  }
+
+  /* Ombre peinte des lettres de l'enseigne (le peintre la pose à la main, sans flou). */
+  .painted-shade {
+    text-shadow: 0.055em 0.055em 0 color-mix(in oklab, var(--color-bg) 40%, #000);
+  }
+
+  /* ───── La boîte du téléphone ───── */
+
+  /*
+   * Face avant d'une boîte en carton, avec son dessus et sa tranche : deux pans cisaillés,
+   * l'un éclairé, l'autre dans l'ombre, sur la profondeur --box-depth.
+   */
+  .box-face {
+    position: relative;
+    background: var(--color-bg);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in oklab, var(--color-fg) 14%, transparent),
+      0 26px 40px -30px rgb(0 0 0 / 0.55);
+  }
+  .box-face::before,
+  .box-face::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-fg) 12%, transparent);
+  }
+  .box-face::before {
+    left: 0;
+    right: 0;
+    top: calc(var(--box-depth, 14px) * -1);
+    height: var(--box-depth, 14px);
+    transform-origin: 0 100%;
+    transform: skewX(-45deg);
+    background: color-mix(in oklab, var(--color-bg) 82%, #fff);
+  }
+  .box-face::after {
+    top: 0;
+    bottom: 0;
+    right: calc(var(--box-depth, 14px) * -1);
+    width: var(--box-depth, 14px);
+    transform-origin: 0 0;
+    transform: skewY(-45deg);
+    background: color-mix(in oklab, var(--color-bg) 84%, var(--color-fg));
+  }
+
+  /* Coup de pinceau : la couleur se pose de gauche à droite, bord d'attaque irrégulier. */
+  .brush-wipe {
+    animation: sf-brush 0.75s var(--ease-out-soft) both;
+    animation-delay: var(--sf-delay, 0ms);
+  }
+
+  @keyframes sf-brush {
+    from {
+      clip-path: polygon(0 0, 0 0, 0 30%, 0 62%, 0 100%, 0 100%);
+    }
+    to {
+      clip-path: polygon(0 0, 104% 0, 100% 30%, 105% 62%, 101% 100%, 0 100%);
+    }
+  }
+
+  /* Rayon repeint au survol : l'aplat de couleur est passé d'un geste derrière le lettrage. */
+  .brush-fill {
+    position: relative;
+    isolation: isolate;
+  }
+  .brush-fill::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--color-primary);
+    clip-path: polygon(0 0, 0 0, 0 35%, 0 70%, 0 100%, 0 100%);
+    transition: clip-path 0.45s var(--ease-out-soft);
+  }
+  .brush-fill:hover::before,
+  .brush-fill:focus-visible::before,
+  .brush-fill[aria-current='true']::before {
+    clip-path: polygon(0 0, 104% 0, 100% 35%, 105% 70%, 101% 100%, 0 100%);
+  }
+  .brush-fill:hover,
+  .brush-fill:focus-visible,
+  .brush-fill[aria-current='true'] {
+    color: var(--color-on-primary);
+  }
+
+  /* Enseigne accrochée : elle arrive de haut, se balance une fois, puis s'immobilise. */
+  .sf-settle {
+    animation: sf-settle 0.8s var(--ease-out-soft) both;
+    animation-delay: var(--sf-delay, 0ms);
+    transform-origin: 50% 0;
+  }
+
+  @keyframes sf-settle {
+    0% {
+      opacity: 0;
+      transform: translateY(-18px) rotate(-6deg);
+    }
+    55% {
+      opacity: 1;
+      transform: translateY(2px) rotate(2.5deg);
+    }
+    80% {
+      transform: translateY(0) rotate(-1deg);
+    }
+    100% {
+      transform: none;
+    }
+  }
+
+  /* ───── La couverture de magazine ───── */
+
+  /* Chaque page entre en tournant depuis la reliure (à gauche), le bord libre venant de l'intérieur. */
+  .page-turn {
+    animation: sf-page-turn 0.62s var(--ease-out-soft) both;
+    transform-origin: 0 50%;
+  }
+
+  @keyframes sf-page-turn {
+    from {
+      opacity: 0;
+      transform: perspective(2400px) rotateY(11deg);
+    }
+  }
+
+  /* La taille ou le coloris choisi s'imprime : l'encre se pose d'un coup. */
+  .print-in {
+    animation: sf-print 0.2s var(--ease-out-soft);
+  }
+
+  @keyframes sf-print {
+    from {
+      transform: scale(1.07);
+    }
+  }
+
+  /*
+   * Coin corné de la une : le coin replié (le dos de la page, en haut à gauche de la diagonale)
+   * découvre la page suivante dans la seconde couleur. Au survol, le coin se soulève.
+   */
+  .dog-ear {
+    --ear: 10rem;
+    display: block;
+    width: var(--ear);
+    height: var(--ear);
+    transition:
+      width 0.45s var(--ease-out-soft),
+      height 0.45s var(--ease-out-soft);
+  }
+  .dog-ear::before,
+  .dog-ear::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  .dog-ear::before {
+    background: var(--color-surface);
+    clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  }
+  .dog-ear::after {
+    background: linear-gradient(135deg, var(--color-bg) 35%, color-mix(in oklab, var(--color-bg) 82%, #000) 100%);
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+  }
+  .dog-ear:hover,
+  .dog-ear:focus-visible {
+    width: calc(var(--ear) * 1.2);
+    height: calc(var(--ear) * 1.2);
+  }
+  .dog-ear:focus-visible {
+    outline-offset: -6px;
+  }
+  .dog-ear-label {
+    position: absolute;
+    z-index: 1;
+    right: 0.85rem;
+    bottom: 0.85rem;
+    max-width: 62%;
+    font-size: 1.15rem;
+    text-align: right;
+  }
+  @media (min-width: 640px) {
+    .dog-ear {
+      --ear: 12.5rem;
+    }
+    .dog-ear-label {
+      font-size: 1.45rem;
+    }
+  }
+
+  /* ───── L'enseigne lumineuse ───── */
+
+  /* Panneau de LED : la matrice de points éteints reste visible derrière le lettrage allumé. */
+  .led-board {
+    background-color: color-mix(in oklab, var(--color-bg) 60%, #000);
+    background-image: radial-gradient(circle, color-mix(in oklab, var(--color-primary) 15%, transparent) 0.075rem, transparent 0.1rem);
+    background-size: 0.3rem 0.3rem;
+  }
+
+  /* Lettrage à LED : les points ronds de Doto, et la lumière qu'ils jettent autour d'eux. */
+  .led-text {
+    font-family: var(--font-heading);
+    font-variation-settings: 'ROND' 100;
+  }
+  .led-glow {
+    color: var(--color-primary);
+    text-shadow:
+      0 0 0.08em color-mix(in oklab, var(--color-primary) 80%, transparent),
+      0 0 0.4em color-mix(in oklab, var(--color-primary) 45%, transparent);
+  }
+  .led-glow svg {
+    filter: drop-shadow(0 0 0.06em color-mix(in oklab, var(--color-primary) 70%, transparent));
+  }
+
+  /* Bandeau défilant : deux copies du texte glissent d'une largeur ; il s'arrête au survol, au focus ou sur demande. */
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: sf-marquee var(--marquee-duration, 40s) linear infinite;
+  }
+  .marquee:hover .marquee-track,
+  .marquee:focus-within .marquee-track,
+  .marquee[data-paused='true'] .marquee-track {
+    animation-play-state: paused;
+  }
+
+  @keyframes sf-marquee {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  /* Étal éclairé : la lumière tombe d'en haut sur l'appareil et déborde sous l'étal. */
+  .lit-shelf {
+    background: var(--color-surface);
+    color: var(--color-on-surface);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.7),
+      0 28px 48px -30px color-mix(in oklab, var(--color-primary) 50%, transparent);
+  }
+
+  /* Bouton allumé : la couleur de la LED, sa lumière sur le comptoir. */
+  .lit-button {
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    box-shadow: 0 12px 30px -12px color-mix(in oklab, var(--color-primary) 75%, transparent);
+  }
+
+  /* Chiffre modifié : il clignote deux fois, comme un afficheur qu'on vient de régler. */
+  .seg-blink {
+    animation: sf-seg-blink 0.34s steps(1, end) 2;
+  }
+
+  @keyframes sf-seg-blink {
+    0% {
+      opacity: 0.12;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .sf-rise {
+    .sf-rise,
+    .sf-settle,
+    .brush-wipe,
+    .page-turn,
+    .print-in,
+    .marquee-track,
+    .seg-blink {
       animation: none;
+    }
+    .dog-ear {
+      transition: none;
+    }
+    .brush-fill::before {
+      transition: none;
     }
   }
 }

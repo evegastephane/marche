@@ -11,6 +11,8 @@ import {
   customerListQuerySchema,
   type DeclineSpecialRequestInput,
   declineSpecialRequestSchema,
+  type FulfillOrderInput,
+  fulfillOrderSchema,
   type OrderDto,
   type OrderListItemDto,
   type OrderListQuery,
@@ -97,8 +99,9 @@ export class OrdersController {
   /** UC-33 : expédition (consomme le stock réservé). */
   @Post(':id/fulfill')
   @HttpCode(200)
-  fulfill(@Param('id', ParseUUIDPipe) id: string): Promise<OrderDto> {
-    return this.lifecycle.fulfill(id);
+  @ApiZodBody(fulfillOrderSchema)
+  fulfill(@Param('id', ParseUUIDPipe) id: string, @ZodBody(fulfillOrderSchema) input: FulfillOrderInput): Promise<OrderDto> {
+    return this.lifecycle.fulfill(id, input.serialNumbers);
   }
 
   /** UC-34 : annulation (libère le stock d'une commande passée). */

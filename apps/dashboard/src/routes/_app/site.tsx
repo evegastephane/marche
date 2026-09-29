@@ -1,12 +1,21 @@
-import { FONT_CHOICES, type SiteDto, type StoreDto, type ThemeSettings } from '@marche/contracts';
+import {
+  FONT_CHOICES,
+  getTemplate,
+  resolvePalette,
+  type SiteDto,
+  type StoreDto,
+  type ThemeSettings,
+} from '@marche/contracts';
 import { createFileRoute } from '@tanstack/react-router';
-import { ExternalLink, Eye, Globe, PowerOff, Rocket } from 'lucide-react';
+import { ExternalLink, Globe, PowerOff, Rocket } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useCurrentStore } from '@/features/shell/use-current-store';
-import { ApercuSite } from '@/features/site/apercu';
-import { useCollections, usePreviewLink, useSite, useSiteAction } from '@/features/site/api';
+import { useCollections, useSite, useSiteAction } from '@/features/site/api';
+import { LivePreview } from '@/features/site/live-preview';
+import { PalettePicker, TemplateGallery } from '@/features/site/theme-picker';
+import { switchTemplate } from '@/features/site/theme-switch';
 import { errorMessage } from '@/shared/api/client';
 import { formatDateTime } from '@/shared/lib/format';
 import { Badge, Led } from '@/shared/ui/badge';
@@ -15,7 +24,7 @@ import { Button, buttonClasses } from '@/shared/ui/button';
 import { Card, CardHeader } from '@/shared/ui/card';
 import { LoadError, PageHeader, Skeleton } from '@/shared/ui/feedback';
 import { Field, Input, Select } from '@/shared/ui/field';
-import { EASE_OUT, glide as snappy, riseIn } from '@/shared/ui/motion';
+import { EASE_OUT, riseIn } from '@/shared/ui/motion';
 import { SiteAddress, siteHost } from '@/shared/ui/site-address';
 import { Switch } from '@/shared/ui/switch';
 
@@ -33,9 +42,19 @@ function SitePage() {
       </div>
     );
   }
-  if (site.error) return <LoadError message={errorMessage(site.error)} onRetry={() => void site.refetch()} />;
+  if (site.error)
+    return (
+      <LoadError
+        message={errorMessage(site.error)}
+        onRetry={() => void site.refetch()}
+      />
+    );
   if (!store.data) return null;
-  return site.data ? <SiteEditor site={site.data} store={store.data} /> : <SansSite store={store.data} />;
+  return site.data ? (
+    <SiteEditor site={site.data} store={store.data} />
+  ) : (
+    <SansSite store={store.data} />
+  );
 }
 
 /** Pas encore de site : un seul geste pour le mettre en ligne. */
@@ -49,10 +68,12 @@ function SansSite({ store }: { store: StoreDto }) {
         className="panel grid items-center gap-8 p-6 sm:p-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]"
       >
         <div className="flex flex-col items-start gap-5">
-          <h2 className="display max-w-[16ch] text-[2rem] sm:text-[2.75rem]">Votre boutique en ligne, en un clic</h2>
+          <h2 className="display max-w-[16ch] text-[2rem] sm:text-[2.75rem]">
+            Votre boutique en ligne, en un clic
+          </h2>
           <p className="max-w-[52ch] text-[1.0625rem] text-ink-2">
-            Le site reprend le nom de {store.name}, vos produits en vente et votre stock à jour. Vous réglerez ensuite
-            couleurs et textes.
+            Le site reprend le nom de {store.name}, vos produits en vente et
+            votre stock à jour. Vous réglerez ensuite couleurs et textes.
           </p>
           <Button
             variant="primary"
@@ -77,9 +98,14 @@ function SansSite({ store }: { store: StoreDto }) {
             Adresse du site
             <UpsellMark className="h-4 w-auto text-display-ink" />
           </span>
-          <span className="readout text-[1.375rem] break-all sm:text-[1.5rem]">{siteHost(store.slug)}</span>
+          <span className="readout text-[1.375rem] break-all sm:text-[1.5rem]">
+            {siteHost(store.slug)}
+          </span>
           <span className="flex items-center gap-2 text-[0.8125rem] text-display-dim">
-            <span aria-hidden className="size-2 rounded-full shadow-[inset_0_0_0_1.5px_var(--color-display-dim)]" />
+            <span
+              aria-hidden
+              className="size-2 rounded-full shadow-[inset_0_0_0_1.5px_var(--color-display-dim)]"
+            />
             Hors ligne tant que vous n’avez pas appuyé
           </span>
         </div>
@@ -90,9 +116,10 @@ function SansSite({ store }: { store: StoreDto }) {
 
 function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
   const action = useSiteAction();
-  const preview = usePreviewLink();
   const collections = useCollections();
-  const [settings, setSettings] = useState<ThemeSettings>(() => structuredClone(site.draftThemeSettings));
+  const [settings, setSettings] = useState<ThemeSettings>(() =>
+    structuredClone(site.draftThemeSettings),
+  );
   const [dirty, setDirty] = useState(false);
   // Le bouton qui a lancé l'action porte le chargement (Publier enchaîne enregistrement puis publication).
   const [busy, setBusy] = useState<'save' | 'publish' | null>(null);
@@ -104,18 +131,22 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
     setSettings(next);
     setDirty(true);
   };
-  const setColor = (key: keyof ThemeSettings['colors'], value: string) =>
-    edit({ ...settings, colors: { ...settings.colors, [key]: value } });
+  const template = getTemplate(settings.template) ?? getTemplate('default')!;
+  const palette = resolvePalette(settings);
   const setSection = <T extends ThemeSettings['sections'][number]['type']>(
     type: T,
     patch: Partial<Extract<ThemeSettings['sections'][number], { type: T }>>,
   ) =>
     edit({
       ...settings,
-      sections: settings.sections.map((s) => (s.type === type ? ({ ...s, ...patch } as typeof s) : s)),
+      sections: settings.sections.map((s) =>
+        s.type === type ? ({ ...s, ...patch } as typeof s) : s,
+      ),
     });
   const hero = settings.sections.find((s) => s.type === 'hero');
-  const featured = settings.sections.find((s) => s.type === 'featured-collection');
+  const featured = settings.sections.find(
+    (s) => s.type === 'featured-collection',
+  );
 
   const fail = (error: unknown) => {
     setBusy(null);
@@ -158,7 +189,8 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
     action.mutate(
       { type: online ? 'unpublish' : 'publish' },
       {
-        onSuccess: () => toast(online ? 'Site mis hors ligne' : 'Site en ligne'),
+        onSuccess: () =>
+          toast(online ? 'Site mis hors ligne' : 'Site en ligne'),
         onError: (error) => toast.error(errorMessage(error)),
       },
     );
@@ -179,7 +211,9 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
         <div className="flex min-w-0 flex-col gap-3">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <h2 className="heading text-[1.25rem]">{store.name}</h2>
-            <Badge tone={online ? 'on' : 'off'}>{online ? 'En ligne' : 'Hors ligne'}</Badge>
+            <Badge tone={online ? 'on' : 'off'}>
+              {online ? 'En ligne' : 'Hors ligne'}
+            </Badge>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <a
@@ -192,17 +226,30 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
               <SiteAddress host={host} live={online} />
             </a>
             {site.publishedAt && (
-              <span className="text-[0.8125rem] text-ink-2">Publié le {formatDateTime(site.publishedAt)}</span>
+              <span className="text-[0.8125rem] text-ink-2">
+                Publié le {formatDateTime(site.publishedAt)}
+              </span>
             )}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href={site.url} target="_blank" rel="noreferrer" className={buttonClasses('secondary')}>
+          <a
+            href={site.url}
+            target="_blank"
+            rel="noreferrer"
+            className={buttonClasses('secondary')}
+          >
             <ExternalLink strokeWidth={1.8} /> Voir le site
           </a>
           <Button
             variant={online ? 'ghost' : 'primary'}
-            icon={online ? <PowerOff strokeWidth={1.8} /> : <Globe strokeWidth={1.8} />}
+            icon={
+              online ? (
+                <PowerOff strokeWidth={1.8} />
+              ) : (
+                <Globe strokeWidth={1.8} />
+              )
+            }
             loading={pending === 'publish' || pending === 'unpublish'}
             onClick={togglePublished}
           >
@@ -214,92 +261,87 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-8">
         <div className="flex flex-col gap-6">
           <Card>
-            <CardHeader title="Couleurs" />
-            <div className="grid gap-2 px-3 pb-4 sm:grid-cols-2 sm:gap-4 sm:px-5 sm:pb-6">
-              {(
-                [
-                  ['primary', 'Principale', 'Bandeau d’accueil, boutons'],
-                  ['accent', 'Accent', 'Annonce, appels à l’action'],
-                  ['background', 'Fond', 'Fond des pages'],
-                  ['foreground', 'Texte', 'Textes et titres'],
-                ] as const
-              ).map(([key, label, hint]) => (
-                <label
-                  key={key}
-                  className="group flex cursor-pointer items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-2"
-                >
-                  <motion.span
-                    className="relative size-11 shrink-0 overflow-hidden rounded-[0.7rem] shadow-[inset_0_0_0_1px_rgb(16_17_21/0.16),var(--shadow-key)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
-                    animate={{ backgroundColor: settings.colors[key] }}
-                    whileHover={{ scale: 1.05 }}
-                    transition={snappy}
-                  >
-                    <input
-                      type="color"
-                      value={settings.colors[key]}
-                      onChange={(e) => setColor(key, e.target.value.toUpperCase())}
-                      className="absolute inset-0 size-full cursor-pointer opacity-0"
-                      aria-label={`Couleur ${label.toLowerCase()}`}
-                    />
-                  </motion.span>
-                  <span className="flex min-w-0 flex-col">
-                    <span className="font-[600]">{label}</span>
-                    <span className="tabular truncate text-[0.75rem] text-ink-2">
-                      {settings.colors[key]} · {hint}
-                    </span>
-                  </span>
-                </label>
-              ))}
+            <CardHeader title="Modèle du site" />
+            <div className="px-3 pb-4 sm:px-5 sm:pb-6">
+              <TemplateGallery
+                storeType={store.type}
+                value={settings.template}
+                onChange={(id) => edit(switchTemplate(settings, id))}
+                content={{ storeName: store.name }}
+              />
             </div>
           </Card>
 
           <Card>
-            <CardHeader title="Textes et polices" />
+            <CardHeader title="Couleurs" />
+            <div className="flex flex-col gap-3 px-3 pb-4 sm:px-5 sm:pb-6">
+              <p className="px-1 text-[0.875rem] text-ink-2">
+                Palettes préparées pour « {template.manifest.name} » : textes et
+                boutons restent lisibles dans chacune.
+              </p>
+              <PalettePicker
+                palettes={template.manifest.palettes}
+                value={palette.id}
+                onChange={(id) => edit({ ...settings, palette: id })}
+              />
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title={
+                template.manifest.fontChoice ? 'Textes et polices' : 'Textes'
+              }
+            />
             <div className="flex flex-col gap-5 px-5 pb-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Police des titres">
-                  {(props) => (
-                    <Select
-                      {...props}
-                      value={settings.fonts.heading}
-                      onChange={(e) =>
-                        edit({
-                          ...settings,
-                          fonts: {
-                            ...settings.fonts,
-                            heading: e.target.value as typeof settings.fonts.heading,
-                          },
-                        })
-                      }
-                    >
-                      {FONT_CHOICES.map((f) => (
-                        <option key={f}>{f}</option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
-                <Field label="Police du texte">
-                  {(props) => (
-                    <Select
-                      {...props}
-                      value={settings.fonts.body}
-                      onChange={(e) =>
-                        edit({
-                          ...settings,
-                          fonts: {
-                            ...settings.fonts,
-                            body: e.target.value as typeof settings.fonts.body,
-                          },
-                        })
-                      }
-                    >
-                      {FONT_CHOICES.map((f) => (
-                        <option key={f}>{f}</option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
-              </div>
+              {template.manifest.fontChoice && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Police des titres">
+                    {(props) => (
+                      <Select
+                        {...props}
+                        value={settings.fonts.heading}
+                        onChange={(e) =>
+                          edit({
+                            ...settings,
+                            fonts: {
+                              ...settings.fonts,
+                              heading: e.target
+                                .value as typeof settings.fonts.heading,
+                            },
+                          })
+                        }
+                      >
+                        {FONT_CHOICES.map((f) => (
+                          <option key={f}>{f}</option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                  <Field label="Police du texte">
+                    {(props) => (
+                      <Select
+                        {...props}
+                        value={settings.fonts.body}
+                        onChange={(e) =>
+                          edit({
+                            ...settings,
+                            fonts: {
+                              ...settings.fonts,
+                              body: e.target
+                                .value as typeof settings.fonts.body,
+                            },
+                          })
+                        }
+                      >
+                        {FONT_CHOICES.map((f) => (
+                          <option key={f}>{f}</option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                </div>
+              )}
               {hero?.type === 'hero' && (
                 <>
                   <Field label="Titre d’accueil">
@@ -308,7 +350,9 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                         {...props}
                         value={hero.title}
                         maxLength={120}
-                        onChange={(e) => setSection('hero', { title: e.target.value })}
+                        onChange={(e) =>
+                          setSection('hero', { title: e.target.value })
+                        }
                       />
                     )}
                   </Field>
@@ -318,7 +362,9 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                         {...props}
                         value={hero.subtitle ?? ''}
                         maxLength={300}
-                        onChange={(e) => setSection('hero', { subtitle: e.target.value })}
+                        onChange={(e) =>
+                          setSection('hero', { subtitle: e.target.value })
+                        }
                       />
                     )}
                   </Field>
@@ -328,36 +374,41 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                         {...props}
                         value={hero.ctaLabel ?? ''}
                         maxLength={40}
-                        onChange={(e) => setSection('hero', { ctaLabel: e.target.value })}
+                        onChange={(e) =>
+                          setSection('hero', { ctaLabel: e.target.value })
+                        }
                       />
                     )}
                   </Field>
                 </>
               )}
-              {featured?.type === 'featured-collection' && (collections.data?.items.length ?? 0) > 0 && (
-                <Field label="Catalogue mis en avant">
-                  {(props) => (
-                    <Select
-                      {...props}
-                      value={featured.collectionId ?? ''}
-                      onChange={(e) => {
-                        const collection = collections.data?.items.find((c) => c.id === e.target.value);
-                        setSection('featured-collection', {
-                          collectionId: collection?.id ?? null,
-                          title: collection?.title ?? featured.title,
-                        });
-                      }}
-                    >
-                      <option value="">Aucun</option>
-                      {collections.data?.items.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.title}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                </Field>
-              )}
+              {featured?.type === 'featured-collection' &&
+                (collections.data?.items.length ?? 0) > 0 && (
+                  <Field label="Catalogue mis en avant">
+                    {(props) => (
+                      <Select
+                        {...props}
+                        value={featured.collectionId ?? ''}
+                        onChange={(e) => {
+                          const collection = collections.data?.items.find(
+                            (c) => c.id === e.target.value,
+                          );
+                          setSection('featured-collection', {
+                            collectionId: collection?.id ?? null,
+                            title: collection?.title ?? featured.title,
+                          });
+                        }}
+                      >
+                        <option value="">Aucun</option>
+                        {collections.data?.items.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.title}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                )}
               <label className="well flex cursor-pointer items-start gap-3 rounded-xl px-4 py-3">
                 <Switch
                   checked={settings.announcement.enabled}
@@ -410,8 +461,12 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
           </Card>
         </div>
 
-        <motion.div variants={riseIn} className="flex flex-col gap-4 lg:sticky lg:top-10">
-          <ApercuSite settings={settings} storeName={store.name} host={host} />
+        <motion.div
+          id="apercu"
+          variants={riseIn}
+          className="flex scroll-mt-6 flex-col gap-4 lg:sticky lg:top-10"
+        >
+          <LivePreview settings={settings} host={host} />
           <div className="panel flex flex-wrap items-center justify-between gap-3 p-4">
             <span className="flex items-center gap-2 text-[0.875rem] text-ink-2">
               <motion.span
@@ -420,11 +475,25 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
                 animate={{ scale: dirty ? [1, 1.4, 1] : 1 }}
                 transition={{ duration: 0.3 }}
               >
-                <Led tone={dirty ? 'attention' : site.hasUnpublishedChanges ? 'draft' : 'on'} />
+                <Led
+                  tone={
+                    dirty
+                      ? 'attention'
+                      : site.hasUnpublishedChanges
+                        ? 'draft'
+                        : 'on'
+                  }
+                />
               </motion.span>
               <AnimatePresence mode="wait" initial={false}>
                 <motion.span
-                  key={dirty ? 'dirty' : site.hasUnpublishedChanges ? 'draft' : 'ok'}
+                  key={
+                    dirty
+                      ? 'dirty'
+                      : site.hasUnpublishedChanges
+                        ? 'draft'
+                        : 'ok'
+                  }
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -6 }}
@@ -439,29 +508,6 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
               </AnimatePresence>
             </span>
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant="ghost"
-                icon={<Eye strokeWidth={1.8} />}
-                disabled={dirty}
-                title={dirty ? 'Enregistrez d’abord pour voir vos modifications' : undefined}
-                loading={preview.isPending}
-                onClick={() => {
-                  // Onglet ouvert tout de suite (sinon bloqué comme fenêtre surgissante), rempli dès que le lien arrive.
-                  const tab = window.open('', '_blank');
-                  preview.mutate(undefined, {
-                    onSuccess: ({ previewUrl }) => {
-                      if (tab) tab.location.href = previewUrl;
-                      else window.location.assign(previewUrl);
-                    },
-                    onError: (error) => {
-                      tab?.close();
-                      toast.error(errorMessage(error));
-                    },
-                  });
-                }}
-              >
-                Aperçu
-              </Button>
               <Button
                 variant="secondary"
                 disabled={!dirty || busy !== null}

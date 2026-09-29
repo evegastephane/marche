@@ -8,6 +8,7 @@ import {
   type ProductAttributes,
   type ProductKind,
   type ProductOption,
+  inferOptionType,
 } from '@marche/contracts';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { ActorContext } from '../../../shared/application/actor-context.port.js';
@@ -34,7 +35,10 @@ export function parseOptions(value: Prisma.JsonValue): ProductOption[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
     if (!isRecord(item) || typeof item.name !== 'string' || !Array.isArray(item.values)) return [];
-    const type = (OPTION_TYPES as readonly string[]).includes(item.type as string) ? (item.type as OptionType) : undefined;
+    // Une option enregistrée sans nature (données anciennes) la prend de son nom : « Taille » → taille, « Couleur » → couleur.
+    const declared = (OPTION_TYPES as readonly string[]).includes(item.type as string) ? (item.type as OptionType) : undefined;
+    const inferred = declared ?? inferOptionType(item.name);
+    const type = inferred === 'text' && !declared ? undefined : inferred;
     const swatches = isRecord(item.swatches)
       ? Object.fromEntries(Object.entries(item.swatches).filter(([, hex]) => typeof hex === 'string')) as Record<string, string>
       : undefined;

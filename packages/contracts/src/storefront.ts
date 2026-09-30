@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { type Currency, paginationQuerySchema } from './common.js';
-import type { BundleDiscountType, ProductOption } from './catalog.js';
+import type { BundleDiscountType } from './catalog.js';
+import type { VariantOptions } from './catalog-model.js';
 import type { MediaDto } from './media.js';
 import type { ThemeSettings } from './templates/theme.js';
 import {
@@ -8,17 +9,16 @@ import {
   type ProductAttributes,
   type ProductKind,
   productKindSchema,
-  type SizeGuide,
-  type StoreType,
-  type StorefrontServicesDto,
-} from './verticals.js';
+  type ProductOption,
+} from './storefront-vocabulary.js';
+import type { SizeGuide, StoreType, StorefrontServicesDto } from './verticals.js';
 
-/** Paramètre répétable « type:valeur » (ex. o=size:M&o=color:Bleu), normalisé en liste. */
+/** Paramètre répétable « clé:valeur » (ex. o=size:M&a=type-connecteur:USB-C), normalisé en liste. */
 const facetPairs = z
   .union([z.string(), z.array(z.string())])
   .optional()
   .transform((v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]))
-  .pipe(z.array(z.string().regex(/^[A-Za-z_]{1,40}:.{1,40}$/)).max(20));
+  .pipe(z.array(z.string().regex(/^[A-Za-z0-9_-]{1,60}:.{1,80}$/)).max(20));
 
 /** En-têtes posés par le storefront (appels serveur à serveur uniquement). */
 export const STOREFRONT_HEADERS = {
@@ -36,7 +36,7 @@ export const storefrontProductListQuerySchema = paginationQuerySchema.extend({
   kind: productKindSchema.optional(),
   /** Options : o=size:M, o=color:Bleu, o=storage:256 Go (valeurs d'un même type = « ou »). */
   o: facetPairs,
-  /** Attributs filtrables : a=audience:FEMME, a=accessoryType:CHARGER. */
+  /** Attributs filtrables, par slug : a=rayon:Femme, a=type-connecteur:USB-C (anciennes clés acceptées). */
   a: facetPairs,
   priceMin: z.coerce.number().int().min(0).optional(),
   priceMax: z.coerce.number().int().min(0).optional(),
@@ -78,8 +78,8 @@ export interface StorefrontStoreDto {
   logo: MediaDto | null;
   /** Mode ou Électronique : le site adapte la fiche produit et les filtres. */
   type: StoreType;
-  /** Guides des tailles de la boutique (ou ceux par défaut), affichés sur les fiches Mode. */
-  sizeGuides: { CLOTHING: SizeGuide; SHOES: SizeGuide };
+  /** Guide des tailles mis en avant (template Patron) : le premier de la boutique, sinon celui des vêtements (Mode). */
+  sizeGuide: SizeGuide | null;
   /** Services propres au type de boutique : échange, sur mesure, rayons, garantie, reprise, retours. */
   services: StorefrontServicesDto;
   templateId: string;
@@ -109,7 +109,10 @@ export interface StorefrontProductCardDto {
 export interface StorefrontVariantDto {
   id: string;
   title: string;
+  /** Valeurs dans l'ordre de `options` du produit (forme historique des templates). */
   optionValues: string[];
+  /** Valeurs par axe : { "stockage": "256 Go", "couleur": "Noir" }. */
+  options: VariantOptions;
   priceAmount: number;
   compareAtAmount: number | null;
   sku: string;
@@ -138,7 +141,16 @@ export interface StorefrontProductDto {
   slug: string;
   description: string | null;
   brand: { name: string; slug: string } | null;
+  /** Catégorie et chemin depuis la racine (slugs), pour les filtres et le guide des tailles. */
+  category: { name: string; slug: string; path: string[] } | null;
+  /** Guide des tailles de la catégorie (ou d'un parent), réglé par la boutique ; null s'il n'y en a pas. */
+  sizeGuide: SizeGuide | null;
+  /** Fiche technique lisible, dans l'ordre de la catégorie (« Taille écran : 6,3 pouces »). */
+  specs: StorefrontSpecDto[];
+  warrantyMonths: number | null;
+  /** Dérivé de la catégorie (forme historique des templates). */
   kind: ProductKind | null;
+  /** Fiche à clés fixes (forme historique des templates) ; préférer `specs`. */
   attributes: ProductAttributes;
   options: ProductOption[];
   variants: StorefrontVariantDto[];
@@ -151,6 +163,12 @@ export interface StorefrontProductDto {
   seoTitle: string | null;
   seoDescription: string | null;
   updatedAt: string;
+}
+
+export interface StorefrontSpecDto {
+  slug: string;
+  label: string;
+  value: string;
 }
 
 export interface StorefrontCollectionDto {

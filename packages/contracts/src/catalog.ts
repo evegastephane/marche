@@ -1,14 +1,8 @@
 import { z } from 'zod';
+import type { ProductSpecs, VariantOptions } from './catalog-model.js';
 import { amountSchema, paginationQuerySchema, resourceSlugSchema } from './common.js';
+import { unitInputSchema } from './inventory.js';
 import type { MediaDto } from './media.js';
-import {
-  optionTypeSchema,
-  productAttributesSchema,
-  productKindSchema,
-  swatchSchema,
-  type ProductAttributes,
-  type ProductKind,
-} from './verticals.js';
 
 // ───────────── Constantes ─────────────
 
@@ -16,8 +10,6 @@ export const PRODUCT_STATUSES = ['DRAFT', 'ACTIVE', 'ARCHIVED'] as const;
 export const productStatusSchema = z.enum(PRODUCT_STATUSES);
 export type ProductStatus = z.infer<typeof productStatusSchema>;
 
-/** 4 pour un ordinateur : écran, mémoire, stockage, couleur. */
-export const MAX_PRODUCT_OPTIONS = 4;
 export const MAX_PRODUCT_VARIANTS = 100;
 export const MAX_PRODUCT_MEDIA = 20;
 export const MAX_PRODUCT_ACCESSORIES = 20;
@@ -76,31 +68,31 @@ export const skuSchema = z
 
 const optionValueSchema = z.string().trim().min(1).max(40);
 
-export const productOptionSchema = z
-  .object({
-    name: z.string().trim().min(1).max(40),
-    values: z.array(optionValueSchema).min(1).max(50),
-    /** Nature de l'option (taille, couleur, stockage…) : décide de son affichage sur le site. */
-    type: optionTypeSchema.optional(),
-    /** Pastille de chaque couleur (option de type « color ») : valeur → #RRGGBB. */
-    swatches: z.record(optionValueSchema, swatchSchema).optional(),
-  })
-  .refine((option) => !option.swatches || Object.keys(option.swatches).every((v) => option.values.includes(v)), {
-    error: 'Une pastille correspond à une valeur de l’option',
-    path: ['swatches'],
-  });
-export type ProductOption = z.infer<typeof productOptionSchema>;
+/** Valeur d'une fiche technique : texte, nombre, oui/non, ou liste de choix. */
+export const specValueSchema = z.union([
+  z.string().trim().max(500),
+  z.number().finite(),
+  z.boolean(),
+  z.array(z.string().trim().min(1).max(80)).max(50),
+]);
 
 export const variantInputSchema = z.object({
   /** Présent pour une variante existante (mise à jour), absent pour une nouvelle. */
   id: z.uuid().optional(),
   sku: skuSchema,
-  optionValues: z.array(optionValueSchema).max(MAX_PRODUCT_OPTIONS).default([]),
+  /** Valeurs des axes : { "stockage": "256 Go", "couleur": "Noir" } ; {} pour la variante par défaut. */
+  options: z.record(z.string().min(1).max(60), optionValueSchema.max(80)).default({}),
   priceAmount: amountSchema,
   compareAtAmount: amountSchema.nullable().optional(),
+  /** Prix d'achat (marge). */
+  costAmount: amountSchema.nullable().optional(),
+  barcode: z.string().trim().max(64).nullable().optional(),
+  imageMediaId: z.uuid().nullable().optional(),
   trackInventory: z.boolean().default(true),
-  /** Stock initial, pris en compte uniquement à la création de la variante. */
+  /** Stock initial, pris en compte uniquement à la création de la variante (hors suivi à l'unité). */
   initialQuantity: z.number().int().min(0).max(1_000_000).optional(),
+  /** Unités en stock d'une nouvelle variante suivie à l'unité (IMEI, numéros de série). */
+  units: z.array(unitInputSchema).max(200).optional(),
 });
 export type VariantInput = z.infer<typeof variantInputSchema>;
 
@@ -109,15 +101,23 @@ const productFieldsSchema = z.object({
   slug: resourceSlugSchema.optional(),
   description: z.string().max(20_000).nullable().optional(),
   brandId: z.uuid().nullable().optional(),
-  options: z.array(productOptionSchema).max(MAX_PRODUCT_OPTIONS).default([]),
+  /** Catégorie : décide des attributs proposés et du suivi à l'unité. */
+  categoryId: z.uuid(),
+  /** Référence du modèle (« sku parent », ex. IP17P) : préfixe des SKU proposés. */
+  reference: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9][A-Z0-9._-]{0,31}$/, { error: 'Référence : lettres, chiffres, points, tirets (32 au plus)' })
+    .nullable()
+    .optional(),
+  warrantyMonths: z.number().int().min(0).max(120).nullable().optional(),
+  /** Fiche technique : { slug d'attribut : valeur }, validée selon les attributs de la catégorie. */
+  specs: z.record(z.string().min(1).max(60), specValueSchema).default({}),
   variants: z.array(variantInputSchema).min(1).max(MAX_PRODUCT_VARIANTS),
   mediaIds: z.array(z.uuid()).max(MAX_PRODUCT_MEDIA).default([]),
-  /** Photo → valeur d'option (une couleur) : la galerie du site suit la couleur choisie. */
+  /** Photo → valeur d'axe (une couleur) : la galerie du site suit la couleur choisie. */
   mediaOptionValues: z.record(z.uuid(), optionValueSchema).default({}),
-  /** Sorte d'article (vêtement, téléphone…), parmi celles du type de la boutique. */
-  kind: productKindSchema.nullable().optional(),
-  /** Fiche technique ou détails (matière, rayon, stockage…), validés selon la sorte. */
-  attributes: productAttributesSchema.default({}),
   /** Accessoires proposés avec l'appareil, choisis à la main (dans l'ordre). */
   accessoryIds: z.array(z.uuid()).max(MAX_PRODUCT_ACCESSORIES).default([]),
   seoTitle: z.string().trim().max(70).nullable().optional(),
@@ -133,12 +133,36 @@ export const updateProductSchema = productFieldsSchema.extend({
 });
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 
+/** Vérification en direct, pendant la saisie : SKU et référence déjà pris par un autre produit ? */
+export const skuCheckSchema = z.object({
+  skus: z.array(skuSchema).max(MAX_PRODUCT_VARIANTS).default([]),
+  reference: z.string().trim().toUpperCase().max(32).nullable().optional(),
+  /** Produit en cours de modification : ses propres SKU ne comptent pas. */
+  excludeProductId: z.uuid().optional(),
+});
+export type SkuCheckInput = z.infer<typeof skuCheckSchema>;
+
+export interface SkuCheckDto {
+  takenSkus: string[];
+  referenceTaken: boolean;
+}
+
+/** Paramètre répétable « slug:valeur » (ex. spec=couleur:Noir&spec=stockage:256 Go), normalisé en liste. */
+const specPairs = z
+  .union([z.string(), z.array(z.string())])
+  .optional()
+  .transform((v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]))
+  .pipe(z.array(z.string().regex(/^[a-z0-9-]{1,60}:.{1,80}$/)).max(20));
+
 export const productListQuerySchema = paginationQuerySchema.extend({
   q: z.string().trim().min(1).max(100).optional(),
   status: productStatusSchema.optional(),
   brandId: z.uuid().optional(),
   collectionId: z.uuid().optional(),
-  kind: productKindSchema.optional(),
+  /** Catégorie, sous-catégories comprises. */
+  categoryId: z.uuid().optional(),
+  /** Filtres de fiche technique ou d'axe : spec=couleur:Noir (valeurs d'un même attribut = « ou »). */
+  spec: specPairs,
 });
 export type ProductListQuery = z.infer<typeof productListQuerySchema>;
 
@@ -158,9 +182,12 @@ export interface ProductVariantDto {
   id: string;
   sku: string;
   title: string;
-  optionValues: string[];
+  options: VariantOptions;
   priceAmount: number;
   compareAtAmount: number | null;
+  costAmount: number | null;
+  barcode: string | null;
+  image: MediaDto | null;
   position: number;
   trackInventory: boolean;
   archived: boolean;
@@ -181,9 +208,12 @@ export interface ProductDto {
   description: string | null;
   status: ProductStatus;
   brand: { id: string; name: string } | null;
-  kind: ProductKind | null;
-  attributes: ProductAttributes;
-  options: ProductOption[];
+  category: { id: string; name: string; slug: string } | null;
+  /** Suivi à l'unité (IMEI) : hérité de la catégorie. */
+  tracksUnits: boolean;
+  reference: string | null;
+  warrantyMonths: number | null;
+  specs: ProductSpecs;
   variants: ProductVariantDto[];
   media: MediaDto[];
   mediaOptionValues: Record<string, string>;
@@ -203,7 +233,8 @@ export interface ProductListItemDto {
   title: string;
   slug: string;
   status: ProductStatus;
-  kind: ProductKind | null;
+  category: { id: string; name: string } | null;
+  reference: string | null;
   brand: { id: string; name: string } | null;
   variantsCount: number;
   priceMinAmount: number;

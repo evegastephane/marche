@@ -90,9 +90,9 @@ async function Hero({ site, store, section }: SectionProps<'hero'>) {
             {section.title}
           </h1>
           {section.subtitle && <p className="max-w-[46ch] text-lg leading-relaxed">{section.subtitle}</p>}
-          {store.type === 'FASHION' && (
+          {store.sizeGuide && (
             <div className="mt-auto hidden pt-8 lg:block">
-              <MeasureChart guide={store.sizeGuides.CLOTHING} />
+              <MeasureChart guide={store.sizeGuide} />
             </div>
           )}
         </div>
@@ -104,9 +104,9 @@ async function Hero({ site, store, section }: SectionProps<'hero'>) {
             ctaHref={section.ctaHref ?? '/collections'}
           />
         </div>
-        {store.type === 'FASHION' && (
+        {store.sizeGuide && (
           <div className="lg:hidden">
-            <MeasureChart guide={store.sizeGuides.CLOTHING} />
+            <MeasureChart guide={store.sizeGuide} />
           </div>
         )}
       </div>

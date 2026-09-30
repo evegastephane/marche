@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { AccessoryChooser, BundleOffer } from '@/components/shop/accessories';
 import { SizeGuideButton } from '@/components/shop/size-guide';
-import { SpecSheet } from '@/components/shop/spec-sheet';
+import { SpecSheet, specRows } from '@/components/shop/spec-sheet';
 import { ServiceNotes, useConditionHint } from '@/components/shop/services';
 import { SpecialRequestButton } from '@/components/shop/special-request';
 import { useConfigurator } from '@/components/shop/use-configurator';
@@ -301,14 +301,13 @@ export function ProductView({
               ))}
           </div>
         )}
-        {Object.keys(product.attributes).length > 0 && (
+        {specRows(product).length > 0 && (
           <section aria-labelledby="fiche-technique" className="flex flex-col gap-3">
             <h2 id="fiche-technique" className="font-heading text-2xl font-extrabold tracking-wide uppercase">
               Fiche technique
             </h2>
             <SpecSheet
-              kind={product.kind}
-              attributes={product.attributes}
+              product={product}
               exclude={['compatibleModels']}
               className="rounded-lg border border-line bg-surface px-4 text-on-surface"
               rowClassName="border-b border-line last:border-0 text-sm"

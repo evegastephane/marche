@@ -245,7 +245,7 @@ export function ProductView({
               ))}
           </div>
         )}
-        <SpecSheet kind={product.kind} attributes={product.attributes} exclude={['compatibleModels']} rowClassName="border-b border-line text-sm" />
+        <SpecSheet product={product} exclude={['compatibleModels']} rowClassName="border-b border-line text-sm" />
       </div>
     </div>
   );

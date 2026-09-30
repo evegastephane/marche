@@ -1,3 +1,4 @@
+import type { PublishProblem } from '@marche/contracts';
 import { ConflictError, ValidationError } from '../../../shared/domain/domain-error.js';
 
 /** R1 : SKU unique par boutique. */
@@ -19,9 +20,10 @@ export class SlugTakenError extends ConflictError {
 }
 
 /** R3 : un produit ne passe ACTIVE que s'il est complet. */
+/** Règle 10 : details.problems dit quel champ manque ({ slug, name, message }), pour le surligner. */
 export class ProductNotPublishableError extends ValidationError {
-  constructor(reason: string) {
-    super('PRODUCT_NOT_PUBLISHABLE', `Ce produit ne peut pas être publié : ${reason}`);
+  constructor(reason: string, problems?: PublishProblem[]) {
+    super('PRODUCT_NOT_PUBLISHABLE', `Ce produit ne peut pas être publié : ${reason}`, problems ? { problems } : undefined);
   }
 }
 

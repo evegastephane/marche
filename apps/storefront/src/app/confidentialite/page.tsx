@@ -1,15 +1,14 @@
 import type { Metadata } from 'next';
-import { Hanken_Grotesk } from 'next/font/google';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { UpsellMark, UpsellWordmark } from '@/components/upsell-mark';
+import { hanken } from '@/lib/platform-font';
 
 export const metadata: Metadata = {
   title: 'Confidentialité · Upsell',
   icons: { icon: '/favicon.svg' },
 };
 
-const hanken = Hanken_Grotesk({ subsets: ['latin'], display: 'swap' });
 const CONTACT = process.env.NEXT_PUBLIC_PLATFORM_CONTACT_EMAIL;
 
 function Section({ title, children }: { title: string; children: ReactNode }) {

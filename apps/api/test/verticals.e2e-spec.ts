@@ -1,15 +1,28 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DeviceCatalog } from '../src/modules/devices/application/devices.ports.js';
-import { createStoreFor, createTestApp, STOREFRONT_TOKEN, type TestApp, uniqueSlug } from './support/test-app.js';
+import { categoryId, createStoreFor, createTestApp, STOREFRONT_TOKEN, type TestApp, uniqueSlug } from './support/test-app.js';
 
-describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)', () => {
+/** IMEI de test à 15 chiffres avec une clé de Luhn valide. */
+function imei(body14: string): string {
+  const sum = body14.split('').reverse().reduce((total, char, index) => {
+    const digit = Number(char) * (index % 2 === 0 ? 2 : 1);
+    return total + (digit > 9 ? digit - 9 : digit);
+  }, 0);
+  return `${body14}${(10 - (sum % 10)) % 10}`;
+}
+
+const IMEIS = Array.from({ length: 6 }, (_, i) => imei(`3569380356430${i}`));
+
+type VariantBody = { id: string; options: Record<string, string> };
+
+describe('Boutique électronique : catégories, IMEI, accessoires, packs, demandes (e2e)', () => {
   let t: TestApp;
   let token: string;
   let slug: string;
-  let phone: { id: string; slug: string; variants: { id: string; optionValues: string[] }[] };
+  let phone: { id: string; slug: string; variants: VariantBody[] };
   let charger: { id: string; variantId: string };
-  let case12: { id: string; variantId: string };
+  let case17: { id: string; variantId: string };
   let earphones: { id: string; variantId: string };
 
   const admin = () => ({ Authorization: `Bearer ${token}` });
@@ -28,12 +41,12 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
     return created.body;
   }
 
-  const accessory = async (title: string, sku: string, priceAmount: number, attributes: Record<string, unknown>) => {
+  const accessory = async (category: string, title: string, sku: string, priceAmount: number, rest: Record<string, unknown>) => {
     const body = await publishedProduct({
       title,
-      kind: 'ACCESSORY',
-      attributes,
-      variants: [{ sku, priceAmount, initialQuantity: 20 }],
+      categoryId: await categoryId(t, token, category),
+      variants: [{ sku, priceAmount, initialQuantity: 20, ...(rest.options ? { options: rest.options } : {}) }],
+      specs: rest.specs ?? {},
     });
     return { id: body.id as string, variantId: body.variants[0].id as string };
   };
@@ -43,31 +56,38 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
     slug = uniqueSlug('volta');
     ({ token } = await createStoreFor(t, { slug, name: 'Volta Mobile', currency: 'XOF', country: 'SN', type: 'ELECTRONICS' }));
 
-    charger = await accessory('Chargeur 20 W', 'CHG-20', 15_000, {
-      accessoryType: 'CHARGER',
-      compatibleModels: ['iPhone 12', 'iPhone 13'],
-      power: 20,
+    charger = await accessory('chargeurs', 'Chargeur 20 W', 'CHG-20', 15_000, {
+      specs: { puissance: 20, 'type-connecteur': 'USB-C', compatibilite: ['iPhone 17 Pro', 'iPhone 17'] },
     });
-    case12 = await accessory('Coque silicone', 'COQ-12', 8_000, { accessoryType: 'CASE', compatibleModels: ['iphone  12'] });
-    earphones = await accessory('Écouteurs sans fil', 'ECO-1', 25_000, { accessoryType: 'EARPHONES', wireless: true });
+    // Valeur saisie sans respecter la casse : ramenée à la valeur de l'attribut.
+    case17 = await accessory('coques-pochettes', 'Coque silicone', 'COQ-17', 8_000, {
+      options: { couleur: 'Noir' },
+      specs: { compatibilite: ['iphone 17 pro'] },
+    });
+    earphones = await accessory('ecouteurs', 'Écouteurs sans fil', 'ECO-1', 25_000, {
+      options: { couleur: 'Blanc' },
+      specs: { 'reduction-bruit': true, connectivite: ['Bluetooth'] },
+    });
 
+    const axes = (stockage: string, couleur: string, etat: string) => ({ stockage, ram: '12 Go', couleur, etat });
     phone = await publishedProduct({
-      title: 'iPhone 12',
-      kind: 'PHONE',
-      attributes: { model: 'iPhone 12', screenSize: 6.1, network5g: true },
-      options: [
-        { name: 'Stockage', type: 'storage', values: ['128 Go', '256 Go'] },
-        { name: 'Couleur', type: 'color', values: ['Bleu', 'Violet'], swatches: { Violet: '#6A4C93' } },
-        { name: 'État', type: 'condition', values: ['Neuf', 'Reconditionné – Excellent'] },
-      ],
+      title: 'iPhone 17 Pro',
+      categoryId: await categoryId(t, token, 'smartphones'),
+      reference: 'IP17P',
+      specs: { 'taille-ecran': 6.3, reseau: '5G' },
       variants: [
-        { sku: 'IP12-128-BL-N', optionValues: ['128 Go', 'Bleu', 'Neuf'], priceAmount: 300_000, initialQuantity: 3 },
-        { sku: 'IP12-256-BL-N', optionValues: ['256 Go', 'Bleu', 'Neuf'], priceAmount: 350_000, initialQuantity: 1 },
         {
-          sku: 'IP12-128-VI-R',
-          optionValues: ['128 Go', 'Violet', 'Reconditionné – Excellent'],
+          sku: 'IP17P-256-BLU-NEW',
+          options: axes('256 Go', 'Bleu', 'Neuf'),
+          priceAmount: 300_000,
+          units: IMEIS.slice(0, 3).map((serial) => ({ serial })),
+        },
+        { sku: 'IP17P-512-BLU-NEW', options: axes('512 Go', 'Bleu', 'Neuf'), priceAmount: 350_000, units: [{ serial: IMEIS[3]! }] },
+        {
+          sku: 'IP17P-256-PRP-RFA',
+          options: axes('256 Go', 'Violet', 'Reconditionné – Excellent'),
           priceAmount: 240_000,
-          initialQuantity: 2,
+          units: [{ serial: IMEIS[4]!, batteryHealth: 91 }, { serial: IMEIS[5]!, batteryHealth: 88 }],
         },
       ],
       accessoryIds: [earphones.id],
@@ -81,56 +101,112 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
     await t?.close();
   });
 
-  it('expose le type de la boutique et ses guides des tailles au site', async () => {
+  it('expose le type de la boutique ; une boutique Tech n’a pas de guide des tailles', async () => {
     const store = await t.http().get('/storefront/v1/store').set(shop());
     expect(store.body.type).toBe('ELECTRONICS');
-    expect(store.body.sizeGuides.CLOTHING.columns.length).toBeGreaterThan(1);
+    expect(store.body.sizeGuide).toBeNull();
   });
 
-  it('refuse une sorte d’article d’un autre type de boutique', async () => {
+  it('refuse un produit sans catégorie connue (422 INVALID_CATEGORY)', async () => {
     const response = await t
       .http()
       .post('/api/v1/products')
       .set(admin())
-      .send({ title: 'Robe', kind: 'CLOTHING', variants: [{ sku: 'ROBE-X', priceAmount: 1000 }] });
+      .send({ title: 'Robe', categoryId: randomUUID(), variants: [{ sku: 'ROBE-X', priceAmount: 1000 }] });
     expect(response.status).toBe(422);
-    expect(response.body.code).toBe('INVALID_PRODUCT_KIND');
+    expect(response.body.code).toBe('INVALID_CATEGORY');
   });
 
-  it('valide la fiche technique selon la sorte d’article', async () => {
+  it('valide la fiche technique selon les attributs de la catégorie', async () => {
     const response = await t
       .http()
       .post('/api/v1/products')
       .set(admin())
-      .send({ title: 'Chargeur', kind: 'ACCESSORY', attributes: { accessoryType: 'TELEPORTEUR' }, variants: [{ sku: 'X-1', priceAmount: 1 }] });
+      .send({
+        title: 'Chargeur',
+        categoryId: await categoryId(t, token, 'chargeurs'),
+        specs: { 'type-connecteur': 'TELEPORTEUR' },
+        variants: [{ sku: 'X-1', priceAmount: 1 }],
+      });
     expect(response.status).toBe(422);
   });
 
-  it('garde les options typées, les pastilles et la fiche technique', async () => {
+  it('bloque la publication tant qu’un attribut obligatoire est vide (règle 10)', async () => {
+    const draft = await t
+      .http()
+      .post('/api/v1/products')
+      .set(admin())
+      .send({ title: 'Chargeur sans fiche', categoryId: await categoryId(t, token, 'chargeurs'), variants: [{ sku: 'CHG-NU', priceAmount: 5_000 }] });
+    expect(draft.status, JSON.stringify(draft.body)).toBe(201);
+    expect(draft.body.status).toBe('DRAFT');
+    const refused = await t.http().post(`/api/v1/products/${draft.body.id}/publish`).set(admin());
+    expect(refused.status).toBe(422);
+    expect(refused.body.code).toBe('PRODUCT_NOT_PUBLISHABLE');
+    expect(refused.body.details.problems.map((p: { slug: string }) => p.slug)).toEqual(
+      expect.arrayContaining(['puissance', 'type-connecteur']),
+    );
+  });
+
+  it('exige les IMEI du stock initial d’un téléphone (suivi à l’unité)', async () => {
+    const response = await t
+      .http()
+      .post('/api/v1/products')
+      .set(admin())
+      .send({
+        title: 'Galaxy S25',
+        categoryId: await categoryId(t, token, 'smartphones'),
+        variants: [{ sku: 'S25-1', options: { stockage: '256 Go', ram: '12 Go', couleur: 'Noir' }, priceAmount: 1, initialQuantity: 2 }],
+      });
+    expect(response.status).toBe(422);
+  });
+
+  it('garde catégorie, référence, fiche technique et axes ; stock = unités en stock', async () => {
     const product = await t.http().get(`/api/v1/products/${phone.id}`).set(admin());
     expect(product.body).toMatchObject({
-      kind: 'PHONE',
-      attributes: { model: 'iPhone 12', screenSize: 6.1, network5g: true },
+      category: { slug: 'smartphones' },
+      tracksUnits: true,
+      reference: 'IP17P',
+      specs: { 'taille-ecran': 6.3, reseau: '5G' },
       accessories: [{ id: earphones.id, title: 'Écouteurs sans fil' }],
     });
-    expect(product.body.options[1]).toMatchObject({ type: 'color', swatches: { Violet: '#6A4C93' } });
+    expect(product.body.variants[0]).toMatchObject({
+      title: '256 Go / 12 Go / Bleu / Neuf',
+      options: { stockage: '256 Go', ram: '12 Go', couleur: 'Bleu', etat: 'Neuf' },
+      inventory: { onHand: 3 },
+    });
+    const units = await t.http().get(`/api/v1/inventory/${phone.variants[2]!.id}/units`).set(admin());
+    expect(units.status, JSON.stringify(units.body)).toBe(200);
+    expect(units.body.items.map((u: { serial: string; condition: string }) => [u.serial, u.condition])).toEqual(
+      expect.arrayContaining([
+        [IMEIS[4], 'USED'],
+        [IMEIS[5], 'USED'],
+      ]),
+    );
   });
 
-  it('propose les accessoires choisis, puis les compatibles avec le modèle', async () => {
+  it('propose les accessoires choisis, puis les compatibles avec l’appareil', async () => {
     const product = await t.http().get(`/storefront/v1/products/${phone.slug}`).set(shop());
     expect(product.status).toBe(200);
-    expect(product.body.kind).toBe('PHONE');
+    expect(product.body).toMatchObject({ kind: 'PHONE', category: { slug: 'smartphones' } });
+    expect(product.body.specs).toEqual(
+      expect.arrayContaining([
+        { slug: 'taille-ecran', label: 'Taille écran', value: '6,3 pouces' },
+        { slug: 'reseau', label: 'Réseau', value: '5G' },
+      ]),
+    );
+    expect(product.body.options.map((o: { type: string }) => o.type)).toEqual(['storage', 'memory', 'color', 'condition']);
+    expect(product.body.options[2]).toMatchObject({ swatches: { Violet: '#6A4C93' } });
     const ids = product.body.accessories.map((a: { id: string }) => a.id);
     expect(ids[0]).toBe(earphones.id);
-    expect(ids).toEqual(expect.arrayContaining([charger.id, case12.id]));
+    expect(ids).toEqual(expect.arrayContaining([charger.id, case17.id]));
     expect(new Set(ids).size).toBe(ids.length);
-    expect(product.body.accessories[0]).toMatchObject({ variantId: earphones.variantId, attributes: { wireless: true } });
+    expect(product.body.accessories[0]).toMatchObject({ variantId: earphones.variantId, attributes: { accessoryType: 'EARPHONES' } });
   });
 
-  it('filtre le catalogue par option, attribut et prix, avec les compteurs', async () => {
+  it('filtre le catalogue par axe, attribut et prix, avec les compteurs', async () => {
     const list = (query: Record<string, unknown>) => t.http().get('/storefront/v1/products').query(query).set(shop());
 
-    const storage = await list({ o: 'storage:256 Go' });
+    const storage = await list({ o: 'storage:512 Go' });
     expect(storage.body.items.map((p: { id: string }) => p.id)).toEqual([phone.id]);
     expect(storage.body.items[0].swatches).toEqual(
       expect.arrayContaining([
@@ -140,18 +216,18 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
     );
     expect((await list({ o: 'storage:1 To' })).body.items).toEqual([]);
 
-    const chargers = await list({ a: 'accessoryType:CHARGER' });
-    expect(chargers.body.items.map((p: { id: string }) => p.id)).toEqual([charger.id]);
+    expect((await list({ a: 'accessoryType:CHARGER' })).body.items.map((p: { id: string }) => p.id)).toEqual([charger.id]);
+    expect((await list({ a: 'type-connecteur:USB-C' })).body.items.map((p: { id: string }) => p.id)).toEqual([charger.id]);
 
     const cheap = await list({ kind: 'ACCESSORY', priceMax: 10_000 });
-    expect(cheap.body.items.map((p: { id: string }) => p.id)).toEqual([case12.id]);
+    expect(cheap.body.items.map((p: { id: string }) => p.id)).toEqual([case17.id]);
 
     const facets = await t.http().get('/storefront/v1/facets').set(shop());
     expect(facets.status).toBe(200);
     const storageFacet = facets.body.options.find((o: { type: string }) => o.type === 'storage');
     expect(storageFacet.values).toEqual([
-      { value: '128 Go', swatch: null, count: 1 },
       { value: '256 Go', swatch: null, count: 1 },
+      { value: '512 Go', swatch: null, count: 1 },
     ]);
     expect(facets.body.kinds).toEqual(
       expect.arrayContaining([
@@ -159,6 +235,10 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
         { value: 'ACCESSORY', label: 'Accessoires', count: 3 },
       ]),
     );
+    expect(facets.body.attributes.find((a: { key: string }) => a.key === 'reduction-bruit')).toMatchObject({
+      label: 'Réduction de bruit',
+      values: [{ value: 'true', label: 'Oui', count: 1 }],
+    });
     expect(facets.body.price).toEqual({ min: 8_000, max: 240_000 });
   });
 
@@ -167,7 +247,7 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
       .http()
       .post('/api/v1/bundles')
       .set(admin())
-      .send({ title: 'Pack iPhone 12 + chargeur', anchorProductId: phone.id, itemProductIds: [charger.id], discountType: 'PERCENT', discountValue: 10 });
+      .send({ title: 'Pack iPhone 17 Pro + chargeur', anchorProductId: phone.id, itemProductIds: [charger.id], discountType: 'PERCENT', discountValue: 10 });
     expect(bundle.status, JSON.stringify(bundle.body)).toBe(201);
     expect(bundle.body).toMatchObject({ anchor: { id: phone.id }, items: [{ id: charger.id }] });
 
@@ -175,12 +255,12 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
     expect(product.body.bundles).toMatchObject([{ id: bundle.body.id, discountValue: 10, items: [{ id: charger.id }] }]);
 
     const cart = await t.http().post('/storefront/v1/carts').set(shop());
-    const blue128 = phone.variants.find((v) => v.optionValues[0] === '128 Go' && v.optionValues[1] === 'Bleu')!;
+    const blue256 = phone.variants.find((v) => v.options.stockage === '256 Go' && v.options.couleur === 'Bleu')!;
     const added = await t
       .http()
       .post(`/storefront/v1/carts/${cart.body.id}/lines/batch`)
       .set(shop())
-      .send({ lines: [{ variantId: blue128.id, quantity: 1 }, { variantId: charger.variantId, quantity: 1 }] });
+      .send({ lines: [{ variantId: blue256.id, quantity: 1 }, { variantId: charger.variantId, quantity: 1 }] });
     expect(added.status, JSON.stringify(added.body)).toBe(201);
     expect(added.body).toMatchObject({
       subtotalAmount: 315_000,
@@ -244,7 +324,7 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
       .send({
         productSlug: phone.slug,
         options: [
-          { name: 'Stockage', value: '512 Go' },
+          { name: 'Stockage', value: '1 To' },
           { name: 'Couleur', value: 'Rouge' },
           { name: 'Inconnue', value: 'X' },
         ],
@@ -255,7 +335,7 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
         note: 'Pour un cadeau',
       });
     expect(submitted.status, JSON.stringify(submitted.body)).toBe(201);
-    expect(submitted.body.productTitle).toBe('iPhone 12');
+    expect(submitted.body.productTitle).toBe('iPhone 17 Pro');
 
     const summary = await t.http().get('/api/v1/special-requests/summary').set(admin());
     expect(summary.body.newCount).toBeGreaterThanOrEqual(1);
@@ -265,7 +345,7 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
       currency: 'XOF',
       email: 'moussa@example.com',
       options: [
-        { name: 'Stockage', value: '512 Go' },
+        { name: 'Stockage', value: '1 To' },
         { name: 'Couleur', value: 'Rouge' },
       ],
     });
@@ -290,7 +370,7 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
       status: 'DRAFT',
       email: 'moussa@example.com',
       subtotalAmount: 840_000,
-      lines: [{ custom: true, variantId: null, productTitle: 'iPhone 12', variantTitle: '512 Go / Rouge', quantity: 2 }],
+      lines: [{ custom: true, variantId: null, productTitle: 'iPhone 17 Pro', variantTitle: '1 To / Rouge', quantity: 2 }],
     });
 
     const placed = await t
@@ -304,25 +384,32 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
     expect(again.status).toBe(409);
   });
 
-  it('compte le stock de plusieurs déclinaisons d’un coup, et refuse un comptage périmé', async () => {
-    const [first, second] = phone.variants;
+  it('compte le stock de plusieurs articles d’un coup, refuse un comptage périmé ou un article suivi à l’unité', async () => {
     const counted = await t
       .http()
       .post('/api/v1/inventory/counts')
       .set(admin())
-      .send({ entries: [{ variantId: first!.id, onHand: 7 }, { variantId: second!.id, onHand: 0 }] });
+      .send({ entries: [{ variantId: charger.variantId, onHand: 7 }, { variantId: case17.variantId, onHand: 0 }] });
     expect(counted.status, JSON.stringify(counted.body)).toBe(200);
     expect(counted.body.map((level: { onHand: number }) => level.onHand)).toEqual([7, 0]);
 
-    const movements = await t.http().get(`/api/v1/inventory/${first!.id}/movements`).set(admin());
+    const movements = await t.http().get(`/api/v1/inventory/${charger.variantId}/movements`).set(admin());
     expect(movements.body.items[0]).toMatchObject({ type: 'ADJUSTMENT', reason: 'Comptage' });
 
     const stale = await t
       .http()
       .post('/api/v1/inventory/counts')
       .set(admin())
-      .send({ entries: [{ variantId: first!.id, onHand: 3, expectedOnHand: 99 }] });
+      .send({ entries: [{ variantId: charger.variantId, onHand: 3, expectedOnHand: 99 }] });
     expect(stale.status).toBe(409);
+
+    const tracked = await t
+      .http()
+      .post('/api/v1/inventory/counts')
+      .set(admin())
+      .send({ entries: [{ variantId: phone.variants[1]!.id, onHand: 5 }] });
+    expect(tracked.status).toBe(422);
+    expect(tracked.body.code).toBe('UNIT_TRACKED_VARIANT');
   });
 
   it('reprise : refusée tant que la boutique ne la propose pas, puis reçue avec l’appareil à reprendre', async () => {
@@ -373,15 +460,13 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
     expect(measure.status).toBe(422);
   });
 
-  it('IMEI : noté à l’expédition, un par exemplaire au plus', async () => {
+  it('IMEI : la pièce expédiée sort du stock, une par exemplaire (règle 6)', async () => {
+    const variant = phone.variants.find((v) => v.options.stockage === '512 Go')!;
     const created = await t
       .http()
       .post('/api/v1/orders')
       .set(admin())
-      .send({
-        customer: { email: 'ibou@example.com', firstName: 'Ibou' },
-        lines: [{ variantId: phone.variants[0]!.id, quantity: 1 }],
-      });
+      .send({ customer: { email: 'ibou@example.com', firstName: 'Ibou' }, lines: [{ variantId: variant.id, quantity: 1 }] });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
     const placed = await t
       .http()
@@ -389,21 +474,24 @@ describe('Types de boutique : électronique, accessoires, packs, demandes (e2e)'
       .set({ ...admin(), 'idempotency-key': randomUUID() });
     expect(placed.status, JSON.stringify(placed.body)).toBe(200);
     const lineId = placed.body.lines[0].id as string;
+    const fulfill = (values: string[]) =>
+      t.http().post(`/api/v1/orders/${created.body.id}/fulfill`).set(admin()).send({ serialNumbers: [{ lineId, values }] });
 
-    const tooMany = await t
-      .http()
-      .post(`/api/v1/orders/${created.body.id}/fulfill`)
-      .set(admin())
-      .send({ serialNumbers: [{ lineId, values: ['356938035643809', '356938035643817'] }] });
-    expect(tooMany.status).toBe(422);
+    expect((await fulfill([IMEIS[3]!, IMEIS[0]!])).status).toBe(422);
+    const missing = await fulfill([]);
+    expect(missing.status).toBe(422);
+    expect(missing.body.code).toBe('UNIT_TRACKED_VARIANT');
+    // Une pièce d'une autre déclinaison n'est pas en stock pour celle-ci.
+    expect((await fulfill([IMEIS[0]!])).status).toBe(422);
 
-    const shipped = await t
-      .http()
-      .post(`/api/v1/orders/${created.body.id}/fulfill`)
-      .set(admin())
-      .send({ serialNumbers: [{ lineId, values: ['356938035643809'] }] });
+    const shipped = await fulfill([`${IMEIS[3]!.slice(0, 5)} ${IMEIS[3]!.slice(5)}`]);
     expect(shipped.status, JSON.stringify(shipped.body)).toBe(200);
-    expect(shipped.body).toMatchObject({ status: 'FULFILLED', lines: [{ serialNumbers: ['356938035643809'] }] });
+    expect(shipped.body).toMatchObject({ status: 'FULFILLED', lines: [{ serialNumbers: [IMEIS[3]] }] });
+
+    const units = await t.http().get(`/api/v1/inventory/${variant.id}/units`).set(admin());
+    expect(units.body.items).toMatchObject([{ serial: IMEIS[3], status: 'SOLD' }]);
+    const product = await t.http().get(`/api/v1/products/${phone.id}`).set(admin());
+    expect(product.body.variants.find((v: { id: string }) => v.id === variant.id).inventory).toMatchObject({ onHand: 0, reserved: 0 });
   });
 
   it('catalogue d’appareils : sans clé du service, seules les fiches déjà connues sont proposées', async () => {

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { DevelopersModule } from '../developers/developers.module.js';
 import { CatalogModule } from '../catalog/catalog.module.js';
 import { CheckoutModule } from '../checkout/checkout.module.js';
 import { InventoryModule } from '../inventory/inventory.module.js';
@@ -17,7 +18,7 @@ import { StorefrontGuard } from './interface/storefront.guard.js';
 
 /** API publique des sites générés (BFF) : ne dépend que des façades des autres modules. */
 @Module({
-  imports: [StoresModule, SitesModule, CatalogModule, InventoryModule, MediaModule, CheckoutModule, OrdersModule],
+  imports: [StoresModule, SitesModule, DevelopersModule, CatalogModule, InventoryModule, MediaModule, CheckoutModule, OrdersModule],
   controllers: [
     StorefrontCatalogController,
     StorefrontCartController,

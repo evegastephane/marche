@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { AccessoryChooser, BundleOffer } from '@/components/shop/accessories';
 import { ServiceNotes } from '@/components/shop/services';
 import { SizeGuideButton } from '@/components/shop/size-guide';
-import { SpecSheet } from '@/components/shop/spec-sheet';
+import { SpecSheet, specRows } from '@/components/shop/spec-sheet';
 import { SpecialRequestButton } from '@/components/shop/special-request';
 import { type Configurator, useConfigurator } from '@/components/shop/use-configurator';
 import { cn, formatMoney } from '@/lib/format';
@@ -89,7 +89,7 @@ export function ProductView({
     .filter(Boolean);
   const [standfirst, ...body] = paragraphs;
   const sizeIndex = product.options.findIndex((o) => o.type === 'size' || o.type === 'shoe_size');
-  const hasSheet = Object.keys(product.attributes).length > 0;
+  const hasSheet = specRows(product).length > 0;
 
   return (
     <article className="mx-auto grid max-w-[88rem] gap-10 px-4 pt-8 sm:px-8 lg:grid-cols-2 lg:gap-0 lg:pt-12">
@@ -281,7 +281,7 @@ export function ProductView({
             )}
             {hasSheet && (
               <div className="bg-surface p-6 text-on-surface sm:p-7">
-                <SpecSheet kind={product.kind} attributes={product.attributes} className="text-[0.9375rem]" rowClassName="border-b border-on-surface/20 py-2 last:border-0" />
+                <SpecSheet product={product} className="text-[0.9375rem]" rowClassName="border-b border-on-surface/20 py-2 last:border-0" />
               </div>
             )}
           </section>

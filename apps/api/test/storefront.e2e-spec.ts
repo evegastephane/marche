@@ -44,7 +44,7 @@ describe('Génération du site et parcours acheteur (e2e)', () => {
     t = await createTestApp();
     slug = uniqueSlug('boutique');
     ({ token } = await createStoreFor(t, { slug, name: 'Chez Awa', currency: 'EUR', country: 'FR' }));
-    robe = await createPublishedProduct(t, token, { title: 'Robe lin', sku: 'ROBE-1', priceAmount: 4990, stock: 10 });
+    robe = await createPublishedProduct(t, token, { title: 'Robe lin', sku: 'ROBE-1', priceAmount: 4990, stock: 10, category: 'vetements' });
     sac = await createPublishedProduct(t, token, { title: 'Sac cuir', sku: 'SAC-1', priceAmount: 12900, stock: 1 });
     const collection = await t.http().post('/api/v1/collections').set(admin()).send({ title: 'Été 2026' });
     await t
@@ -113,7 +113,13 @@ describe('Génération du site et parcours acheteur (e2e)', () => {
     expect(next.body.items[0].slug).toBe(sac.slug);
 
     const product = await t.http().get(`/storefront/v1/products/${robe.slug}`).set(shop());
-    expect(product.body).toMatchObject({ title: 'Robe lin', variants: [{ sku: 'ROBE-1', priceAmount: 4990 }] });
+    expect(product.body).toMatchObject({
+      title: 'Robe lin',
+      variants: [{ sku: 'ROBE-1', priceAmount: 4990 }],
+      category: { slug: 'vetements', path: ['vetements'] },
+      // Guide des tailles par défaut de la catégorie Vêtements.
+      sizeGuide: { title: 'Vêtements' },
+    });
 
     const missing = await t.http().get('/storefront/v1/products').query({ collection: 'inexistant' }).set(shop());
     expect(missing.status).toBe(404);
@@ -150,7 +156,7 @@ describe('Génération du site et parcours acheteur (e2e)', () => {
       .set(admin())
       .send({
         title: current.body.title,
-        options: [],
+        categoryId: current.body.category.id,
         variants: [{ id: robe.variantId, sku: 'ROBE-1', priceAmount: 5490, trackInventory: true }],
         version: current.body.version,
       });

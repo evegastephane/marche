@@ -74,6 +74,85 @@ export const inventoryListQuerySchema = paginationQuerySchema.extend({
 });
 export type InventoryListQuery = z.infer<typeof inventoryListQuerySchema>;
 
+// ───────────── Unités suivies (IMEI, numéros de série) ─────────────
+
+export const UNIT_CONDITIONS = ['NEW', 'USED'] as const;
+export type UnitCondition = (typeof UNIT_CONDITIONS)[number];
+
+export const STOCK_UNIT_STATUSES = ['IN_STOCK', 'SOLD', 'REMOVED'] as const;
+export type StockUnitStatus = (typeof STOCK_UNIT_STATUSES)[number];
+
+/** IMEI ou numéro de série : espaces et points retirés, majuscules. */
+export const serialSchema = z
+  .string()
+  .transform((value) => value.replace(/[\s.]+/g, '').toUpperCase())
+  .pipe(z.string().regex(/^[A-Z0-9-]{3,40}$/, { error: 'IMEI ou numéro de série : 3 à 40 chiffres ou lettres' }));
+
+/** Un IMEI à 15 chiffres dont la clé de Luhn est fausse : sûrement une faute de frappe. */
+export function looksLikeBadImei(serial: string): boolean {
+  if (!/^\d{15}$/.test(serial)) return false;
+  const sum = [...serial].reverse().reduce((total, char, index) => {
+    const n = Number(char) * (index % 2 === 1 ? 2 : 1);
+    return total + (n > 9 ? n - 9 : n);
+  }, 0);
+  return sum % 10 !== 0;
+}
+
+export const unitInputSchema = z.object({
+  serial: serialSchema,
+  batteryHealth: z.number().int().min(0).max(100).nullable().optional(),
+  notes: z.string().trim().max(200).nullable().optional(),
+});
+export type UnitInput = z.infer<typeof unitInputSchema>;
+
+/** Réception d'unités : chacune devient un mouvement +1 lié à son IMEI. */
+export const receiveUnitsSchema = z.object({
+  units: z
+    .array(unitInputSchema)
+    .min(1)
+    .max(200)
+    .refine((units) => new Set(units.map((unit) => unit.serial)).size === units.length, {
+      error: 'Un IMEI ne figure qu’une fois',
+    }),
+  condition: z.enum(UNIT_CONDITIONS).default('NEW'),
+  reason: z.string().trim().max(200).optional(),
+});
+export type ReceiveUnitsInput = z.infer<typeof receiveUnitsSchema>;
+
+export const updateUnitSchema = z
+  .object({
+    serial: serialSchema,
+    batteryHealth: z.number().int().min(0).max(100).nullable(),
+    notes: z.string().trim().max(200).nullable(),
+  })
+  .partial()
+  .refine((input) => Object.keys(input).length > 0, { error: 'Aucune modification fournie' });
+export type UpdateUnitInput = z.infer<typeof updateUnitSchema>;
+
+/** Sortie (perte, vol, défaut) ou retour d'une unité : le motif est gardé dans le journal. */
+export const unitMovementSchema = z.object({ reason: z.string().trim().min(1).max(200) });
+export type UnitMovementInput = z.infer<typeof unitMovementSchema>;
+
+export const unitListQuerySchema = paginationQuerySchema.extend({
+  status: z.enum(STOCK_UNIT_STATUSES).optional(),
+});
+export type UnitListQuery = z.infer<typeof unitListQuerySchema>;
+
+export interface StockUnitDto {
+  id: string;
+  variantId: string;
+  serial: string;
+  /** Unité reprise sans IMEI : numéro provisoire à remplacer. */
+  placeholder: boolean;
+  condition: UnitCondition;
+  batteryHealth: number | null;
+  status: StockUnitStatus;
+  notes: string | null;
+  orderLineId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface InventoryItemDto {
   variantId: string;
   productId: string;
@@ -89,6 +168,8 @@ export interface InventoryItemDto {
   hasCustomThreshold: boolean;
   isLow: boolean;
   isOut: boolean;
+  /** Suivi à l'unité : le stock bouge par l'entrée ou la sortie d'IMEI, pas par ajustement. */
+  tracksUnits: boolean;
   updatedAt: string;
 }
 
@@ -100,6 +181,8 @@ export interface StockMovementDto {
   reason: string | null;
   orderId: string | null;
   actorUserId: string | null;
+  /** IMEI ou numéro de série de l'unité entrée ou sortie. */
+  serial: string | null;
   createdAt: string;
 }
 
@@ -109,5 +192,6 @@ export interface InventoryLevelDto {
   reserved: number;
   available: number;
   lowStockThreshold: number | null;
+  tracksUnits: boolean;
   updatedAt: string;
 }

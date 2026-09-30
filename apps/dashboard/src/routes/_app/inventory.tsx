@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { type InventoryFilter, useInventoryList } from '@/features/inventory/api';
 import { AdjustDialog, MovementsDialog, ThresholdDialog } from '@/features/inventory/dialogs';
+import { UnitsDialog } from '@/features/inventory/units-dialog';
 import { useCurrentStore } from '@/features/shell/use-current-store';
 import { errorMessage } from '@/shared/api/client';
 import { useMedia } from '@/shared/lib/use-media';
@@ -50,6 +51,7 @@ function Stock() {
   const [adjusting, setAdjusting] = useState<InventoryItemDto | null>(null);
   const [threshold, setThreshold] = useState<InventoryItemDto | null>(null);
   const [history, setHistory] = useState<InventoryItemDto | null>(null);
+  const [units, setUnits] = useState<InventoryItemDto | null>(null);
 
   const actions = (item: InventoryItemDto) => (
     <div className="flex items-center justify-end gap-1">
@@ -59,9 +61,15 @@ function Stock() {
       <Button size="sm" variant="ghost" icon={<SlidersHorizontal strokeWidth={1.8} />} onClick={() => setThreshold(item)}>
         <span className="max-lg:sr-only">Seuil</span>
       </Button>
-      <Button size="sm" variant="secondary" onClick={() => setAdjusting(item)}>
-        Ajuster
-      </Button>
+      {item.tracksUnits ? (
+        <Button size="sm" variant="secondary" onClick={() => setUnits(item)}>
+          Unités
+        </Button>
+      ) : (
+        <Button size="sm" variant="secondary" onClick={() => setAdjusting(item)}>
+          Ajuster
+        </Button>
+      )}
     </div>
   );
 
@@ -231,6 +239,7 @@ function Stock() {
         onClose={() => setThreshold(null)}
       />
       <MovementsDialog item={history} onClose={() => setHistory(null)} />
+      <UnitsDialog item={units} onClose={() => setUnits(null)} />
     </div>
   );
 }

@@ -169,7 +169,7 @@ export function ProductView({
   const peekImage =
     peek !== null && colorIdx !== -1 ? galleryFor(product, c.selection.map((v, i) => (i === colorIdx ? peek : v)))[0] : undefined;
   const main = peekImage ?? images[Math.min(active, images.length - 1)];
-  const pinned = specRows(product.kind, product.attributes).filter((row) => row.key === 'composition' || row.key === 'care');
+  const pinned = specRows(product).filter((row) => row.key === 'composition' || row.key === 'care');
   const detail = main ? (main.renditions['800'] ?? main.url) : null;
   const cut = c.pending || Boolean(c.message?.ok);
 
@@ -429,7 +429,7 @@ export function ProductView({
           />
         ))}
 
-        {(product.description || Object.keys(product.attributes).length > 0) && (
+        {(product.description || specRows(product).length > 0) && (
           <section aria-labelledby="notice" className="flex flex-col gap-4 border-t-[5px] border-double border-fg pt-6">
             <h2 id="notice" className="font-heading text-2xl leading-none font-black uppercase [font-stretch:118%]">
               Notice
@@ -446,7 +446,7 @@ export function ProductView({
                   ))}
               </div>
             )}
-            <SpecSheet kind={product.kind} attributes={product.attributes} className="border-y-[1.5px] border-fg" rowClassName="border-b border-fg/15 last:border-0 text-sm" />
+            <SpecSheet product={product} className="border-y-[1.5px] border-fg" rowClassName="border-b border-fg/15 last:border-0 text-sm" />
           </section>
         )}
       </div>

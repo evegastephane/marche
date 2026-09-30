@@ -1,6 +1,6 @@
 import type { Currency, ProductListItemDto } from '@marche/contracts';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { PackagePlus, Plus, SearchX } from 'lucide-react';
+import { FileSpreadsheet, PackagePlus, Plus, SearchX } from 'lucide-react';
 import { motion } from 'motion/react';
 import { z } from 'zod';
 import { useProductList } from '@/features/products/api';
@@ -51,7 +51,14 @@ function Produits() {
       <PageHeader
         title="Produits"
         subtitle="Ce qui est en vente apparaît aussitôt sur votre site."
-        actions={newButton}
+        actions={
+          <>
+            <Link to="/products/import" className={buttonClasses('ghost', 'md')}>
+              <FileSpreadsheet strokeWidth={1.8} /> Importer
+            </Link>
+            {newButton}
+          </>
+        }
       />
 
       <motion.div variants={riseIn} className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

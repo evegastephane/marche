@@ -3,7 +3,11 @@ import type {
   InventoryItemDto,
   InventoryLevelDto,
   Paginated,
+  ReceiveUnitsInput,
   StockMovementDto,
+  StockUnitDto,
+  StockUnitStatus,
+  UpdateUnitInput,
 } from '@marche/contracts';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { qk } from '@/shared/api/query-keys';
@@ -70,6 +74,54 @@ export function useSetThreshold() {
   return useMutation({
     mutationFn: ({ variantId, lowStockThreshold }: { variantId: string; lowStockThreshold: number | null }) =>
       api<InventoryLevelDto>('PUT', `/api/v1/inventory/${variantId}/threshold`, { body: { lowStockThreshold } }),
+    onSuccess: invalidate,
+  });
+}
+
+/** Unités (IMEI) d'une variante suivie à l'unité, filtrées par état. */
+export function useUnits(variantId: string | null, status: StockUnitStatus) {
+  const api = useApi();
+  const store = useStoreKey();
+  return useInfiniteQuery({
+    queryKey: ['store', store, 'inventory', 'units', variantId ?? 'aucune', status],
+    enabled: variantId !== null,
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam, signal }) =>
+      api<Paginated<StockUnitDto>>('GET', `/api/v1/inventory/${variantId}/units`, {
+        signal,
+        query: { status, cursor: pageParam, limit: 50 },
+      }),
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+  });
+}
+
+export function useReceiveUnits() {
+  const api = useApi();
+  const invalidate = useInvalidateStock();
+  return useMutation({
+    mutationFn: ({ variantId, input }: { variantId: string; input: ReceiveUnitsInput }) =>
+      api<InventoryLevelDto>('POST', `/api/v1/inventory/${variantId}/units`, { body: input }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateUnit() {
+  const api = useApi();
+  const invalidate = useInvalidateStock();
+  return useMutation({
+    mutationFn: ({ unitId, input }: { unitId: string; input: UpdateUnitInput }) =>
+      api<StockUnitDto>('PATCH', `/api/v1/inventory/units/${unitId}`, { body: input }),
+    onSuccess: invalidate,
+  });
+}
+
+/** Sortie (perte, vol, défaut) ou retour en stock d'une unité, avec son motif. */
+export function useUnitMovement() {
+  const api = useApi();
+  const invalidate = useInvalidateStock();
+  return useMutation({
+    mutationFn: ({ unitId, action, reason }: { unitId: string; action: 'remove' | 'return'; reason: string }) =>
+      api<StockUnitDto>('POST', `/api/v1/inventory/units/${unitId}/${action}`, { body: { reason } }),
     onSuccess: invalidate,
   });
 }

@@ -1,5 +1,5 @@
 import { Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiHeader, ApiTags } from '@nestjs/swagger';
+import { ApiHeader, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import {
   type AddCartLineInput,
@@ -41,12 +41,13 @@ import { StorefrontQueries } from '../application/storefront.queries.js';
 import { Storefront, StorefrontGuard, type StorefrontRequestContext } from './storefront.guard.js';
 
 /** En-têtes communs de l'API storefront (documentation Swagger). */
+/** Vitrine : clé publique pk_ pour un front tiers ; les en-têtes x-storefront-* sont réservés aux sites Upsell. */
 function StorefrontApi(): ClassDecorator {
   return (target) => {
     ApiTags('storefront')(target);
-    ApiHeader({ name: STOREFRONT_HEADERS.token, required: true, description: 'Secret partagé avec le storefront' })(target);
-    ApiHeader({ name: STOREFRONT_HEADERS.storeHost, required: true, description: 'Sous-domaine de la boutique' })(target);
-    ApiHeader({ name: STOREFRONT_HEADERS.previewToken, required: false, description: 'Jeton d’aperçu du thème' })(target);
+    ApiSecurity('publishable-key')(target);
+    ApiHeader({ name: STOREFRONT_HEADERS.token, required: false, description: 'Sites Upsell seulement (secret de la plateforme)' })(target);
+    ApiHeader({ name: STOREFRONT_HEADERS.storeHost, required: false, description: 'Sites Upsell seulement (sous-domaine)' })(target);
   };
 }
 

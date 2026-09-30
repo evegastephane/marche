@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { AccessoryChooser, BundleOffer } from '@/components/shop/accessories';
 import { SizeGuideButton } from '@/components/shop/size-guide';
-import { SpecSheet } from '@/components/shop/spec-sheet';
+import { SpecSheet, specRows } from '@/components/shop/spec-sheet';
 import { ServiceNotes, useConditionHint } from '@/components/shop/services';
 import { SpecialRequestButton } from '@/components/shop/special-request';
 import { useConfigurator } from '@/components/shop/use-configurator';
@@ -260,7 +260,7 @@ export function ProductView({
           />
         ))}
 
-        {(product.description || Object.keys(product.attributes).length > 0) && (
+        {(product.description || specRows(product).length > 0) && (
           <div className="painted-frame flex flex-col gap-6 bg-surface px-7 py-8 text-on-surface sm:px-10">
             {product.description && (
               <div className="flex flex-col gap-4 text-lg leading-relaxed">
@@ -274,12 +274,12 @@ export function ProductView({
                   ))}
               </div>
             )}
-            {Object.keys(product.attributes).length > 0 && (
+            {specRows(product).length > 0 && (
               <section aria-labelledby="details" className="flex flex-col gap-2">
                 <h2 id="details" className="font-heading text-xl uppercase">
                   Détails
                 </h2>
-                <SpecSheet kind={product.kind} attributes={product.attributes} exclude={['compatibleModels']} rowClassName="border-b-2 border-line/20 last:border-0" />
+                <SpecSheet product={product} exclude={['compatibleModels']} rowClassName="border-b-2 border-line/20 last:border-0" />
               </section>
             )}
           </div>

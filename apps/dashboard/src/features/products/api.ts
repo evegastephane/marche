@@ -1,12 +1,15 @@
 import type {
   BrandDto,
+  CatalogImportReportDto,
   CreateProductInput,
   Paginated,
   ProductDto,
   ProductListItemDto,
+  SkuCheckDto,
+  SkuCheckInput,
   UpdateProductInput,
 } from '@marche/contracts';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '@/shared/api/query-keys';
 import { useApi, useStoreKey } from '@/shared/api/use-api';
 import type { ProductFilter } from './status';
@@ -91,6 +94,53 @@ export function useProductStatusAction() {
     onSuccess: async (product) => {
       queryClient.setQueryData(qk.product(store, product.id), product);
       await queryClient.invalidateQueries({ queryKey: qk.products(store) });
+    },
+  });
+}
+
+/** SKU et référence déjà pris par un autre produit, vérifiés pendant la saisie (entrée déjà temporisée). */
+export function useSkuCheck(input: SkuCheckInput) {
+  const api = useApi();
+  const store = useStoreKey();
+  return useQuery({
+    queryKey: [...qk.products(store), 'sku-check', input],
+    queryFn: ({ signal }) => api<SkuCheckDto>('POST', '/api/v1/products/sku-check', { signal, body: input }),
+    enabled: input.skus.length > 0 || Boolean(input.reference),
+    placeholderData: keepPreviousData,
+    staleTime: 15_000,
+  });
+}
+
+/** Import Excel : vérification (dryRun) ou écriture. Un refus renvoie le rapport dans l'erreur. */
+export function useImportCatalog() {
+  const api = useApi();
+  const store = useStoreKey();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ file, dryRun }: { file: File; dryRun: boolean }) => {
+      const body = new FormData();
+      body.append('file', file);
+      return api<CatalogImportReportDto>('POST', '/api/v1/imports/catalog', { body, query: { dryRun } });
+    },
+    onSuccess: async (report) => {
+      if (report.dryRun) return;
+      await queryClient.invalidateQueries({ queryKey: ['store', store] });
+    },
+  });
+}
+
+/** Modèle d'import de la boutique (.xlsx), téléchargé avec la session. */
+export function useCatalogTemplate() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async () => {
+      const blob = await api<Blob>('GET', '/api/v1/imports/catalog/template', { as: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'catalogue-modele.xlsx';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     },
   });
 }

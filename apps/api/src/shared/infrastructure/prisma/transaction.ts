@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { TransactionalAdapterPrisma } from '@nestjs-cls/transactional-adapter-prisma';
-import { UnitOfWork } from '../../application/unit-of-work.port.js';
+import { UnitOfWork, type UnitOfWorkOptions } from '../../application/unit-of-work.port.js';
 import type { AppPrismaClient } from './prisma.client.js';
 
 export type PrismaAdapter = TransactionalAdapterPrisma<AppPrismaClient>;
@@ -18,8 +18,9 @@ export class PrismaUnitOfWork extends UnitOfWork {
     super();
   }
 
-  run<T>(work: () => Promise<T>): Promise<T> {
+  run<T>(work: () => Promise<T>, options?: UnitOfWorkOptions): Promise<T> {
     // Propagation par défaut « Required » : un appel imbriqué rejoint la transaction en cours.
-    return this.txHost.withTransaction(work);
+    if (options?.timeoutMs === undefined) return this.txHost.withTransaction(work);
+    return this.txHost.withTransaction({ timeout: options.timeoutMs, maxWait: 10_000 }, work);
   }
 }

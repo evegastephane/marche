@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import {
-  DEVICE_KINDS,
-  FILTERABLE_ATTRIBUTES,
   KINDS,
   type MediaDto,
   modelKey,
@@ -12,7 +10,6 @@ import {
   type OptionType,
   type Paginated,
   type ProductKind,
-  type ProductOption,
   type StorefrontAccessoryDto,
   type StorefrontBrandDto,
   type StorefrontBundleDto,
@@ -21,7 +18,7 @@ import {
   type StorefrontFacetsQuery,
   type StorefrontProductCardDto,
   type StorefrontProductDto,
-  swatchFor,
+  type VariantOptions,
 } from '@marche/contracts';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ActorContext } from '../../../shared/application/actor-context.port.js';
@@ -34,14 +31,15 @@ import {
   type VariantSnapshot,
 } from '../application/catalog.read-model.js';
 import type { PricingBundle } from '../domain/bundle-pricing.js';
-import { parseAttributesJson, parseKind, parseOptions, parseStringArray } from './prisma-catalog.repositories.js';
+import { parseSpecs, parseVariantOptions } from './prisma-catalog.repositories.js';
+import { formatSpec, LEGACY_FILTER_KEYS, StorefrontTaxonomy } from './storefront-view.js';
 
 interface CardRow {
   id: string;
   title: string;
   slug: string;
-  kind: string | null;
-  options: Prisma.JsonValue;
+  category_id: string | null;
+  variant_options: Prisma.JsonValue[];
   brand_name: string | null;
   brand_slug: string | null;
   price_min: number;
@@ -58,22 +56,15 @@ const MAX_SHOWN_ACCESSORIES = 12;
 /** Au-delà, les filtres du site sont calculés sur un échantillon. */
 const FACETS_SAMPLE = 2000;
 
-const variantTitle = (optionValues: string[]) => (optionValues.length ? optionValues.join(' / ') : 'Par défaut');
-
-/** Pastilles d'un article : valeurs de son option « couleur » qui ont une teinte. */
-function cardSwatches(options: ProductOption[]): { value: string; hex: string }[] {
-  const color = options.find((option) => option.type === 'color');
-  if (!color) return [];
-  return color.values.flatMap((value) => {
-    const hex = swatchFor(color, value);
-    return hex ? [{ value, hex }] : [];
-  });
-}
-
 /** Ordre d'affichage d'une valeur de filtre : celui des préréglages, puis l'ordre alphabétique. */
 function presetRank(type: OptionType, value: string): number {
   const index = OPTION_PRESETS[type]?.indexOf(value) ?? -1;
   return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+/** Produit rangé dans l'une de ces catégories (aucune : aucun produit). */
+function inCategories(ids: readonly string[]): Prisma.Sql {
+  return ids.length ? Prisma.sql`AND p.category_id = ANY(${[...ids]}::uuid[])` : Prisma.sql`AND FALSE`;
 }
 
 @Injectable()
@@ -104,7 +95,6 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
     });
     return new Map(
       rows.map((row) => {
-        const optionValues = parseStringArray(row.optionValues);
         const archived = row.archivedAt !== null;
         return [
           row.id,
@@ -113,12 +103,12 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
             productId: row.product.id,
             productTitle: row.product.title,
             productSlug: row.product.slug,
-            variantTitle: variantTitle(optionValues),
+            variantTitle: row.title,
             sku: row.sku,
             unitPriceAmount: row.priceAmount,
             compareAtAmount: row.compareAtAmount,
             trackInventory: row.trackInventory,
-            imageMediaId: row.product.media[0]?.mediaId ?? null,
+            imageMediaId: row.imageMediaId ?? row.product.media[0]?.mediaId ?? null,
             variantArchived: archived,
             sellable: !archived && row.product.status === 'ACTIVE',
           },
@@ -195,22 +185,38 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
       ? Prisma.sql`JOIN collection_products cp ON cp.product_id = p.id AND cp.collection_id = ${collectionId}::uuid`
       : Prisma.empty;
 
+    const taxonomy = await this.taxonomy();
     const where: Prisma.Sql[] = [];
     const having: Prisma.Sql[] = [];
     if (filter.brandSlug) where.push(Prisma.sql`AND b.slug = ${filter.brandSlug}`);
-    if (filter.kind) where.push(Prisma.sql`AND p.kind = ${filter.kind}`);
-    // Une valeur d'option est portée par la position de l'option dans le produit.
+    if (filter.kind) where.push(inCategories(taxonomy.categoryIdsOfKind(filter.kind)));
+    // Nature d'option (color, storage…) → axes de cette nature, portés par variants.options.
     for (const { type, values } of filter.options ?? []) {
-      where.push(Prisma.sql`AND EXISTS (
-        SELECT 1 FROM jsonb_array_elements(p.options) WITH ORDINALITY AS opt(def, idx)
-        JOIN product_variants fv ON fv.product_id = p.id AND fv.archived_at IS NULL
-        WHERE opt.def->>'type' = ${type} AND fv.option_values->>(opt.idx::int - 1) = ANY(${values}::text[]))`);
+      const slugs = taxonomy.axisSlugsOfType(type);
+      where.push(
+        slugs.length
+          ? Prisma.sql`AND EXISTS (
+              SELECT 1 FROM product_variants fv
+              WHERE fv.product_id = p.id AND fv.archived_at IS NULL
+                AND (${Prisma.join(
+                  slugs.map((slug) => Prisma.sql`fv.options->>${slug} = ANY(${values}::text[])`),
+                  ' OR ',
+                )}))`
+          : Prisma.sql`AND FALSE`,
+      );
     }
-    const filterable = new Set(FILTERABLE_ATTRIBUTES.map((field) => field.key));
     for (const { key, values } of filter.attributes ?? []) {
-      if (!filterable.has(key)) continue;
-      where.push(Prisma.sql`AND (p.attributes->>${key} = ANY(${values}::text[])
-        OR (jsonb_typeof(p.attributes->${key}) = 'array' AND jsonb_exists_any(p.attributes->${key}, ${values}::text[])))`);
+      if (key === 'accessoryType') {
+        where.push(inCategories(taxonomy.categoryIdsOfAccessoryTypes(values)));
+        continue;
+      }
+      const legacy = LEGACY_FILTER_KEYS[key];
+      const slug = legacy?.slug ?? key;
+      const wanted = legacy ? values.map(legacy.value) : values;
+      const attribute = taxonomy.attribute(slug);
+      if (!attribute?.filterable || attribute.isVariantAxis) continue;
+      where.push(Prisma.sql`AND (p.specs->>${slug} = ANY(${wanted}::text[])
+        OR (jsonb_typeof(p.specs->${slug}) = 'array' AND jsonb_exists_any(p.specs->${slug}, ${wanted}::text[])))`);
     }
     if (filter.priceMin !== undefined) having.push(Prisma.sql`MIN(v.price_amount) >= ${filter.priceMin}`);
     if (filter.priceMax !== undefined) having.push(Prisma.sql`MIN(v.price_amount) <= ${filter.priceMax}`);
@@ -246,7 +252,8 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
     }
 
     const rows = await this.txHost.tx.$queryRaw<CardRow[]>`
-      SELECT p.id, p.title, p.slug, p.kind, p.options, b.name AS brand_name, b.slug AS brand_slug,
+      SELECT p.id, p.title, p.slug, p.category_id, jsonb_agg(v.options ORDER BY v.position) AS variant_options,
+             b.name AS brand_name, b.slug AS brand_slug,
              MIN(v.price_amount) AS price_min, MAX(v.price_amount) AS price_max,
              (array_agg(v.compare_at_amount ORDER BY v.price_amount, v.position))[1] AS compare_at,
              (SELECT pm.media_id FROM product_media pm WHERE pm.product_id = p.id ORDER BY pm.position LIMIT 1) AS media_id,
@@ -279,8 +286,8 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
         priceMaxAmount: row.price_max,
         compareAtAmount: row.compare_at,
         image: (row.media_id && images.get(row.media_id)) || null,
-        kind: parseKind(row.kind),
-        swatches: cardSwatches(parseOptions(row.options)),
+        kind: taxonomy.kind(row.category_id),
+        swatches: taxonomy.swatches(row.category_id, row.variant_options.map(parseVariantOptions)),
       })),
     };
   }
@@ -305,13 +312,16 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
       },
     });
     if (!row || row.variants.length === 0) return null;
-    const kind = parseKind(row.kind);
-    const attributes = parseAttributesJson(row.attributes);
+    const taxonomy = await this.taxonomy();
+    const specs = parseSpecs(row.specs);
+    const variantOptions = row.variants.map((variant) => parseVariantOptions(variant.options));
+    const { options, valuesOf } = taxonomy.options(row.categoryId, variantOptions);
+    const category = taxonomy.category(row.categoryId);
 
-    const compatibleIds =
-      kind && DEVICE_KINDS.includes(kind) && typeof attributes.model === 'string'
-        ? await this.compatibleAccessoryIds(row.id, attributes.model)
-        : [];
+    // Accessoires dont la « Compatibilité » cite l'appareil (son titre ou son modèle).
+    const compatibleIds = taxonomy.isDevice(row.categoryId)
+      ? await this.compatibleAccessoryIds(row.id, [row.title, typeof specs.modele === 'string' ? specs.modele : ''])
+      : [];
     const accessoryIds = [...new Set([...row.relations.map((r) => r.relatedProductId), ...compatibleIds])].filter(
       (id) => id !== row.id,
     );
@@ -319,7 +329,7 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
 
     const [media, cards] = await Promise.all([
       this.media.getMany(row.media.map((m) => m.mediaId)),
-      this.accessoryCards([...accessoryIds, ...bundleItemIds]),
+      this.accessoryCards([...accessoryIds, ...bundleItemIds], taxonomy),
     ]);
     const images: MediaDto[] = row.media.flatMap((m) => {
       const dto = media.get(m.mediaId);
@@ -348,15 +358,21 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
       slug: row.slug,
       description: row.description,
       brand: row.brand && !row.brand.archivedAt ? { name: row.brand.name, slug: row.brand.slug } : null,
-      kind,
-      attributes,
-      options: parseOptions(row.options),
-      variants: row.variants.map((variant) => {
-        const optionValues = parseStringArray(variant.optionValues);
+      category: category ? { name: category.name, slug: category.slug, path: taxonomy.pathSlugs(row.categoryId) } : null,
+      // Posé par la couche application, qui connaît les réglages de la boutique.
+      sizeGuide: null,
+      specs: taxonomy.specs(row.categoryId, specs),
+      warrantyMonths: row.warrantyMonths,
+      kind: taxonomy.kind(row.categoryId),
+      attributes: taxonomy.legacyAttributes(row.categoryId, specs, row.warrantyMonths),
+      options,
+      variants: row.variants.map((variant, index) => {
+        const opts = variantOptions[index] ?? {};
         return {
           id: variant.id,
-          title: variantTitle(optionValues),
-          optionValues,
+          title: variant.title,
+          optionValues: valuesOf(opts),
+          options: opts,
           priceAmount: variant.priceAmount,
           compareAtAmount: variant.compareAtAmount,
           sku: variant.sku,
@@ -377,25 +393,25 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
     };
   }
 
-  /** Accessoires publiés dont la liste « Compatible avec » cite le modèle de l'appareil. */
-  private async compatibleAccessoryIds(productId: string, model: string): Promise<string[]> {
-    const key = modelKey(model);
-    if (!key) return [];
+  /** Articles publiés dont la « Compatibilité » (specs.compatibilite, règle 7) cite l'appareil. */
+  private async compatibleAccessoryIds(productId: string, models: readonly string[]): Promise<string[]> {
+    const keys = [...new Set(models.map(modelKey).filter(Boolean))];
+    if (keys.length === 0) return [];
     const rows = await this.txHost.tx.$queryRaw<{ id: string }[]>`
       SELECT p.id FROM products p
-      WHERE p.store_id = ${this.actor.storeId}::uuid AND p.status = 'ACTIVE' AND p.kind = 'ACCESSORY'
+      WHERE p.store_id = ${this.actor.storeId}::uuid AND p.status = 'ACTIVE'
         AND p.id <> ${productId}::uuid
-        AND jsonb_typeof(p.attributes->'compatibleModels') = 'array'
+        AND jsonb_typeof(p.specs->'compatibilite') = 'array'
         AND EXISTS (
-          SELECT 1 FROM jsonb_array_elements_text(p.attributes->'compatibleModels') AS m(model)
-          WHERE lower(regexp_replace(btrim(normalize(m.model, NFKD)), '\\s+', ' ', 'g')) = ${key})
+          SELECT 1 FROM jsonb_array_elements_text(p.specs->'compatibilite') AS m(model)
+          WHERE lower(regexp_replace(btrim(normalize(m.model, NFKD)), '\\s+', ' ', 'g')) = ANY(${keys}::text[]))
       ORDER BY COALESCE(p.published_at, p.created_at) DESC, p.id
       LIMIT ${MAX_SHOWN_ACCESSORIES}`;
     return rows.map((r) => r.id);
   }
 
   /** Cartes d'accessoires ou d'articles de pack, avec leurs déclinaisons vendables. */
-  private async accessoryCards(ids: string[]): Promise<Map<string, StorefrontAccessoryDto>> {
+  private async accessoryCards(ids: string[], taxonomy: StorefrontTaxonomy): Promise<Map<string, StorefrontAccessoryDto>> {
     if (ids.length === 0) return new Map();
     const rows = await this.txHost.tx.product.findMany({
       where: { id: { in: [...new Set(ids)] }, status: 'ACTIVE' },
@@ -422,15 +438,11 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
             priceMaxAmount: Math.max(...prices),
             compareAtAmount: cheapest.compareAtAmount,
             image: (thumbnailId && media.get(thumbnailId)) || null,
-            kind: parseKind(r.kind),
-            swatches: cardSwatches(parseOptions(r.options)),
+            kind: taxonomy.kind(r.categoryId),
+            swatches: taxonomy.swatches(r.categoryId, r.variants.map((v) => parseVariantOptions(v.options))),
             variantId: r.variants.length === 1 ? r.variants[0]!.id : null,
-            variants: r.variants.map((v) => ({
-              id: v.id,
-              title: variantTitle(parseStringArray(v.optionValues)),
-              priceAmount: v.priceAmount,
-            })),
-            attributes: parseAttributesJson(r.attributes),
+            variants: r.variants.map((v) => ({ id: v.id, title: v.title, priceAmount: v.priceAmount })),
+            attributes: taxonomy.legacyAttributes(r.categoryId, parseSpecs(r.specs), r.warrantyMonths),
           };
           return [r.id, card] as const;
         }),
@@ -440,19 +452,19 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
   async facets(query: StorefrontFacetsQuery): Promise<StorefrontFacetsDto | null> {
     const collectionId = await this.publishedCollectionId(query.collection);
     if (collectionId === null) return null;
+    const taxonomy = await this.taxonomy();
     const rows = await this.txHost.tx.product.findMany({
       where: {
         status: 'ACTIVE',
         variants: { some: { archivedAt: null } },
-        ...(query.kind ? { kind: query.kind } : {}),
+        ...(query.kind ? { categoryId: { in: taxonomy.categoryIdsOfKind(query.kind) } } : {}),
         ...(collectionId ? { collections: { some: { collectionId } } } : {}),
       },
       select: {
-        kind: true,
-        options: true,
-        attributes: true,
+        categoryId: true,
+        specs: true,
         brand: { select: { name: true, slug: true, archivedAt: true } },
-        variants: { where: { archivedAt: null }, select: { optionValues: true, priceAmount: true } },
+        variants: { where: { archivedAt: null }, select: { options: true, priceAmount: true } },
       },
       take: FACETS_SAMPLE,
     });
@@ -460,12 +472,12 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
     const kinds = new Map<ProductKind, number>();
     const brands = new Map<string, { name: string; count: number }>();
     const options = new Map<OptionType, Map<string, { swatch: string | null; count: number }>>();
-    const attributes = new Map<string, Map<string, number>>();
+    const attributes = new Map<string, Map<string, { label: string; count: number }>>();
     let priceMin = Number.POSITIVE_INFINITY;
     let priceMax = 0;
 
     for (const row of rows) {
-      const kind = parseKind(row.kind);
+      const kind = taxonomy.kind(row.categoryId);
       if (kind) kinds.set(kind, (kinds.get(kind) ?? 0) + 1);
       if (row.brand && !row.brand.archivedAt) {
         const entry = brands.get(row.brand.slug) ?? { name: row.brand.name, count: 0 };
@@ -476,27 +488,29 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
       priceMin = Math.min(priceMin, cheapest);
       priceMax = Math.max(priceMax, cheapest);
 
-      const variantValues = row.variants.map((v) => parseStringArray(v.optionValues));
-      parseOptions(row.options).forEach((option, index) => {
-        if (!option.type || option.type === 'text') return;
-        const offered = new Set(variantValues.map((values) => values[index]).filter((v): v is string => !!v));
+      const variantOptions: VariantOptions[] = row.variants.map((v) => parseVariantOptions(v.options));
+      for (const option of taxonomy.options(row.categoryId, variantOptions).options) {
+        if (!option.type || option.type === 'text') continue;
         const bucket = options.get(option.type) ?? new Map<string, { swatch: string | null; count: number }>();
-        for (const value of offered) {
-          const entry = bucket.get(value) ?? { swatch: option.type === 'color' ? swatchFor(option, value) : null, count: 0 };
+        for (const value of option.values) {
+          const entry = bucket.get(value) ?? { swatch: option.swatches?.[value] ?? null, count: 0 };
           entry.count += 1;
           bucket.set(value, entry);
         }
         options.set(option.type, bucket);
-      });
+      }
 
-      const attrs = parseAttributesJson(row.attributes);
-      for (const field of FILTERABLE_ATTRIBUTES) {
-        const raw = attrs[field.key];
-        const values = Array.isArray(raw) ? raw : typeof raw === 'string' ? [raw] : [];
-        if (values.length === 0) continue;
-        const bucket = attributes.get(field.key) ?? new Map<string, number>();
-        for (const value of new Set(values)) bucket.set(value, (bucket.get(value) ?? 0) + 1);
-        attributes.set(field.key, bucket);
+      // Attributs filtrables de la fiche (hors axes, déjà montrés par les options).
+      for (const [slug, raw] of Object.entries(parseSpecs(row.specs))) {
+        const attribute = taxonomy.attribute(slug);
+        if (!attribute?.filterable || attribute.isVariantAxis || attribute.type === 'TEXT') continue;
+        const bucket = attributes.get(slug) ?? new Map<string, { label: string; count: number }>();
+        for (const value of new Set(Array.isArray(raw) ? raw : [raw])) {
+          const entry = bucket.get(String(value)) ?? { label: formatSpec(value, attribute.unit), count: 0 };
+          entry.count += 1;
+          bucket.set(String(value), entry);
+        }
+        attributes.set(slug, bucket);
       }
     }
 
@@ -517,21 +531,21 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
           );
         return [{ type, label: OPTION_TYPE_LABELS[type], values }];
       }),
-      attributes: FILTERABLE_ATTRIBUTES.flatMap((field) => {
-        const bucket = attributes.get(field.key);
+      // Dans l'ordre des attributs de la boutique ; les valeurs dans l'ordre de l'attribut.
+      attributes: taxonomy.attributes.flatMap((attribute) => {
+        const bucket = attributes.get(attribute.slug);
         if (!bucket) return [];
-        const order = (value: string) => field.choices?.findIndex((c) => c.value === value) ?? -1;
+        const rank = (value: string) => {
+          const index = attribute.values.findIndex((v) => v.value === value);
+          return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+        };
         return [
           {
-            key: field.key,
-            label: field.label,
+            key: attribute.slug,
+            label: attribute.name,
             values: [...bucket]
-              .map(([value, count]) => ({
-                value,
-                label: field.choices?.find((c) => c.value === value)?.label ?? value,
-                count,
-              }))
-              .sort((a, b) => order(a.value) - order(b.value)),
+              .map(([value, { label, count }]) => ({ value, label, count }))
+              .sort((a, b) => rank(a.value) - rank(b.value) || a.value.localeCompare(b.value, 'fr', { numeric: true })),
           },
         ];
       }),
@@ -553,5 +567,38 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
       discountType: row.discountType,
       discountValue: row.discountValue,
     }));
+  }
+
+  /** Catégories actives et attributs (archivés compris, pour les libellés des fiches existantes). */
+  private async taxonomy(): Promise<StorefrontTaxonomy> {
+    const [categories, attributes, links] = await Promise.all([
+      this.txHost.tx.category.findMany({
+        where: { archivedAt: null },
+        orderBy: [{ position: 'asc' }, { name: 'asc' }],
+        select: { id: true, parentId: true, name: true, slug: true, tracksUnits: true },
+      }),
+      this.txHost.tx.attribute.findMany({
+        orderBy: [{ position: 'asc' }, { name: 'asc' }],
+        include: { values: { orderBy: { position: 'asc' } } },
+      }),
+      this.txHost.tx.categoryAttribute.findMany({
+        where: { category: { archivedAt: null }, attribute: { archivedAt: null } },
+        select: { categoryId: true, attributeId: true, required: true, position: true },
+      }),
+    ]);
+    return new StorefrontTaxonomy(
+      categories,
+      attributes.map((row) => ({
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        type: row.type,
+        unit: row.unit,
+        isVariantAxis: row.isVariantAxis,
+        filterable: row.filterable,
+        values: row.values.map((value) => ({ value: value.value, code: value.code, swatch: value.swatch })),
+      })),
+      links,
+    );
   }
 }

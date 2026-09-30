@@ -39,22 +39,24 @@ describe('adjustStockSchema', () => {
 });
 
 describe('createProductSchema', () => {
-  it('applique les valeurs par défaut', () => {
+  it('applique les valeurs par défaut et met la référence en majuscules', () => {
     const product = createProductSchema.parse({
       title: 'T-shirt',
+      categoryId: uuid(1),
+      reference: ' ts-01 ',
       variants: [{ sku: 'TS-01', priceAmount: 1500 }],
     });
-    expect(product.options).toEqual([]);
+    expect(product.reference).toBe('TS-01');
+    expect(product.specs).toEqual({});
     expect(product.mediaIds).toEqual([]);
-    expect(product.variants[0]).toMatchObject({ optionValues: [], trackInventory: true });
+    expect(product.variants[0]).toMatchObject({ options: {}, trackInventory: true });
   });
 
-  it('refuse un produit sans variante et un SKU invalide', () => {
-    expect(createProductSchema.safeParse({ title: 'X', variants: [] }).success).toBe(false);
-    expect(
-      createProductSchema.safeParse({ title: 'X', variants: [{ sku: 'a b', priceAmount: 1 }] })
-        .success,
-    ).toBe(false);
+  it('refuse un produit sans catégorie, sans variante ou avec un SKU invalide', () => {
+    const base = { title: 'X', categoryId: uuid(1) };
+    expect(createProductSchema.safeParse({ title: 'X', variants: [{ sku: 'X-1', priceAmount: 1 }] }).success).toBe(false);
+    expect(createProductSchema.safeParse({ ...base, variants: [] }).success).toBe(false);
+    expect(createProductSchema.safeParse({ ...base, variants: [{ sku: 'a b', priceAmount: 1 }] }).success).toBe(false);
   });
 });
 

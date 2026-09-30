@@ -93,6 +93,24 @@ export class StockBelowReservedError extends ConflictError {
   }
 }
 
+/** Suivi à l'unité (règle 6) : le stock ne bouge que par l'entrée ou la sortie d'unités identifiées. */
+export class UnitTrackedVariantError extends ValidationError {
+  constructor(variantId: string, message = 'Cet article est suivi à l’unité : ajoutez ou retirez ses IMEI plutôt que d’ajuster le stock') {
+    super('UNIT_TRACKED_VARIANT', message, { variantId });
+  }
+}
+
+/** IMEI ou numéro de série unique dans la boutique. */
+export class SerialTakenError extends ConflictError {
+  constructor(readonly serials: string[]) {
+    super(
+      'SERIAL_TAKEN',
+      serials.length === 1 ? `L’IMEI ou numéro de série « ${serials[0]} » est déjà enregistré` : `Déjà enregistrés : ${serials.join(', ')}`,
+      { serials },
+    );
+  }
+}
+
 /** Regroupe les quantités par variante et trie les lignes (ordre stable = pas d'interblocage). */
 export function aggregateLines(
   lines: readonly { variantId: string; quantity: number }[],

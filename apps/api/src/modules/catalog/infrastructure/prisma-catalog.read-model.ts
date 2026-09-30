@@ -1,18 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import type {
-  BrandDto,
-  BrandListQuery,
-  BundleDto,
-  BundleProductDto,
-  CollectionDetailDto,
-  CollectionDto,
-  CollectionListQuery,
-  MediaDto,
-  Paginated,
-  ProductDto,
-  ProductListItemDto,
-  ProductListQuery,
+import {
+  categoryDescendants,
+  categoryTracksUnits,
+  type BrandDto,
+  type BrandListQuery,
+  type BundleDto,
+  type BundleProductDto,
+  type CollectionDetailDto,
+  type CollectionDto,
+  type CollectionListQuery,
+  type MediaDto,
+  type Paginated,
+  type ProductDto,
+  type ProductListItemDto,
+  type ProductListQuery,
 } from '@marche/contracts';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { decodeCursor, toPage } from '../../../shared/application/pagination.js';
@@ -20,13 +22,40 @@ import type { PrismaAdapter } from '../../../shared/infrastructure/prisma/transa
 import { InventoryFacade } from '../../inventory/inventory.facade.js';
 import { MediaFacade } from '../../media/media.facade.js';
 import { CatalogReadModel } from '../application/catalog.read-model.js';
-import { parseAttributesJson, parseKind, parseOptions, parseStringArray } from './prisma-catalog.repositories.js';
+import { parseSpecs, parseVariantOptions } from './prisma-catalog.repositories.js';
 
 const listItemInclude = {
   brand: { select: { id: true, name: true } },
+  category: { select: { id: true, name: true } },
   variants: { where: { archivedAt: null }, select: { priceAmount: true } },
   media: { orderBy: { position: 'asc' }, take: 1, select: { mediaId: true } },
 } satisfies Prisma.ProductInclude;
+
+/**
+ * Filtres « slug:valeur » sur la fiche technique ou les axes des variantes. Les valeurs d'un même
+ * attribut s'additionnent (« ou »), les attributs se cumulent (« et »). Une valeur en chiffres ou
+ * oui/non correspond aussi à un attribut NUMBER ou BOOLEAN.
+ */
+function specFilters(pairs: readonly string[]): Prisma.ProductWhereInput[] {
+  const bySlug = new Map<string, string[]>();
+  for (const pair of pairs) {
+    const at = pair.indexOf(':');
+    const slug = pair.slice(0, at);
+    bySlug.set(slug, [...(bySlug.get(slug) ?? []), pair.slice(at + 1)]);
+  }
+  return [...bySlug].map(([slug, values]) => ({
+    OR: values.flatMap((value): Prisma.ProductWhereInput[] => {
+      const scalars: (string | number | boolean)[] = [value];
+      if (/^-?\d+(\.\d+)?$/.test(value)) scalars.push(Number(value));
+      if (value === 'true' || value === 'false') scalars.push(value === 'true');
+      return [
+        ...scalars.map((scalar) => ({ specs: { path: [slug], equals: scalar } })),
+        { specs: { path: [slug], array_contains: [value] } },
+        { variants: { some: { archivedAt: null, options: { path: [slug], equals: value } } } },
+      ];
+    }),
+  }));
+}
 
 type ListItemRow = Prisma.ProductGetPayload<{ include: typeof listItemInclude }>;
 
@@ -65,7 +94,8 @@ function toListItem(row: ListItemRow, media: Map<string, MediaDto>): ProductList
     title: row.title,
     slug: row.slug,
     status: row.status,
-    kind: parseKind(row.kind),
+    category: row.category,
+    reference: row.reference,
     brand: row.brand,
     variantsCount: row.variants.length,
     priceMinAmount: prices.length ? Math.min(...prices) : 0,
@@ -90,13 +120,19 @@ export class PrismaCatalogReadModel extends CatalogReadModel {
       query.status ? { status: query.status } : { status: { not: 'ARCHIVED' } },
     ];
     if (query.brandId) and.push({ brandId: query.brandId });
-    if (query.kind) and.push({ kind: query.kind });
+    if (query.categoryId) {
+      and.push({ categoryId: { in: categoryDescendants(query.categoryId, await this.categoryTree()) } });
+    }
     if (query.collectionId) and.push({ collections: { some: { collectionId: query.collectionId } } });
+    and.push(...specFilters(query.spec));
     if (query.q) {
+      // Titre, référence du modèle, SKU ou code-barres scanné.
       and.push({
         OR: [
           { title: { contains: query.q, mode: 'insensitive' } },
+          { reference: { equals: query.q, mode: 'insensitive' } },
           { variants: { some: { sku: { equals: query.q, mode: 'insensitive' } } } },
+          { variants: { some: { barcode: query.q } } },
         ],
       });
     }
@@ -116,11 +152,21 @@ export class PrismaCatalogReadModel extends CatalogReadModel {
     return { items: page.items.map((row) => toListItem(row, media)), nextCursor: page.nextCursor };
   }
 
+  async productIdsByReference(references: readonly string[]): Promise<Map<string, string>> {
+    if (references.length === 0) return new Map();
+    const rows = await this.txHost.tx.product.findMany({
+      where: { reference: { in: [...references] } },
+      select: { id: true, reference: true },
+    });
+    return new Map(rows.flatMap((row) => (row.reference ? [[row.reference, row.id] as const] : [])));
+  }
+
   async getProduct(id: string): Promise<ProductDto | null> {
     const row = await this.txHost.tx.product.findUnique({
       where: { id },
       include: {
         brand: { select: { id: true, name: true } },
+        category: { select: { id: true, name: true, slug: true } },
         variants: { where: { archivedAt: null }, orderBy: { position: 'asc' } },
         media: { orderBy: { position: 'asc' }, select: { mediaId: true, optionValue: true } },
         collections: { include: { collection: { select: { id: true, title: true } } } },
@@ -142,9 +188,11 @@ export class PrismaCatalogReadModel extends CatalogReadModel {
     });
     if (!row) return null;
     const accessoryMediaIds = row.relations.flatMap((r) => r.related.media.map((m) => m.mediaId));
-    const [media, stock] = await Promise.all([
-      this.media.getMany([...row.media.map((m) => m.mediaId), ...accessoryMediaIds]),
+    const variantImageIds = row.variants.flatMap((variant) => (variant.imageMediaId ? [variant.imageMediaId] : []));
+    const [media, stock, tree] = await Promise.all([
+      this.media.getMany([...row.media.map((m) => m.mediaId), ...accessoryMediaIds, ...variantImageIds]),
       this.inventory.summaries(row.variants.map((variant) => variant.id)),
+      row.categoryId ? this.categoryTree() : Promise.resolve([]),
     ]);
     return {
       id: row.id,
@@ -153,24 +201,26 @@ export class PrismaCatalogReadModel extends CatalogReadModel {
       description: row.description,
       status: row.status,
       brand: row.brand,
-      kind: parseKind(row.kind),
-      attributes: parseAttributesJson(row.attributes),
-      options: parseOptions(row.options),
-      variants: row.variants.map((variant) => {
-        const optionValues = parseStringArray(variant.optionValues);
-        return {
-          id: variant.id,
-          sku: variant.sku,
-          title: optionValues.length ? optionValues.join(' / ') : 'Par défaut',
-          optionValues,
-          priceAmount: variant.priceAmount,
-          compareAtAmount: variant.compareAtAmount,
-          position: variant.position,
-          trackInventory: variant.trackInventory,
-          archived: false,
-          inventory: stock.get(variant.id) ?? null,
-        };
-      }),
+      category: row.category,
+      tracksUnits: row.categoryId ? categoryTracksUnits(row.categoryId, tree) : false,
+      reference: row.reference,
+      warrantyMonths: row.warrantyMonths,
+      specs: parseSpecs(row.specs),
+      variants: row.variants.map((variant) => ({
+        id: variant.id,
+        sku: variant.sku,
+        title: variant.title,
+        options: parseVariantOptions(variant.options),
+        priceAmount: variant.priceAmount,
+        compareAtAmount: variant.compareAtAmount,
+        costAmount: variant.costAmount,
+        barcode: variant.barcode,
+        image: (variant.imageMediaId && media.get(variant.imageMediaId)) || null,
+        position: variant.position,
+        trackInventory: variant.trackInventory,
+        archived: false,
+        inventory: stock.get(variant.id) ?? null,
+      })),
       media: row.media.flatMap((m) => {
         const dto = media.get(m.mediaId);
         return dto ? [dto] : [];
@@ -282,6 +332,13 @@ export class PrismaCatalogReadModel extends CatalogReadModel {
   async getBundle(id: string): Promise<BundleDto | null> {
     const row = await this.txHost.tx.bundle.findUnique({ where: { id }, include: bundleInclude });
     return row ? ((await this.toBundleDtos([row]))[0] ?? null) : null;
+  }
+
+  /** Arbre des catégories de la boutique (quelques centaines de lignes au plus). */
+  private categoryTree() {
+    return this.txHost.tx.category.findMany({
+      select: { id: true, parentId: true, name: true, slug: true, tracksUnits: true },
+    });
   }
 
   private async toBundleDtos(rows: BundleRow[]): Promise<BundleDto[]> {

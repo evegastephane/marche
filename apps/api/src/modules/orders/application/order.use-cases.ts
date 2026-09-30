@@ -197,7 +197,8 @@ export class OrderLifecycleUseCases {
   fulfill(orderId: string, serials: FulfillOrderInput['serialNumbers'] = []): Promise<OrderDto> {
     return this.mutate(orderId, async (order) => {
       order.fulfill(this.clock.now(), serials);
-      await this.inventory.commit(order.reservedLines(), order.id);
+      // Un article suivi à l'unité ne sort qu'avec les IMEI des pièces expédiées.
+      await this.inventory.commit(order.shippedLines(), order.id);
     });
   }
 

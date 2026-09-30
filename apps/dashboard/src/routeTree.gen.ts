@@ -14,6 +14,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppBrandsRouteImport } from './routes/_app/brands'
 import { Route as AppCampaignsRouteImport } from './routes/_app/campaigns'
+import { Route as AppCategoriesRouteImport } from './routes/_app/categories'
 import { Route as AppInventoryRouteImport } from './routes/_app/inventory'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSiteRouteImport } from './routes/_app/site'
@@ -28,6 +29,7 @@ import { Route as AppOrdersOrderIdRouteImport } from './routes/_app/orders/$orde
 import { Route as AppOrdersNewRouteImport } from './routes/_app/orders/new'
 import { Route as AppProductsIndexRouteImport } from './routes/_app/products/index'
 import { Route as AppProductsProductIdRouteImport } from './routes/_app/products/$productId'
+import { Route as AppProductsImportRouteImport } from './routes/_app/products/import'
 import { Route as AppProductsNewRouteImport } from './routes/_app/products/new'
 import { Route as AppRequestsIndexRouteImport } from './routes/_app/requests/index'
 import { Route as AppRequestsRequestIdRouteImport } from './routes/_app/requests/$requestId'
@@ -54,6 +56,11 @@ const AppBrandsRoute = AppBrandsRouteImport.update({
 const AppCampaignsRoute = AppCampaignsRouteImport.update({
   id: '/campaigns',
   path: '/campaigns',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCategoriesRoute = AppCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
   getParentRoute: () => AppRoute,
 } as any)
 const AppInventoryRoute = AppInventoryRouteImport.update({
@@ -127,6 +134,11 @@ const AppProductsProductIdRoute = AppProductsProductIdRouteImport.update({
   path: '/products/$productId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProductsImportRoute = AppProductsImportRouteImport.update({
+  id: '/products/import',
+  path: '/products/import',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProductsNewRoute = AppProductsNewRouteImport.update({
   id: '/products/new',
   path: '/products/new',
@@ -148,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/brands': typeof AppBrandsRoute
   '/campaigns': typeof AppCampaignsRoute
+  '/categories': typeof AppCategoriesRoute
   '/inventory': typeof AppInventoryRoute
   '/settings': typeof AppSettingsRoute
   '/site': typeof AppSiteRoute
@@ -158,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/orders/new': typeof AppOrdersNewRoute
   '/products/$productId': typeof AppProductsProductIdRoute
+  '/products/import': typeof AppProductsImportRoute
   '/products/new': typeof AppProductsNewRoute
   '/requests/$requestId': typeof AppRequestsRequestIdRoute
   '/collections/': typeof AppCollectionsIndexRoute
@@ -170,6 +184,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/brands': typeof AppBrandsRoute
   '/campaigns': typeof AppCampaignsRoute
+  '/categories': typeof AppCategoriesRoute
   '/inventory': typeof AppInventoryRoute
   '/settings': typeof AppSettingsRoute
   '/site': typeof AppSiteRoute
@@ -181,6 +196,7 @@ export interface FileRoutesByTo {
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/orders/new': typeof AppOrdersNewRoute
   '/products/$productId': typeof AppProductsProductIdRoute
+  '/products/import': typeof AppProductsImportRoute
   '/products/new': typeof AppProductsNewRoute
   '/requests/$requestId': typeof AppRequestsRequestIdRoute
   '/collections': typeof AppCollectionsIndexRoute
@@ -195,6 +211,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/_app/brands': typeof AppBrandsRoute
   '/_app/campaigns': typeof AppCampaignsRoute
+  '/_app/categories': typeof AppCategoriesRoute
   '/_app/inventory': typeof AppInventoryRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/site': typeof AppSiteRoute
@@ -206,6 +223,7 @@ export interface FileRoutesById {
   '/_app/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/_app/orders/new': typeof AppOrdersNewRoute
   '/_app/products/$productId': typeof AppProductsProductIdRoute
+  '/_app/products/import': typeof AppProductsImportRoute
   '/_app/products/new': typeof AppProductsNewRoute
   '/_app/requests/$requestId': typeof AppRequestsRequestIdRoute
   '/_app/collections/': typeof AppCollectionsIndexRoute
@@ -221,6 +239,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/brands'
     | '/campaigns'
+    | '/categories'
     | '/inventory'
     | '/settings'
     | '/site'
@@ -231,6 +250,7 @@ export interface FileRouteTypes {
     | '/orders/$orderId'
     | '/orders/new'
     | '/products/$productId'
+    | '/products/import'
     | '/products/new'
     | '/requests/$requestId'
     | '/collections/'
@@ -243,6 +263,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/brands'
     | '/campaigns'
+    | '/categories'
     | '/inventory'
     | '/settings'
     | '/site'
@@ -254,6 +275,7 @@ export interface FileRouteTypes {
     | '/orders/$orderId'
     | '/orders/new'
     | '/products/$productId'
+    | '/products/import'
     | '/products/new'
     | '/requests/$requestId'
     | '/collections'
@@ -267,6 +289,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/_app/brands'
     | '/_app/campaigns'
+    | '/_app/categories'
     | '/_app/inventory'
     | '/_app/settings'
     | '/_app/site'
@@ -278,6 +301,7 @@ export interface FileRouteTypes {
     | '/_app/orders/$orderId'
     | '/_app/orders/new'
     | '/_app/products/$productId'
+    | '/_app/products/import'
     | '/_app/products/new'
     | '/_app/requests/$requestId'
     | '/_app/collections/'
@@ -329,6 +353,13 @@ declare module '@tanstack/react-router' {
       path: '/campaigns'
       fullPath: '/campaigns'
       preLoaderRoute: typeof AppCampaignsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/categories': {
+      id: '/_app/categories'
+      path: '/categories'
+      fullPath: '/categories'
+      preLoaderRoute: typeof AppCategoriesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/inventory': {
@@ -429,6 +460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProductsProductIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/products/import': {
+      id: '/_app/products/import'
+      path: '/products/import'
+      fullPath: '/products/import'
+      preLoaderRoute: typeof AppProductsImportRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/products/new': {
       id: '/_app/products/new'
       path: '/products/new'
@@ -456,6 +494,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppBrandsRoute: typeof AppBrandsRoute
   AppCampaignsRoute: typeof AppCampaignsRoute
+  AppCategoriesRoute: typeof AppCategoriesRoute
   AppInventoryRoute: typeof AppInventoryRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSiteRoute: typeof AppSiteRoute
@@ -465,6 +504,7 @@ interface AppRouteChildren {
   AppOrdersOrderIdRoute: typeof AppOrdersOrderIdRoute
   AppOrdersNewRoute: typeof AppOrdersNewRoute
   AppProductsProductIdRoute: typeof AppProductsProductIdRoute
+  AppProductsImportRoute: typeof AppProductsImportRoute
   AppProductsNewRoute: typeof AppProductsNewRoute
   AppRequestsRequestIdRoute: typeof AppRequestsRequestIdRoute
   AppCollectionsIndexRoute: typeof AppCollectionsIndexRoute
@@ -477,6 +517,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppBrandsRoute: AppBrandsRoute,
   AppCampaignsRoute: AppCampaignsRoute,
+  AppCategoriesRoute: AppCategoriesRoute,
   AppInventoryRoute: AppInventoryRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSiteRoute: AppSiteRoute,
@@ -486,6 +527,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppOrdersOrderIdRoute: AppOrdersOrderIdRoute,
   AppOrdersNewRoute: AppOrdersNewRoute,
   AppProductsProductIdRoute: AppProductsProductIdRoute,
+  AppProductsImportRoute: AppProductsImportRoute,
   AppProductsNewRoute: AppProductsNewRoute,
   AppRequestsRequestIdRoute: AppRequestsRequestIdRoute,
   AppCollectionsIndexRoute: AppCollectionsIndexRoute,

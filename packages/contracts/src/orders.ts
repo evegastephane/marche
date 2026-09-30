@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type Address, addressSchema, amountSchema, type Currency, paginationQuerySchema } from './common.js';
+import { serialSchema } from './inventory.js';
 
 export const ORDER_STATUSES = ['DRAFT', 'PLACED', 'FULFILLED', 'CANCELLED'] as const;
 export const orderStatusSchema = z.enum(ORDER_STATUSES);
@@ -107,7 +108,8 @@ export interface OrderLineDto {
 export const fulfillOrderSchema = z
   .object({
     serialNumbers: z
-      .array(z.object({ lineId: z.uuid(), values: z.array(z.string().trim().min(3).max(40)).max(50) }))
+      // Normalisés comme les unités en stock (espaces et points retirés, majuscules).
+      .array(z.object({ lineId: z.uuid(), values: z.array(serialSchema).max(50) }))
       .max(100)
       .default([]),
   })

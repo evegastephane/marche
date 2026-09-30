@@ -1,15 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createStoreFor, createTestApp, type TestApp, uniqueSlug } from './support/test-app.js';
+import { categoryId, createStoreFor, createTestApp, type TestApp, uniqueSlug } from './support/test-app.js';
 
 describe('Boutique, catalogue et stock (e2e)', () => {
   let t: TestApp;
   let token: string;
   let productId: string;
   let variantIds: string[];
+  let clothing: string;
 
   beforeAll(async () => {
     t = await createTestApp();
     ({ token } = await createStoreFor(t, { slug: uniqueSlug('chez-awa'), currency: 'XOF', country: 'SN' }));
+    clothing = await categoryId(t, token, 'vetements');
   });
 
   afterAll(async () => {
@@ -56,22 +58,33 @@ describe('Boutique, catalogue et stock (e2e)', () => {
     expect(response.body).toMatchObject({ name: 'Wax Élégance', slug: 'wax-elegance', productsCount: 0 });
   });
 
-  it('crée un produit à 2 options (4 variantes) avec stock initial', async () => {
+  it('pose le catalogue de départ de la boutique (Mode) au premier accès', async () => {
+    const categories = await t.http().get('/api/v1/categories').set(auth());
+    expect(categories.status).toBe(200);
+    expect(categories.body.map((c: { slug: string }) => c.slug)).toEqual(
+      expect.arrayContaining(['vetements', 'chaussures', 'accessoires-mode', 'autres']),
+    );
+    const detail = await t.http().get(`/api/v1/categories/${clothing}`).set(auth());
+    expect(detail.body.attributes.filter((a: { isVariantAxis: boolean }) => a.isVariantAxis).map((a: { slug: string }) => a.slug)).toEqual([
+      'taille',
+      'couleur',
+    ]);
+  });
+
+  it('crée un produit à 2 axes (4 variantes) avec stock initial', async () => {
     const response = await t
       .http()
       .post('/api/v1/products')
       .set(auth())
       .send({
         title: 'Boubou brodé',
-        options: [
-          { name: 'Taille', values: ['M', 'L'] },
-          { name: 'Couleur', values: ['Bleu', 'Or'] },
-        ],
+        categoryId: clothing,
+        specs: { rayon: 'Femme', matiere: 'Bazin riche' },
         variants: [
-          { sku: 'BOU-M-BL', optionValues: ['M', 'Bleu'], priceAmount: 25000, initialQuantity: 5 },
-          { sku: 'BOU-M-OR', optionValues: ['M', 'Or'], priceAmount: 25000, initialQuantity: 3 },
-          { sku: 'BOU-L-BL', optionValues: ['L', 'Bleu'], priceAmount: 27000, initialQuantity: 0 },
-          { sku: 'BOU-L-OR', optionValues: ['L', 'Or'], priceAmount: 27000, trackInventory: false },
+          { sku: 'BOU-M-BL', options: { taille: 'M', couleur: 'Bleu' }, priceAmount: 25000, initialQuantity: 5 },
+          { sku: 'BOU-M-OR', options: { taille: 'M', couleur: 'Or' }, priceAmount: 25000, initialQuantity: 3 },
+          { sku: 'BOU-L-BL', options: { taille: 'L', couleur: 'Bleu' }, priceAmount: 27000, initialQuantity: 0 },
+          { sku: 'BOU-L-OR', options: { taille: 'L', couleur: 'Or' }, priceAmount: 27000, trackInventory: false },
         ],
       });
     expect(response.status, JSON.stringify(response.body)).toBe(201);
@@ -90,23 +103,32 @@ describe('Boutique, catalogue et stock (e2e)', () => {
       .http()
       .post('/api/v1/products')
       .set(auth())
-      .send({ title: 'Autre', variants: [{ sku: 'BOU-M-BL', priceAmount: 1000 }] });
+      .send({ title: 'Autre', categoryId: clothing, variants: [{ sku: 'BOU-M-BL', options: { taille: 'S' }, priceAmount: 1000 }] });
     expect(response.status).toBe(409);
     expect(response.body).toMatchObject({ code: 'SKU_TAKEN', details: { skus: ['BOU-M-BL'] } });
   });
 
-  it('refuse une combinaison hors options (422)', async () => {
+  it('refuse une valeur d’axe inconnue de l’attribut (422)', async () => {
     const response = await t
       .http()
       .post('/api/v1/products')
       .set(auth())
       .send({
         title: 'Incohérent',
-        options: [{ name: 'Taille', values: ['S'] }],
-        variants: [{ sku: 'INC-1', optionValues: ['XL'], priceAmount: 1000 }],
+        categoryId: clothing,
+        variants: [{ sku: 'INC-1', options: { taille: 'XXXXL' }, priceAmount: 1000 }],
       });
     expect(response.status).toBe(422);
-    expect(response.body.code).toBe('VALIDATION_FAILED');
+  });
+
+  it('signale en direct les SKU et la référence déjà pris', async () => {
+    const response = await t
+      .http()
+      .post('/api/v1/products/sku-check')
+      .set(auth())
+      .send({ skus: ['BOU-M-BL', 'LIBRE-1'], reference: 'NOPE' });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ takenSkus: ['BOU-M-BL'], referenceTaken: false });
   });
 
   it('publie le produit puis le retrouve dans la liste filtrée', async () => {
@@ -118,17 +140,27 @@ describe('Boutique, catalogue et stock (e2e)', () => {
     expect(list.status).toBe(200);
     expect(list.body.items).toHaveLength(1);
     expect(list.body.items[0]).toMatchObject({ variantsCount: 4, priceMinAmount: 25000, priceMaxAmount: 27000 });
+
+    const byCategoryAndAxis = await t
+      .http()
+      .get('/api/v1/products')
+      .query({ categoryId: clothing, spec: ['couleur:Or', 'rayon:Femme'] })
+      .set(auth());
+    expect(byCategoryAndAxis.body.items.map((p: { title: string }) => p.title)).toEqual(['Boubou brodé']);
+    const none = await t.http().get('/api/v1/products').query({ spec: 'couleur:Vert' }).set(auth());
+    expect(none.body.items).toEqual([]);
   });
 
   it('détecte une modification concurrente (409 CONCURRENT_MODIFICATION)', async () => {
     const current = await t.http().get(`/api/v1/products/${productId}`).set(auth());
     const body = {
       title: 'Boubou brodé main',
-      options: current.body.options,
+      categoryId: clothing,
+      specs: current.body.specs,
       variants: current.body.variants.map((variant: Record<string, unknown>) => ({
         id: variant.id,
         sku: variant.sku,
-        optionValues: variant.optionValues,
+        options: variant.options,
         priceAmount: variant.priceAmount,
         trackInventory: variant.trackInventory,
       })),

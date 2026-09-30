@@ -5,7 +5,7 @@ import { ExpressAdapter } from '@bull-board/express';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { DOMAIN_MODULES } from './modules/domain-modules.js';
-import { ClerkAuthGuard, RolesGuard, TenantGuard } from './modules/identity/interface/guards.js';
+import { ApiScopeGuard, ClerkAuthGuard, RolesGuard, TenantGuard } from './modules/identity/interface/guards.js';
 import type { AppConfig } from './shared/infrastructure/config/app-config.js';
 import { coreModules } from './shared/infrastructure/core.module.js';
 import { HealthController } from './shared/infrastructure/health/health.controller.js';
@@ -46,11 +46,12 @@ export class AppModule {
       controllers: [HealthController],
       providers: [
         { provide: APP_FILTER, useClass: ProblemDetailsFilter },
-        // Ordre des guards (docs/PLAN-CODE.md §6.4) : débit → authentification → boutique → rôles.
+        // Ordre des guards (docs/PLAN-CODE.md §6.4) : débit → authentification → boutique → rôles → droits des clés d'API.
         { provide: APP_GUARD, useClass: ThrottlerGuard },
         { provide: APP_GUARD, useExisting: ClerkAuthGuard },
         { provide: APP_GUARD, useExisting: TenantGuard },
         { provide: APP_GUARD, useExisting: RolesGuard },
+        { provide: APP_GUARD, useExisting: ApiScopeGuard },
       ],
     };
   }

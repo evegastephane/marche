@@ -1,5 +1,5 @@
 import { Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import {
   type BrandDto,
@@ -30,6 +30,9 @@ import {
   productListQuerySchema,
   type SetCollectionProductsInput,
   setCollectionProductsSchema,
+  type SkuCheckDto,
+  type SkuCheckInput,
+  skuCheckSchema,
   type UpdateBrandInput,
   type UpdateCollectionInput,
   type UpdateProductInput,
@@ -37,8 +40,8 @@ import {
   updateCollectionSchema,
   updateProductSchema,
 } from '@marche/contracts';
-import { ADMIN_API } from '../../../shared/infrastructure/http/access.decorators.js';
-import { ApiZodBody, ZodBody, ZodQuery } from '../../../shared/infrastructure/http/zod-validation.js';
+import { ADMIN_API, ApiScope } from '../../../shared/infrastructure/http/access.decorators.js';
+import { ApiZodBody, ApiZodQuery, ZodBody, ZodQuery } from '../../../shared/infrastructure/http/zod-validation.js';
 import { BrandUseCases, CollectionUseCases } from '../application/brand-collection.use-cases.js';
 import { BundleUseCases } from '../application/bundle.use-cases.js';
 import { CatalogQueries } from '../application/catalog.queries.js';
@@ -51,6 +54,7 @@ import {
 
 @ApiTags('produits')
 @ApiBearerAuth()
+@ApiScope('catalog')
 @Controller(`${ADMIN_API}/products`)
 export class ProductsController {
   constructor(
@@ -61,17 +65,36 @@ export class ProductsController {
     private readonly duplicateProduct: DuplicateProductUseCase,
   ) {}
 
-  /** UC-17 : recherche et filtres (q, status, brandId, collectionId). */
+  /** UC-17 : recherche et filtres. */
   @Get()
+  @ApiOperation({
+    summary: 'Lister les produits',
+    description:
+      'Recherche (titre, référence, SKU, code-barres), filtres par statut, marque, catalogue, catégorie (sous-catégories comprises) et attributs : spec=couleur:Noir&spec=stockage:256 Go. Pagination par curseur.',
+  })
+  @ApiZodQuery(productListQuerySchema)
   list(@ZodQuery(productListQuerySchema) query: ProductListQuery): Promise<Paginated<ProductListItemDto>> {
     return this.queries.listProducts(query);
   }
 
   /** UC-11 : création avec variantes et stock initial. */
   @Post()
+  @ApiOperation({
+    summary: 'Créer un produit',
+    description:
+      'Catégorie obligatoire : elle décide des attributs (specs) et des axes de variantes (options). Un produit sans axe a une seule variante. Pour une catégorie suivie à l’unité, le stock initial se donne en IMEI (units).',
+  })
   @ApiZodBody(createProductSchema)
   create(@ZodBody(createProductSchema) input: CreateProductInput): Promise<ProductDto> {
     return this.createProduct.execute(input);
+  }
+
+  @Post('sku-check')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Vérifier des SKU et une référence', description: 'Renvoie ceux qui sont déjà pris par un autre produit de la boutique.' })
+  @ApiZodBody(skuCheckSchema)
+  skuCheck(@ZodBody(skuCheckSchema) input: SkuCheckInput): Promise<SkuCheckDto> {
+    return this.queries.checkSkus(input);
   }
 
   @Post('bulk')
@@ -98,6 +121,7 @@ export class ProductsController {
 
   /** UC-14 */
   @Post(':id/publish')
+  @ApiOperation({ summary: 'Publier un produit', description: 'Refusé (422 PRODUCT_NOT_PUBLISHABLE) si un attribut obligatoire est vide ; details.problems liste les manques.' })
   @HttpCode(200)
   publish(@Param('id', ParseUUIDPipe) id: string): Promise<ProductDto> {
     return this.changeStatus.execute(id, 'publish');
@@ -124,6 +148,7 @@ export class ProductsController {
 
 @ApiTags('marques')
 @ApiBearerAuth()
+@ApiScope('catalog')
 @Controller(`${ADMIN_API}/brands`)
 export class BrandsController {
   constructor(
@@ -169,6 +194,7 @@ export class BrandsController {
 
 @ApiTags('catalogues')
 @ApiBearerAuth()
+@ApiScope('catalog')
 @Controller(`${ADMIN_API}/collections`)
 export class CollectionsController {
   constructor(
@@ -223,6 +249,7 @@ const bundleListQuerySchema = z.object({ anchorProductId: z.uuid().optional() })
 
 @ApiTags('packs')
 @ApiBearerAuth()
+@ApiScope('catalog')
 @Controller(`${ADMIN_API}/bundles`)
 export class BundlesController {
   constructor(private readonly bundles: BundleUseCases) {}

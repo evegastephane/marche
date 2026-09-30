@@ -1,14 +1,13 @@
 import { ArrowRight } from 'lucide-react';
 import type { Metadata } from 'next';
-import { Hanken_Grotesk } from 'next/font/google';
 import { UpsellMark, UpsellWordmark } from '@/components/upsell-mark';
+import { hanken } from '@/lib/platform-font';
 
 // L'icône Upsell n'habille que la page de la plateforme, pas les sites des marchands.
 export const metadata: Metadata = { icons: { icon: '/favicon.svg' } };
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'http://localhost:5173';
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'localhost:3001';
-const hanken = Hanken_Grotesk({ subsets: ['latin'], display: 'swap' });
 
 /**
  * Domaine racine de la plateforme (les boutiques vivent sur leurs sous-domaines).

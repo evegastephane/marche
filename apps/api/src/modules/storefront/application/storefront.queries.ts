@@ -4,6 +4,7 @@ import {
   OPTION_TYPES,
   type OptionType,
   type Paginated,
+  DEFAULT_SIZE_GUIDES,
   sizeGuideFor,
   storefrontServices,
   type StorefrontFacetsDto,
@@ -65,7 +66,10 @@ export class StorefrontQueries {
     );
     const departments =
       settings.type === 'FASHION' && settings.verticalSettings.departments?.enabled
-        ? ((await this.catalog.facets({}))?.attributes.find((group) => group.key === 'audience')?.values.map((v) => v.value) ?? [])
+        ? // Rayons (attribut « rayon » : Femme, Homme…) en codes historiques FEMME, HOMME… pour les liens du site.
+          ((await this.catalog.facets({}))?.attributes
+            .find((group) => group.key === 'rayon')
+            ?.values.map((v) => v.value.normalize('NFD').replace(/\p{M}/gu, '').toUpperCase()) ?? [])
         : [];
     const logoId = site.theme.logoMediaId ?? settings.logoMediaId;
     const media = await this.media.getMany([...heroImages, ...(logoId ? [logoId] : [])]);
@@ -78,10 +82,9 @@ export class StorefrontQueries {
       phone: settings.phone,
       logo: (logoId && media.get(logoId)) || null,
       type: settings.type,
-      sizeGuides: {
-        CLOTHING: sizeGuideFor('CLOTHING', settings.verticalSettings)!,
-        SHOES: sizeGuideFor('SHOES', settings.verticalSettings)!,
-      },
+      sizeGuide:
+        Object.values(settings.verticalSettings.sizeGuides ?? {})[0] ??
+        (settings.type === 'FASHION' ? (DEFAULT_SIZE_GUIDES.vetements ?? null) : null),
       services: storefrontServices(settings.type, settings.verticalSettings, departments),
       templateId: site.templateId,
       templateVersion: site.templateVersion,
@@ -115,9 +118,13 @@ export class StorefrontQueries {
   }
 
   async product(slug: string): Promise<StorefrontProductDto> {
-    const product = await this.catalog.getPublishedProduct(slug);
+    const [product, settings] = await Promise.all([
+      this.catalog.getPublishedProduct(slug),
+      this.stores.getSettings(this.actor.storeId),
+    ]);
     if (!product) throw new NotFoundError('Produit', slug);
-    return product;
+    // Guide des tailles : celui de la catégorie du produit ou du parent le plus proche.
+    return { ...product, sizeGuide: sizeGuideFor(product.category?.path ?? [], settings.verticalSettings) };
   }
 
   /** Filtres proposés (valeurs présentes et nombre d'articles), pour tout le catalogue ou un catalogue. */

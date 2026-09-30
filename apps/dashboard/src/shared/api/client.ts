@@ -59,6 +59,8 @@ export interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined | null>;
   idempotencyKey?: string;
   signal?: AbortSignal;
+  /** « blob » : la réponse est un fichier (modèle d'import…), pas du JSON. */
+  as?: 'json' | 'blob';
 }
 
 export type ApiRequest = <T>(method: string, path: string, options?: RequestOptions) => Promise<T>;
@@ -76,24 +78,27 @@ function toQuery(query: RequestOptions['query']): string {
 export function createApiClient(getToken: () => Promise<string | null>): ApiRequest {
   return async function request<T>(method: string, path: string, options: RequestOptions = {}) {
     const token = await getToken();
+    // Un FormData (fichier joint) part tel quel : le navigateur pose lui-même l'en-tête multipart.
+    const form = options.body instanceof FormData;
     let res: Response;
     try {
       res = await fetch(`${API_URL}${path}${toQuery(options.query)}`, {
         method,
         signal: options.signal,
         headers: {
-          ...(options.body !== undefined && { 'content-type': 'application/json' }),
+          ...(options.body !== undefined && !form && { 'content-type': 'application/json' }),
           ...(token && { authorization: `Bearer ${token}` }),
           ...(options.idempotencyKey && { 'idempotency-key': options.idempotencyKey }),
         },
-        body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+        body: options.body === undefined ? undefined : form ? (options.body as FormData) : JSON.stringify(options.body),
       });
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') throw error;
       throw new ApiError(0, 'NETWORK', 'Connexion impossible. Vérifiez votre réseau puis réessayez.', null);
     }
     if (!res.ok) throw await ApiError.fromResponse(res);
-    return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
+    if (res.status === 204) return undefined as T;
+    return (options.as === 'blob' ? await res.blob() : await res.json()) as T;
   };
 }
 

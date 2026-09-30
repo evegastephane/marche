@@ -8,7 +8,7 @@ import {
   updateMediaSchema,
   type UploadTicketDto,
 } from '@marche/contracts';
-import { ADMIN_API } from '../../../shared/infrastructure/http/access.decorators.js';
+import { ADMIN_API, ApiScope } from '../../../shared/infrastructure/http/access.decorators.js';
 import { ApiZodBody, ZodBody } from '../../../shared/infrastructure/http/zod-validation.js';
 import {
   CompleteMediaUploadUseCase,
@@ -18,6 +18,7 @@ import {
 
 @ApiTags('médias')
 @ApiBearerAuth()
+@ApiScope('catalog')
 @Controller(`${ADMIN_API}/media`)
 export class MediaController {
   constructor(

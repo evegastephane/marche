@@ -2,6 +2,7 @@ import { AnalyticsModule } from './analytics/analytics.module.js';
 import { CampaignsModule } from './campaigns/campaigns.module.js';
 import { CatalogModule } from './catalog/catalog.module.js';
 import { CheckoutModule } from './checkout/checkout.module.js';
+import { DevelopersModule } from './developers/developers.module.js';
 import { DevicesModule } from './devices/devices.module.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { InventoryModule } from './inventory/inventory.module.js';
@@ -29,4 +30,5 @@ export const DOMAIN_MODULES = [
   StorefrontModule,
   AnalyticsModule,
   ReportingModule,
+  DevelopersModule,
 ];

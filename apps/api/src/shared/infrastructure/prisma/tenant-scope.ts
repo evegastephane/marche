@@ -24,6 +24,12 @@ export const TENANT_MODELS: ReadonlySet<string> = new Set([
   'Bundle',
   'BundleItem',
   'SpecialRequest',
+  'Category',
+  'Attribute',
+  'CategoryAttribute',
+  'AttributeValue',
+  'StockUnit',
+  'ApiKey',
 ]);
 
 const WHERE_OPERATIONS: ReadonlySet<string> = new Set([

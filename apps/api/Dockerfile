@@ -40,6 +40,7 @@ RUN DATABASE_URL=postgresql://build:build@localhost:5432/build \
 
 # 4. Migrations : CLI Prisma + moteur de schéma. npm 12 bloque le téléchargement du moteur
 #    à l'installation (allowScripts) : on le lance ici explicitement, pour la plateforme de l'image.
+#    Après les migrations, la reprise du catalogue dynamique (idempotente) range les anciens produits.
 FROM build AS migrate
 RUN apt-get update \
     && apt-get install -y --no-install-recommends openssl ca-certificates \

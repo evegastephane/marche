@@ -25,6 +25,8 @@ import type { PricingBundle } from '../domain/bundle-pricing.js';
 export abstract class CatalogReadModel {
   abstract listProducts(query: ProductListQuery): Promise<Paginated<ProductListItemDto>>;
   abstract getProduct(id: string): Promise<ProductDto | null>;
+  /** Produits (archivés compris) de ces références : référence → id. */
+  abstract productIdsByReference(references: readonly string[]): Promise<Map<string, string>>;
   abstract listBrands(query: BrandListQuery): Promise<Paginated<BrandDto>>;
   abstract getBrand(id: string): Promise<BrandDto | null>;
   abstract listCollections(query: CollectionListQuery): Promise<Paginated<CollectionDto>>;

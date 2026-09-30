@@ -16,7 +16,8 @@ async function bootstrap(): Promise<void> {
   });
   app.useLogger(app.get(Logger));
   configureHttpApp(app, config);
-  if (!config.isProduction) setupSwagger(app);
+  // Référence des API (/docs, /openapi.json) : publique, pour les développeurs des boutiques.
+  setupSwagger(app);
   await app.listen(config.port);
   app.get(Logger).log(`API démarrée sur le port ${config.port}`, 'Bootstrap');
   if (config.workerInApi) {

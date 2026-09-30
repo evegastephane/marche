@@ -6,7 +6,6 @@ import type {
   ProductDto,
   UpdateProductInput,
 } from '@marche/contracts';
-import { KINDS_BY_STORE_TYPE, type ProductKind } from '@marche/contracts';
 import { ActorContext } from '../../../shared/application/actor-context.port.js';
 import { Clock } from '../../../shared/application/clock.port.js';
 import { OutboxPort } from '../../../shared/application/outbox.port.js';
@@ -19,13 +18,13 @@ import {
 } from '../../../shared/domain/domain-error.js';
 import { InventoryFacade } from '../../inventory/inventory.facade.js';
 import { MediaFacade } from '../../media/media.facade.js';
-import { StoresFacade } from '../../stores/stores.facade.js';
 import { SkuTakenError, SlugTakenError } from '../domain/catalog.errors.js';
 import { BrandRepository, ProductRepository } from '../domain/catalog.repositories.js';
-import type { NewVariant, Product, ProductDraft } from '../domain/product.aggregate.js';
+import type { CategoryContext, NewVariant, Product, ProductDraft } from '../domain/product.aggregate.js';
 import { Product as ProductAggregate } from '../domain/product.aggregate.js';
 import { CatalogReadModel } from './catalog.read-model.js';
 import { allocateSlug, copiedSku } from './slug-allocator.js';
+import { TaxonomyContextService } from './taxonomy.use-cases.js';
 
 type ProductFields = CreateProductInput | UpdateProductInput;
 
@@ -38,27 +37,21 @@ export class ProductWriteSupport {
     private readonly media: MediaFacade,
     private readonly inventory: InventoryFacade,
     private readonly readModel: CatalogReadModel,
-    private readonly stores: StoresFacade,
-    private readonly actor: ActorContext,
+    private readonly taxonomy: TaxonomyContextService,
   ) {}
 
-  /**
-   * Marque, photos, sorte d'article et accessoires valides. La sorte doit correspondre au type de la
-   * boutique ; un article déjà classé garde la sienne si la boutique change de type.
-   */
-  async assertReferences(input: ProductFields, currentKind?: ProductKind | null): Promise<void> {
+  /** Attributs (hérités compris) et suivi à l'unité de la catégorie ; lève INVALID_CATEGORY. */
+  context(categoryId: string): Promise<CategoryContext> {
+    return this.taxonomy.contextFor(categoryId);
+  }
+
+  /** Marque, photos (produit et variantes) et accessoires valides. */
+  async assertReferences(input: ProductFields): Promise<void> {
     if (input.brandId && !(await this.brands.isActive(input.brandId))) {
       throw new ValidationError('VALIDATION_FAILED', 'Marque introuvable ou archivée', { field: 'brandId' });
     }
-    await this.media.assertUsable(input.mediaIds);
-    if (input.kind && input.kind !== currentKind) {
-      const { type } = await this.stores.getSettings(this.actor.storeId);
-      if (!KINDS_BY_STORE_TYPE[type].includes(input.kind)) {
-        throw new ValidationError('INVALID_PRODUCT_KIND', 'Cette sorte d’article ne correspond pas au type de la boutique', {
-          field: 'kind',
-        });
-      }
-    }
+    const variantImages = input.variants.flatMap((variant) => (variant.imageMediaId ? [variant.imageMediaId] : []));
+    await this.media.assertUsable([...new Set([...input.mediaIds, ...variantImages])]);
     const accessoryIds = [...new Set(input.accessoryIds)];
     if (accessoryIds.length > 0 && (await this.products.existingIds(accessoryIds)).length !== accessoryIds.length) {
       throw new ValidationError('VALIDATION_FAILED', 'Accessoire introuvable', { field: 'accessoryIds' });
@@ -74,10 +67,17 @@ export class ProductWriteSupport {
     return allocateSlug(input.title, (slug) => this.products.slugExists(slug, excludeId));
   }
 
-  /** R1 : aucun SKU déjà utilisé par un autre produit de la boutique. */
+  /** R1 et règle 5 : aucun SKU déjà utilisé par un autre produit de la boutique. */
   async assertSkusFree(skus: readonly string[], excludeProductId?: string): Promise<void> {
     const taken = await this.products.takenSkus(skus, excludeProductId);
     if (taken.length > 0) throw new SkuTakenError(taken);
+  }
+
+  /** La référence (« sku parent ») identifie un modèle : unique dans la boutique. */
+  async assertReferenceFree(reference: string | null | undefined, excludeProductId?: string): Promise<void> {
+    if (reference && (await this.products.referenceExists(reference, excludeProductId))) {
+      throw new ValidationError('UNIQUE_VIOLATION', `La référence « ${reference} » est déjà utilisée`, { field: 'reference' });
+    }
   }
 
   toDraft(input: ProductFields, slug: string): ProductDraft {
@@ -86,30 +86,46 @@ export class ProductWriteSupport {
       slug,
       description: input.description,
       brandId: input.brandId,
-      options: input.options,
+      reference: input.reference ?? null,
+      warrantyMonths: input.warrantyMonths ?? null,
+      specs: input.specs,
       variants: input.variants.map((variant) => ({
-        id: variant.id,
+        ...(variant.id ? { id: variant.id } : {}),
         sku: variant.sku,
-        optionValues: variant.optionValues,
+        options: variant.options,
         priceAmount: variant.priceAmount,
-        compareAtAmount: variant.compareAtAmount,
+        compareAtAmount: variant.compareAtAmount ?? null,
+        costAmount: variant.costAmount ?? null,
+        barcode: variant.barcode ?? null,
+        imageMediaId: variant.imageMediaId ?? null,
         trackInventory: variant.trackInventory,
-        initialQuantity: variant.initialQuantity,
+        ...(variant.initialQuantity !== undefined ? { initialQuantity: variant.initialQuantity } : {}),
+        ...(variant.units ? { units: variant.units } : {}),
       })),
       mediaIds: input.mediaIds,
       mediaOptionValues: input.mediaOptionValues,
-      kind: input.kind ?? null,
-      attributes: input.attributes,
       accessoryIds: input.accessoryIds,
       seoTitle: input.seoTitle,
       seoDescription: input.seoDescription,
     };
   }
 
+  /** Stock initial des nouvelles variantes : une quantité, ou une unité (et un mouvement) par IMEI. */
   initializeStock(newVariants: readonly NewVariant[]): Promise<void> {
     return this.inventory.initialize(
-      newVariants.map((variant) => ({ variantId: variant.variantId, quantity: variant.initialQuantity })),
+      newVariants.map((variant) => ({
+        variantId: variant.variantId,
+        quantity: variant.initialQuantity,
+        tracksUnits: variant.tracksUnits,
+        condition: variant.condition,
+        units: variant.units,
+      })),
     );
+  }
+
+  /** Un changement de catégorie peut faire passer des articles au suivi à l'unité (ou l'inverse). */
+  syncTracking(variantIds: readonly string[], context: CategoryContext): Promise<void> {
+    return this.inventory.setTracking(variantIds, context.tracksUnits);
   }
 
   async dto(productId: string): Promise<ProductDto> {
@@ -133,12 +149,15 @@ export class CreateProductUseCase {
 
   async execute(input: CreateProductInput): Promise<ProductDto> {
     await this.support.assertReferences(input);
+    const context = await this.support.context(input.categoryId);
     const productId = await this.uow.run(async () => {
       const slug = await this.support.resolveSlug(input);
       await this.support.assertSkusFree(input.variants.map((variant) => variant.sku));
+      await this.support.assertReferenceFree(input.reference);
       const { product, newVariants } = ProductAggregate.create(
         this.actor.storeId,
         this.support.toDraft(input, slug),
+        context,
         this.clock.now(),
       );
       await this.products.insert(product);
@@ -166,7 +185,8 @@ export class UpdateProductUseCase {
       const product = await this.products.findById(productId);
       if (!product) throw new NotFoundError('Produit', productId);
       if (product.version !== input.version) throw new ConcurrentModificationError('Le produit');
-      await this.support.assertReferences(input, product.snapshot().kind);
+      await this.support.assertReferences(input);
+      const context = await this.support.context(input.categoryId);
       const slug = input.slug ?? product.slug;
       if (slug !== product.slug && (await this.products.slugExists(slug, productId))) {
         throw new SlugTakenError(slug);
@@ -175,8 +195,15 @@ export class UpdateProductUseCase {
         input.variants.map((variant) => variant.sku),
         productId,
       );
-      const newVariants = product.update(this.support.toDraft(input, slug), this.clock.now());
+      await this.support.assertReferenceFree(input.reference, productId);
+      const existing = new Set(product.activeVariants.map((variant) => variant.id));
+      const newVariants = product.update(this.support.toDraft(input, slug), context, this.clock.now());
       await this.products.update(product);
+      const created = new Set(newVariants.map((variant) => variant.variantId));
+      await this.support.syncTracking(
+        product.activeVariants.filter((variant) => existing.has(variant.id) && !created.has(variant.id)).map((variant) => variant.id),
+        context,
+      );
       await this.support.initializeStock(newVariants);
       await this.outbox.addAll(product.pullEvents());
     });
@@ -222,8 +249,9 @@ export class ChangeProductStatusUseCase {
       const product = await this.products.findById(productId);
       if (!product) throw new NotFoundError('Produit', productId);
       const now = this.clock.now();
-      if (action === 'publish') product.publish(now);
-      else if (action === 'unpublish') product.unpublish(now);
+      if (action === 'publish') {
+        product.publish(product.categoryId ? await this.support.context(product.categoryId) : null, now);
+      } else if (action === 'unpublish') product.unpublish(now);
       else product.archive(now);
       await this.products.update(product);
       await this.outbox.addAll(product.pullEvents());
@@ -247,10 +275,14 @@ export class DuplicateProductUseCase {
       const original = await this.products.findById(productId);
       if (!original) throw new NotFoundError('Produit', productId);
       const slug = await allocateSlug(`${original.slug}-copie`, (candidate) => this.products.slugExists(candidate));
+      if (!original.categoryId) {
+        throw new ValidationError('INVALID_CATEGORY', 'Rangez d’abord ce produit dans une catégorie', { field: 'categoryId' });
+      }
       const attempt = await this.freeSkuAttempt(original);
       const { product, newVariants } = original.duplicate({
         slug,
         skuFor: (sku) => copiedSku(sku, attempt),
+        context: await this.support.context(original.categoryId),
         now: this.clock.now(),
       });
       await this.products.insert(product);

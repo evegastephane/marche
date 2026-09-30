@@ -3,20 +3,23 @@ import {
   type CanActivate,
   createParamDecorator,
   type ExecutionContext,
+  ForbiddenException,
   Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { STOREFRONT_HEADERS } from '@marche/contracts';
+import { PUBLISHABLE_KEY_HEADER, STOREFRONT_HEADERS } from '@marche/contracts';
 import { NotFoundError } from '../../../shared/domain/domain-error.js';
 import { TenantContext } from '../../../shared/infrastructure/cls/tenant-context.js';
 import { APP_CONFIG, type AppConfig } from '../../../shared/infrastructure/config/app-config.js';
 import type { MarcheRequest } from '../../../shared/infrastructure/http/marche-request.js';
+import { ApiKeyAuthenticator } from '../../developers/application/api-key-authenticator.js';
 import { SitesFacade } from '../../sites/sites.facade.js';
 
 export interface StorefrontRequestContext {
-  siteId: string;
-  subdomain: string;
+  /** Site Upsell de la boutique ; null pour un front tiers (clé pk_) sans site généré. */
+  siteId: string | null;
+  subdomain: string | null;
   /** Aperçu du thème en brouillon (jeton valide), le site peut alors être hors ligne. */
   preview: boolean;
   /** Session d'aperçu en direct (éditeur du dashboard), quand le jeton en porte une. */
@@ -51,8 +54,11 @@ export function subdomainFrom(host: string, rootDomain: string): string | null {
 }
 
 /**
- * Accès à l'API storefront (appels serveur à serveur depuis Next.js) :
- * secret partagé → boutique résolue par le sous-domaine → aperçu éventuel → contexte tenant.
+ * Accès à l'API storefront, par deux portes :
+ * - sites Upsell (serveur à serveur depuis Next.js) : secret partagé → boutique résolue par le
+ *   sous-domaine → aperçu éventuel → contexte tenant ;
+ * - front tiers (navigateur ou serveur d'un développeur) : clé publique pk_ dans x-publishable-key
+ *   → boutique de la clé ; l'origine d'un navigateur doit figurer parmi celles de la clé.
  */
 @Injectable()
 export class StorefrontGuard implements CanActivate {
@@ -60,10 +66,13 @@ export class StorefrontGuard implements CanActivate {
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     private readonly sites: SitesFacade,
     private readonly tenant: TenantContext,
+    private readonly apiKeys: ApiKeyAuthenticator,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<StorefrontRequest>();
+    const publishable = header(request, PUBLISHABLE_KEY_HEADER);
+    if (publishable) return this.viaPublishableKey(request, publishable);
     const token = header(request, STOREFRONT_HEADERS.token);
     if (!token || !safeEqual(token, this.config.storefront.apiToken)) {
       throw new UnauthorizedException({ code: 'UNAUTHENTICATED', message: 'Jeton storefront invalide' });
@@ -87,6 +96,32 @@ export class StorefrontGuard implements CanActivate {
       preview,
       previewSession: preview ? claims?.session : undefined,
       acceptsOrders: site.status === 'PUBLISHED' && !preview,
+    };
+    return true;
+  }
+
+  private async viaPublishableKey(request: StorefrontRequest, token: string): Promise<boolean> {
+    const key = await this.apiKeys.authenticate(token);
+    if (!key || key.kind !== 'PUBLISHABLE') {
+      throw new UnauthorizedException({ code: 'UNAUTHENTICATED', message: 'Clé publique invalide ou révoquée' });
+    }
+    // Un navigateur envoie toujours son origine : elle doit avoir été déclarée sur la clé.
+    const origin = header(request, 'origin');
+    if (origin && !key.allowedOrigins.includes(origin)) {
+      throw new ForbiddenException({
+        code: 'ORIGIN_NOT_ALLOWED',
+        message: `Origine « ${origin} » non autorisée pour cette clé : ajoutez-la dans Développeurs`,
+      });
+    }
+    this.tenant.setStore(key.storeId);
+    request.actor = { ...request.actor, storeId: key.storeId, apiKeyId: key.id };
+    const site = await this.sites.currentSite();
+    request.storefront = {
+      siteId: site?.siteId ?? null,
+      subdomain: site?.subdomain ?? null,
+      preview: false,
+      // La clé est l'accord explicite du marchand pour vendre depuis ce front, site Upsell ou non.
+      acceptsOrders: true,
     };
     return true;
   }

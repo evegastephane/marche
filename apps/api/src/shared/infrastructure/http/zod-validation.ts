@@ -1,5 +1,5 @@
-import { Body, type PipeTransform, Query } from '@nestjs/common';
-import { ApiBody } from '@nestjs/swagger';
+import { applyDecorators, Body, type PipeTransform, Query } from '@nestjs/common';
+import { ApiBody, ApiQuery } from '@nestjs/swagger';
 import { z } from 'zod';
 import { ValidationError } from '../../domain/domain-error.js';
 
@@ -44,12 +44,24 @@ type SwaggerSchema = NonNullable<
   Extract<Parameters<typeof ApiBody>[0], { schema?: unknown }>['schema']
 >;
 
+const toOpenApi = (schema: z.ZodType) =>
+  z.toJSONSchema(schema, { target: 'openapi-3.0', unrepresentable: 'any', io: 'input' });
+
 /** Documente le corps d'une route dans Swagger à partir du schéma Zod. */
 export const ApiZodBody = (schema: z.ZodType): MethodDecorator =>
-  ApiBody({
-    schema: z.toJSONSchema(schema, {
-      target: 'openapi-3.0',
-      unrepresentable: 'any',
-      io: 'input',
-    }) as SwaggerSchema,
-  });
+  ApiBody({ schema: toOpenApi(schema) as SwaggerSchema });
+
+/** Documente les paramètres de requête (?q=…&limit=…) à partir du schéma Zod d'un objet. */
+export const ApiZodQuery = (schema: z.ZodType): MethodDecorator => {
+  const json = toOpenApi(schema) as { properties?: Record<string, SwaggerSchema & { description?: string }>; required?: string[] };
+  return applyDecorators(
+    ...Object.entries(json.properties ?? {}).map(([name, property]) =>
+      ApiQuery({
+        name,
+        required: json.required?.includes(name) ?? false,
+        schema: property,
+        ...(property.description ? { description: property.description } : {}),
+      }),
+    ),
+  );
+};

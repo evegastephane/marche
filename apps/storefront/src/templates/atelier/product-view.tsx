@@ -40,7 +40,7 @@ export function ProductView({
   // Nouvelle couleur, nouvelles photos : on revient à la première.
   useEffect(() => setActive(0), [images]);
   const main = images[Math.min(active, images.length - 1)];
-  const notes = specRows(product.kind, product.attributes, ['audience', 'origin']);
+  const notes = specRows(product, ['audience', 'origin']);
   const origin = typeof product.attributes.origin === 'string' ? product.attributes.origin : null;
   const sizeIndex = product.options.findIndex((o) => o.type === 'size' || o.type === 'shoe_size');
 

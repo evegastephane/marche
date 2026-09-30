@@ -5,6 +5,8 @@ import type {
   InventoryListQuery,
   Paginated,
   StockMovementDto,
+  StockUnitDto,
+  UnitListQuery,
 } from '@marche/contracts';
 import { Prisma } from '../../../generated/prisma/client.js';
 import { ActorContext } from '../../../shared/application/actor-context.port.js';
@@ -12,17 +14,19 @@ import { decodeCursor, toPage } from '../../../shared/application/pagination.js'
 import type { PrismaAdapter } from '../../../shared/infrastructure/prisma/transaction.js';
 import { MediaFacade } from '../../media/media.facade.js';
 import { InventoryReadModel } from '../application/inventory.ports.js';
+import { toUnitDto } from '../application/inventory.service.js';
 
 interface InventoryRow {
   variant_id: string;
   product_id: string;
   product_title: string;
   sku: string;
-  option_values: unknown;
+  variant_title: string;
   on_hand: number;
   reserved: number;
   available: number;
   low_stock_threshold: number | null;
+  tracks_units: boolean;
   updated_at: Date;
   thumbnail_media_id: string | null;
 }
@@ -61,9 +65,9 @@ export class PrismaInventoryReadModel extends InventoryReadModel {
     }
 
     const rows = await this.txHost.tx.$queryRaw<InventoryRow[]>`
-      SELECT il.variant_id, v.product_id, p.title AS product_title, v.sku, v.option_values,
+      SELECT il.variant_id, v.product_id, p.title AS product_title, v.sku, v.title AS variant_title,
              il.on_hand, il.reserved, il.on_hand - il.reserved AS available,
-             il.low_stock_threshold, il.updated_at, thumb.media_id AS thumbnail_media_id
+             il.low_stock_threshold, il.tracks_units, il.updated_at, thumb.media_id AS thumbnail_media_id
       FROM inventory_levels il
       JOIN product_variants v ON v.id = il.variant_id
       JOIN products p ON p.id = v.product_id
@@ -87,13 +91,12 @@ export class PrismaInventoryReadModel extends InventoryReadModel {
       nextCursor: page.nextCursor,
       items: page.items.map((row) => {
         const threshold = row.low_stock_threshold ?? defaultThreshold;
-        const values = Array.isArray(row.option_values) ? row.option_values.map(String) : [];
         const thumbnail = row.thumbnail_media_id ? thumbnails.get(row.thumbnail_media_id) : undefined;
         return {
           variantId: row.variant_id,
           productId: row.product_id,
           productTitle: row.product_title,
-          variantTitle: values.length > 0 ? values.join(' / ') : 'Par défaut',
+          variantTitle: row.variant_title,
           sku: row.sku,
           thumbnailUrl: thumbnail ? (thumbnail.renditions['400'] ?? thumbnail.url) : null,
           onHand: row.on_hand,
@@ -103,6 +106,7 @@ export class PrismaInventoryReadModel extends InventoryReadModel {
           hasCustomThreshold: row.low_stock_threshold !== null,
           isLow: row.available <= threshold,
           isOut: row.available <= 0,
+          tracksUnits: row.tracks_units,
           updatedAt: row.updated_at.toISOString(),
         };
       }),
@@ -124,6 +128,7 @@ export class PrismaInventoryReadModel extends InventoryReadModel {
       where,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
+      include: { stockUnit: { select: { serial: true } } },
     });
     const page = toPage(rows, limit, (row) => [row.createdAt.toISOString(), row.id]);
     return {
@@ -136,8 +141,35 @@ export class PrismaInventoryReadModel extends InventoryReadModel {
         reason: row.reason,
         orderId: row.orderId,
         actorUserId: row.actorUserId,
+        serial: row.stockUnit?.serial ?? null,
         createdAt: row.createdAt.toISOString(),
       })),
     };
+  }
+
+  /** Unités d'une variante, les plus récentes d'abord. */
+  async knownSerials(serials: readonly string[]): Promise<Map<string, string>> {
+    if (serials.length === 0) return new Map();
+    const rows = await this.txHost.tx.stockUnit.findMany({
+      where: { serial: { in: [...serials] } },
+      select: { serial: true, variantId: true },
+    });
+    return new Map(rows.map((row) => [row.serial, row.variantId]));
+  }
+
+  async units(variantId: string, query: UnitListQuery): Promise<Paginated<StockUnitDto>> {
+    const where: Prisma.StockUnitWhereInput = { variantId, ...(query.status ? { status: query.status } : {}) };
+    if (query.cursor) {
+      const [createdAt, id] = decodeCursor(query.cursor, 2);
+      const date = new Date(String(createdAt));
+      where.OR = [{ createdAt: { lt: date } }, { createdAt: date, id: { lt: String(id) } }];
+    }
+    const rows = await this.txHost.tx.stockUnit.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: query.limit + 1,
+    });
+    const page = toPage(rows, query.limit, (row) => [row.createdAt.toISOString(), row.id]);
+    return { nextCursor: page.nextCursor, items: page.items.map(toUnitDto) };
   }
 }

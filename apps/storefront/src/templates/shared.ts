@@ -1,11 +1,4 @@
-import type { ProductKind, SizeGuide, StorefrontStoreDto } from '@marche/contracts';
-
-/** Guide des tailles de la boutique pour une sorte d'article (vêtements ou chaussures). */
-export function sizeGuideOf(store: StorefrontStoreDto, kind: ProductKind | null): SizeGuide | null {
-  if (kind === 'CLOTHING') return store.sizeGuides.CLOTHING;
-  if (kind === 'SHOES') return store.sizeGuides.SHOES;
-  return null;
-}
+import type { StorefrontStoreDto } from '@marche/contracts';
 
 /** Initiales et monogramme d'une boutique (« Chez Awa » → « CA »). */
 export function monogram(name: string): string {

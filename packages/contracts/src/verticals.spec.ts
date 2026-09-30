@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { conditionDescription, conditionsFor, DEFAULT_VERTICAL_SETTINGS, storefrontServices, verticalSettingsSchema } from './verticals.js';
+import {
+  conditionDescription,
+  conditionsFor,
+  DEFAULT_SIZE_GUIDES,
+  DEFAULT_VERTICAL_SETTINGS,
+  sizeGuideFor,
+  storefrontServices,
+  verticalSettingsSchema,
+} from './verticals.js';
 
 describe('Réglages propres au type de boutique', () => {
   it('les valeurs de départ passent le schéma', () => {
@@ -41,5 +49,18 @@ describe('Réglages propres au type de boutique', () => {
     expect(conditionDescription(settings, 'Neuf')).toBe('Scellé, facture fournie.');
     expect(conditionDescription(settings, 'Reconditionné – Bon')).toMatch(/Traces d’usage/);
     expect(conditionsFor(settings).map((c) => c.value)).toEqual(['Neuf']);
+  });
+
+  it('le guide des tailles vient de la catégorie ou du parent le plus proche', () => {
+    const robes = { title: 'Robes', columns: ['Taille', 'Longueur (cm)'], rows: [['S', '95']] };
+    const settings = { sizeGuides: { robes } };
+    expect(sizeGuideFor(['vetements', 'robes'], settings)).toEqual(robes);
+    expect(sizeGuideFor(['vetements', 'chemises'], settings)).toEqual(DEFAULT_SIZE_GUIDES.vetements);
+    expect(sizeGuideFor(['electronique', 'smartphones'], settings)).toBeNull();
+  });
+
+  it('relit les anciens guides CLOTHING et SHOES sous leur catégorie', () => {
+    const parsed = verticalSettingsSchema.parse({ sizeGuides: { CLOTHING: DEFAULT_SIZE_GUIDES.vetements, SHOES: DEFAULT_SIZE_GUIDES.chaussures } });
+    expect(Object.keys(parsed.sizeGuides ?? {})).toEqual(['vetements', 'chaussures']);
   });
 });

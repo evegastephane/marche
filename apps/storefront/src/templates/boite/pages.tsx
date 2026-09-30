@@ -1,12 +1,11 @@
 import Link from 'next/link';
 import { CatalogFilters, CatalogPager, SortLinks } from '@/components/shop/filters';
-import { sizeGuideOf } from '../shared';
 import type { CatalogPageProps, ProductPageProps } from '../types';
 import { ProductGrid } from './product-card';
 import { ProductView } from './product-view';
 
 export function ProductPage({ store, product, availability }: ProductPageProps) {
-  return <ProductView product={product} availability={availability} currency={store.currency} sizeGuide={sizeGuideOf(store, product.kind)} />;
+  return <ProductView product={product} availability={availability} currency={store.currency} sizeGuide={product.sizeGuide} />;
 }
 
 const caption = 'font-hand text-[0.6875rem] tracking-[0.16em] uppercase';

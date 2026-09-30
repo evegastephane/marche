@@ -1,6 +1,7 @@
 import { Link, Outlet, useRouterState } from '@tanstack/react-router';
 import {
   Boxes,
+  FolderTree,
   House,
   Inbox,
   Layers,
@@ -35,6 +36,7 @@ type NavTo =
   | '/campaigns'
   | '/products'
   | '/inventory'
+  | '/categories'
   | '/collections'
   | '/brands'
   | '/site'
@@ -67,6 +69,7 @@ const NAV: NavGroup[] = [
     items: [
       { to: '/products', label: 'Produits', icon: Package },
       { to: '/inventory', label: 'Stock', icon: Boxes },
+      { to: '/categories', label: 'Catégories', icon: FolderTree },
       { to: '/collections', label: 'Catalogues', icon: Layers },
       { to: '/brands', label: 'Marques', icon: Tag },
     ],

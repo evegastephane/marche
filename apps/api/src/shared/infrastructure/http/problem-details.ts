@@ -80,7 +80,8 @@ export function toProblem(exception: unknown): ProblemResponse {
     const body = typeof response === 'object' && response !== null ? (response as Record<string, unknown>) : {};
     const code = typeof body.code === 'string' ? body.code : (CODE_BY_STATUS[status] ?? (status >= 500 ? 'INTERNAL_ERROR' : `HTTP_${status}`));
     const detail = typeof body.message === 'string' ? body.message : exception.message;
-    return problem(status, code, status >= 500 ? undefined : detail);
+    if (status >= 500) return problem(status, code, undefined);
+    return problem(status, code, detail, body.details !== undefined ? { details: body.details } : {});
   }
   if (exception instanceof Prisma.PrismaClientKnownRequestError) {
     switch (exception.code) {

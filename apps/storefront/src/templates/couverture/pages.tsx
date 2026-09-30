@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { CatalogFilters, CatalogPager, SortLinks } from '@/components/shop/filters';
-import { sizeGuideOf } from '../shared';
 import type { CatalogPageProps, ProductPageProps } from '../types';
 import { PagesGrid } from './product-card';
 import { ProductView } from './product-view';
@@ -8,7 +7,7 @@ import { ProductView } from './product-view';
 export function ProductPage({ store, product, availability }: ProductPageProps) {
   return (
     <div className="page-turn">
-      <ProductView product={product} availability={availability} currency={store.currency} sizeGuide={sizeGuideOf(store, product.kind)} />
+      <ProductView product={product} availability={availability} currency={store.currency} sizeGuide={product.sizeGuide} />
     </div>
   );
 }

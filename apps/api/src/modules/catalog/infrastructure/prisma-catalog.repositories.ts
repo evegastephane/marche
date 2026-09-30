@@ -1,15 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import {
-  OPTION_TYPES,
-  type OptionType,
-  PRODUCT_KINDS,
-  productAttributesSchema,
-  type ProductAttributes,
-  type ProductKind,
-  type ProductOption,
-  inferOptionType,
-} from '@marche/contracts';
+import { combinationKey, type ProductSpecs, type VariantOptions } from '@marche/contracts';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { ActorContext } from '../../../shared/application/actor-context.port.js';
 import { ConcurrentModificationError } from '../../../shared/domain/domain-error.js';
@@ -17,7 +8,7 @@ import { isUniqueViolation } from '../../../shared/infrastructure/prisma/prisma-
 import type { PrismaAdapter } from '../../../shared/infrastructure/prisma/transaction.js';
 import { Brand } from '../domain/brand.aggregate.js';
 import { Bundle, type BundleData } from '../domain/bundle.aggregate.js';
-import { SkuTakenError, SlugTakenError } from '../domain/catalog.errors.js';
+import { InvalidProductError, SkuTakenError, SlugTakenError } from '../domain/catalog.errors.js';
 import {
   BrandRepository,
   BundleRepository,
@@ -31,39 +22,15 @@ import { ProductVariant } from '../domain/product-variant.entity.js';
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-export function parseOptions(value: Prisma.JsonValue): ProductOption[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => {
-    if (!isRecord(item) || typeof item.name !== 'string' || !Array.isArray(item.values)) return [];
-    // Une option enregistrée sans nature (données anciennes) la prend de son nom : « Taille » → taille, « Couleur » → couleur.
-    const declared = (OPTION_TYPES as readonly string[]).includes(item.type as string) ? (item.type as OptionType) : undefined;
-    const inferred = declared ?? inferOptionType(item.name);
-    const type = inferred === 'text' && !declared ? undefined : inferred;
-    const swatches = isRecord(item.swatches)
-      ? Object.fromEntries(Object.entries(item.swatches).filter(([, hex]) => typeof hex === 'string')) as Record<string, string>
-      : undefined;
-    return [
-      {
-        name: item.name,
-        values: item.values.map(String),
-        ...(type ? { type } : {}),
-        ...(swatches && Object.keys(swatches).length > 0 ? { swatches } : {}),
-      },
-    ];
-  });
+/** Fiche technique enregistrée : objet { slug: valeur } (validé à l'écriture par le domaine). */
+export function parseSpecs(value: Prisma.JsonValue): ProductSpecs {
+  return isRecord(value) ? (value as ProductSpecs) : {};
 }
 
-export function parseStringArray(value: Prisma.JsonValue): string[] {
-  return Array.isArray(value) ? value.map(String) : [];
-}
-
-export function parseKind(value: string | null): ProductKind | null {
-  return value && (PRODUCT_KINDS as readonly string[]).includes(value) ? (value as ProductKind) : null;
-}
-
-export function parseAttributesJson(value: Prisma.JsonValue): ProductAttributes {
-  const parsed = productAttributesSchema.safeParse(value);
-  return parsed.success ? parsed.data : {};
+/** Valeurs d'axes d'une variante : { slug: libellé }. */
+export function parseVariantOptions(value: Prisma.JsonValue): VariantOptions {
+  if (!isRecord(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
 }
 
 const excluding = (excludeId?: string) => (excludeId ? { id: { not: excludeId } } : {});
@@ -84,18 +51,25 @@ function productToDomain(row: ProductRow): Product {
     {
       storeId: row.storeId,
       brandId: row.brandId,
+      categoryId: row.categoryId,
+      reference: row.reference,
       title: row.title,
       slug: row.slug,
       description: row.description,
       status: row.status,
-      options: parseOptions(row.options),
+      specs: parseSpecs(row.specs),
+      warrantyMonths: row.warrantyMonths,
       variants: row.variants.map((variant) =>
         ProductVariant.reconstitute({
           id: variant.id,
           sku: variant.sku,
-          optionValues: parseStringArray(variant.optionValues),
+          options: parseVariantOptions(variant.options),
+          title: variant.title,
           priceAmount: variant.priceAmount,
           compareAtAmount: variant.compareAtAmount,
+          costAmount: variant.costAmount,
+          barcode: variant.barcode,
+          imageMediaId: variant.imageMediaId,
           position: variant.position,
           trackInventory: variant.trackInventory,
           archivedAt: variant.archivedAt,
@@ -105,8 +79,6 @@ function productToDomain(row: ProductRow): Product {
       mediaOptionValues: Object.fromEntries(
         row.media.flatMap((media) => (media.optionValue ? [[media.mediaId, media.optionValue]] : [])),
       ),
-      kind: parseKind(row.kind),
-      attributes: parseAttributesJson(row.attributes),
       accessoryIds: row.relations.map((relation) => relation.relatedProductId),
       seoTitle: row.seoTitle,
       seoDescription: row.seoDescription,
@@ -123,13 +95,14 @@ function productFields(product: Product) {
   const p = product.snapshot();
   return {
     brandId: p.brandId,
+    categoryId: p.categoryId,
+    reference: p.reference,
     title: p.title,
     slug: p.slug,
     description: p.description,
     status: p.status,
-    options: p.options as unknown as Prisma.InputJsonValue,
-    kind: p.kind,
-    attributes: p.attributes as Prisma.InputJsonValue,
+    specs: p.specs as Prisma.InputJsonValue,
+    warrantyMonths: p.warrantyMonths,
     seoTitle: p.seoTitle,
     seoDescription: p.seoDescription,
     publishedAt: p.publishedAt,
@@ -176,6 +149,11 @@ export class PrismaProductRepository extends ProductRepository {
     return rows.map((row) => row.id);
   }
 
+  /** Référence (« sku parent ») déjà portée par un autre produit de la boutique. */
+  async referenceExists(reference: string, excludeId?: string): Promise<boolean> {
+    return (await this.txHost.tx.product.count({ where: { reference, ...excluding(excludeId) } })) > 0;
+  }
+
   async insert(product: Product): Promise<void> {
     const p = product.snapshot();
     try {
@@ -215,10 +193,14 @@ export class PrismaProductRepository extends ProductRepository {
       const v = variant.snapshot();
       const data = {
         sku: v.sku,
-        title: variant.title,
-        optionValues: v.optionValues as Prisma.InputJsonValue,
+        title: v.title,
+        options: v.options as Prisma.InputJsonValue,
+        combinationKey: combinationKey(v.options),
         priceAmount: v.priceAmount,
         compareAtAmount: v.compareAtAmount,
+        costAmount: v.costAmount,
+        barcode: v.barcode,
+        imageMediaId: v.imageMediaId,
         position: v.position,
         trackInventory: v.trackInventory,
         archivedAt: v.archivedAt,
@@ -230,6 +212,9 @@ export class PrismaProductRepository extends ProductRepository {
           update: data,
         });
       } catch (error) {
+        if (isUniqueViolation(error, 'combination')) {
+          throw new InvalidProductError(`Combinaison en double : ${v.title}`, 'variants');
+        }
         if (isUniqueViolation(error)) throw new SkuTakenError([v.sku]);
         throw error;
       }

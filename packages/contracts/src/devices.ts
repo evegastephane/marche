@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { ProductAttributes, ProductKind } from './verticals.js';
+import type { ProductAttributes, ProductKind } from './storefront-vocabulary.js';
 
 /**
  * Catalogue d'appareils : les fiches techniques connues (téléphones, tablettes, montres…),

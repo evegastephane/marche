@@ -40,7 +40,8 @@ function signingKeys() {
 export function testEnv(overrides: Record<string, string> = {}): NodeJS.ProcessEnv {
   return {
     NODE_ENV: 'test',
-    LOG_LEVEL: 'silent',
+    // E2E_LOG_LEVEL=error pour voir les erreurs 500 pendant un débogage.
+    LOG_LEVEL: process.env.E2E_LOG_LEVEL ?? 'silent',
     DATABASE_URL: inject('databaseUrl'),
     REDIS_URL: inject('redisUrl'),
     CLERK_AUTHORIZED_PARTIES: AUTHORIZED_PARTY,
@@ -99,7 +100,10 @@ export async function createTestApp(envOverrides: Record<string, string> = {}): 
     .useValue(whatsapp)
     .compile();
 
-  const app = moduleRef.createNestApplication<NestExpressApplication>({ rawBody: true, logger: false });
+  const app = moduleRef.createNestApplication<NestExpressApplication>({
+    rawBody: true,
+    logger: process.env.E2E_LOG_LEVEL ? ['error'] : false,
+  });
   configureHttpApp(app, config);
   // Écoute réelle : supertest réutilise le port au lieu d'en ouvrir un par requête.
   await app.listen(0, '127.0.0.1');
@@ -218,11 +222,19 @@ export async function eventually<T>(
   throw new Error(`Condition non atteinte en ${timeoutMs} ms${lastError instanceof Error ? ` : ${lastError.message}` : ''}`);
 }
 
-/** Crée et publie un produit simple (une variante) ; renvoie ses identifiants. */
+/** Identifiant d'une catégorie de la boutique par son slug (le catalogue de départ est posé au premier appel). */
+export async function categoryId(t: TestApp, token: string, slug: string): Promise<string> {
+  const response = await t.http().get('/api/v1/categories').set('Authorization', `Bearer ${token}`);
+  const found = (response.body as { id: string; slug: string }[]).find((category) => category.slug === slug);
+  if (!found) throw new Error(`Catégorie « ${slug} » introuvable : ${JSON.stringify(response.body)}`);
+  return found.id;
+}
+
+/** Crée et publie un produit simple (une variante, rangé dans « Autres ») ; renvoie ses identifiants. */
 export async function createPublishedProduct(
   t: TestApp,
   token: string,
-  input: { title: string; sku: string; priceAmount: number; stock?: number; trackInventory?: boolean },
+  input: { title: string; sku: string; priceAmount: number; stock?: number; trackInventory?: boolean; category?: string },
 ): Promise<{ productId: string; variantId: string; slug: string }> {
   const created = await t
     .http()
@@ -230,6 +242,7 @@ export async function createPublishedProduct(
     .set('Authorization', `Bearer ${token}`)
     .send({
       title: input.title,
+      categoryId: await categoryId(t, token, input.category ?? 'autres'),
       variants: [
         {
           sku: input.sku,

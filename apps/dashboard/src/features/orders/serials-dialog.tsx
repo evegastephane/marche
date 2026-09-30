@@ -1,6 +1,7 @@
 import type { OrderDto } from '@marche/contracts';
 import { Truck } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import { useUnits } from '../inventory/api';
 import { Button } from '@/shared/ui/button';
 import { Dialog } from '@/shared/ui/dialog';
 import { Input } from '@/shared/ui/field';
@@ -67,6 +68,7 @@ export function SerialsDialog({
     .filter((entry) => entry.values.length > 0);
   const all = entries.flatMap((e) => e.values);
   const duplicate = all.find((v, i) => all.indexOf(v) !== i);
+  const listPrefix = useId();
 
   return (
     <Dialog
@@ -98,6 +100,7 @@ export function SerialsDialog({
                   · {line.quantity} ex.
                 </span>
               </legend>
+              <InStockSerials variantId={line.variantId} listId={`${listPrefix}-${line.id}`} taken={all} />
               {values[line.id]!.map((value, index) => {
                 const suspicious =
                   value.trim() !== '' && looksLikeBadImei(value);
@@ -108,6 +111,7 @@ export function SerialsDialog({
                       value={value}
                       inputMode="text"
                       autoComplete="off"
+                      list={`${listPrefix}-${line.id}`}
                       className="tabular"
                       placeholder={
                         line.quantity > MAX_FIELDS && index === MAX_FIELDS - 1
@@ -152,5 +156,26 @@ export function SerialsDialog({
         </div>
       </form>
     </Dialog>
+  );
+}
+
+/** IMEI en stock de la variante, proposés en suggestions (les unités « à saisir » et déjà choisies exclues). */
+function InStockSerials({ variantId, listId, taken }: { variantId: string | null; listId: string; taken: string[] }) {
+  const units = useUnits(variantId, 'IN_STOCK');
+  const serials = (units.data?.pages.flatMap((page) => page.items) ?? [])
+    .filter((unit) => !unit.placeholder && !taken.includes(unit.serial))
+    .map((unit) => unit.serial);
+  if (!variantId || serials.length === 0) return null;
+  return (
+    <>
+      <span className="text-[0.8125rem] text-ink-2">
+        {serials.length} en stock : choisissez dans la liste ou scannez l’appareil.
+      </span>
+      <datalist id={listId}>
+        {serials.map((serial) => (
+          <option key={serial} value={serial} />
+        ))}
+      </datalist>
+    </>
   );
 }

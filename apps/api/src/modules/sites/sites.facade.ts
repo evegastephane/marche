@@ -36,6 +36,14 @@ export class SitesFacade {
     return resolved;
   }
 
+  /** Site de la boutique courante (appels d'un front tiers avec une clé pk_), s'il existe. */
+  async currentSite(): Promise<ResolvedSite | null> {
+    const site = await this.sites.findCurrent();
+    if (!site) return null;
+    const s = site.snapshot();
+    return { siteId: site.id, storeId: s.storeId, subdomain: s.subdomain, status: s.status };
+  }
+
   /**
    * Thème à afficher pour la boutique courante : en aperçu, les réglages en cours d'édition de la session
    * (aperçu en direct) ou à défaut le brouillon ; sinon le thème en ligne.

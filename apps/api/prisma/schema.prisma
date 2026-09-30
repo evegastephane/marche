@@ -98,19 +98,22 @@ model Store {
   updatedAt        DateTime  @updatedAt @map("updated_at")
   archivedAt       DateTime? @map("archived_at")
 
-  members     StoreMember[]
-  counter     StoreCounter?
-  brands      Brand[]
-  products    Product[]
-  variants    ProductVariant[]
-  media       Media[]
-  collections Collection[]
-  customers   Customer[]
-  orders      Order[]
-  campaigns   Campaign[]
-  bundles     Bundle[]
+  members         StoreMember[]
+  counter         StoreCounter?
+  brands          Brand[]
+  products        Product[]
+  variants        ProductVariant[]
+  media           Media[]
+  collections     Collection[]
+  customers       Customer[]
+  orders          Order[]
+  campaigns       Campaign[]
+  bundles         Bundle[]
   specialRequests SpecialRequest[]
-  site        Site?
+  categories      Category[]
+  attributes      Attribute[]
+  apiKeys         ApiKey[]
+  site            Site?
 
   @@map("stores")
 }
@@ -156,39 +159,44 @@ model Brand {
 }
 
 model Product {
-  id             String              @id @default(uuid(7)) @db.Uuid
-  storeId        String              @map("store_id") @db.Uuid
-  brandId        String?             @map("brand_id") @db.Uuid
-  title          String
-  slug           String
-  description    String? // Markdown
-  status         ProductStatus       @default(DRAFT)
-  options        Json                @default("[]") // [{ "name": "Taille", "values": ["S","M"], "type": "size" }]
-  /// Sorte d'article (CLOTHING, PHONE…), parmi celles du type de la boutique.
-  kind           String?
-  /// Fiche technique ou détails, validés selon la sorte (verticals.ts).
-  attributes     Json                @default("{}")
-  seoTitle       String?             @map("seo_title")
-  seoDescription String?             @map("seo_description")
-  publishedAt    DateTime?           @map("published_at")
-  version        Int                 @default(0)
-  createdAt      DateTime            @default(now()) @map("created_at")
-  updatedAt      DateTime            @updatedAt @map("updated_at")
-  archivedAt     DateTime?           @map("archived_at")
-  store          Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  brand          Brand?              @relation(fields: [brandId], references: [id], onDelete: SetNull)
-  variants       ProductVariant[]
-  media          ProductMedia[]
-  collections    CollectionProduct[]
-  relations      ProductRelation[]   @relation("RelationOwner")
-  relatedTo      ProductRelation[]   @relation("RelationTarget")
+  id              String              @id @default(uuid(7)) @db.Uuid
+  storeId         String              @map("store_id") @db.Uuid
+  brandId         String?             @map("brand_id") @db.Uuid
+  title           String
+  slug            String
+  description     String? // Markdown
+  status          ProductStatus       @default(DRAFT)
+  /// Catégorie dynamique (arbre de la boutique) : décide des attributs proposés.
+  categoryId      String              @map("category_id") @db.Uuid
+  /// Référence du modèle (« sku parent », ex. IP17P) : préfixe des SKU proposés, clé de l'import.
+  reference       String?
+  warrantyMonths  Int?                @map("warranty_months")
+  /// Fiche technique : { slug d'attribut : valeur }, validée par les attributs de la catégorie.
+  specs           Json                @default("{}")
+  seoTitle        String?             @map("seo_title")
+  seoDescription  String?             @map("seo_description")
+  publishedAt     DateTime?           @map("published_at")
+  version         Int                 @default(0)
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  archivedAt      DateTime?           @map("archived_at")
+  store           Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  brand           Brand?              @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  category        Category            @relation(fields: [categoryId], references: [id], onDelete: NoAction)
+  variants        ProductVariant[]
+  media           ProductMedia[]
+  collections     CollectionProduct[]
+  relations       ProductRelation[]   @relation("RelationOwner")
+  relatedTo       ProductRelation[]   @relation("RelationTarget")
   bundlesAnchored Bundle[]
-  bundleItems    BundleItem[]
+  bundleItems     BundleItem[]
 
   @@unique([storeId, slug])
+  @@unique([storeId, reference])
   @@index([storeId, status, updatedAt(sort: Desc)])
   @@index([storeId, brandId])
-  @@index([storeId, kind])
+  @@index([storeId, categoryId, status])
+  @@index([specs(ops: JsonbPathOps)], type: Gin, map: "products_specs_gin")
   // Recherche par titre (ILIKE accéléré) : déclaré ici pour que prisma migrate ne le supprime plus
   @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "products_title_trgm")
   @@map("products")
@@ -200,7 +208,13 @@ model ProductVariant {
   productId       String          @map("product_id") @db.Uuid
   sku             String
   title           String // "M / Rouge" ou "Par défaut"
-  optionValues    Json            @default("[]") @map("option_values") // ["M","Rouge"]
+  /// Valeurs des axes : { "stockage": "256 Go", "couleur": "Noir" } ; {} pour la variante par défaut.
+  options         Json            @default("{}")
+  /// Combinaison normalisée (couleur=noir|stockage=256 go) : une seule variante par combinaison.
+  combinationKey  String          @map("combination_key")
+  costAmount      Int?            @map("cost_amount") // prix d'achat
+  barcode         String?
+  imageMediaId    String?         @map("image_media_id") @db.Uuid
   priceAmount     Int             @map("price_amount") // unités mineures, devise de la boutique
   compareAtAmount Int?            @map("compare_at_amount")
   position        Int             @default(0)
@@ -210,43 +224,49 @@ model ProductVariant {
   archivedAt      DateTime?       @map("archived_at")
   store           Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
   product         Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  imageMedia      Media?          @relation(fields: [imageMediaId], references: [id], onDelete: SetNull)
   inventory       InventoryLevel?
   movements       StockMovement[]
+  units           StockUnit[]
   orderLines      OrderLine[]
 
   @@unique([storeId, sku])
+  @@unique([productId, combinationKey])
   @@index([productId, position])
+  @@index([storeId, barcode])
+  @@index([options(ops: JsonbPathOps)], type: Gin, map: "product_variants_options_gin")
   @@map("product_variants")
 }
 
 model Media {
-  id         String         @id @default(uuid(7)) @db.Uuid
-  storeId    String         @map("store_id") @db.Uuid
-  key        String         @unique // clé d'objet S3 : {storeId}/{mediaId}/original.{ext}
-  mimeType   String         @map("mime_type")
-  sizeBytes  Int            @map("size_bytes")
+  id         String           @id @default(uuid(7)) @db.Uuid
+  storeId    String           @map("store_id") @db.Uuid
+  key        String           @unique // clé d'objet S3 : {storeId}/{mediaId}/original.{ext}
+  mimeType   String           @map("mime_type")
+  sizeBytes  Int              @map("size_bytes")
   width      Int?
   height     Int?
   alt        String?
-  status     MediaStatus    @default(PENDING)
-  renditions Json           @default("{}") // { "400": "…webp", "800": "…", "1600": "…" }
-  createdAt  DateTime       @default(now()) @map("created_at")
-  store      Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  status     MediaStatus      @default(PENDING)
+  renditions Json             @default("{}") // { "400": "…webp", "800": "…", "1600": "…" }
+  createdAt  DateTime         @default(now()) @map("created_at")
+  store      Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
   products   ProductMedia[]
+  variants   ProductVariant[]
 
   @@index([storeId, createdAt(sort: Desc)])
   @@map("media")
 }
 
 model ProductMedia {
-  storeId   String  @map("store_id") @db.Uuid
-  productId String  @map("product_id") @db.Uuid
-  mediaId   String  @map("media_id") @db.Uuid
-  position  Int
+  storeId     String  @map("store_id") @db.Uuid
+  productId   String  @map("product_id") @db.Uuid
+  mediaId     String  @map("media_id") @db.Uuid
+  position    Int
   /// Valeur d'option (une couleur) que montre la photo ; null = toutes.
   optionValue String? @map("option_value")
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  media     Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  media       Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@id([productId, mediaId])
   @@index([productId, position])
@@ -286,6 +306,105 @@ model CollectionProduct {
   @@map("collection_products")
 }
 
+// ───────────── catalog : catégories et attributs (définis par chaque boutique) ─────────────
+
+enum AttributeType {
+  TEXT
+  NUMBER
+  SELECT
+  MULTI_SELECT
+  BOOLEAN
+}
+
+/// Catégorie de produits, rangée en arbre. Elle hérite des attributs de ses parents.
+model Category {
+  id          String              @id @default(uuid(7)) @db.Uuid
+  storeId     String              @map("store_id") @db.Uuid
+  parentId    String?             @map("parent_id") @db.Uuid
+  name        String
+  slug        String
+  position    Int                 @default(0)
+  /// Suivi à l'unité (IMEI ou numéro de série), transmis aux sous-catégories.
+  tracksUnits Boolean             @default(false) @map("tracks_units")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+  archivedAt  DateTime?           @map("archived_at")
+  store       Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  parent      Category?           @relation("CategoryTree", fields: [parentId], references: [id], onDelete: NoAction)
+  children    Category[]          @relation("CategoryTree")
+  attributes  CategoryAttribute[]
+  products    Product[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, parentId, position])
+  @@map("categories")
+}
+
+/// Attribut d'une fiche produit. Un axe de variante (couleur, stockage…) fait varier prix et stock ;
+/// les autres attributs décrivent le produit dans products.specs.
+model Attribute {
+  id            String              @id @default(uuid(7)) @db.Uuid
+  storeId       String              @map("store_id") @db.Uuid
+  name          String
+  /// Clé dans products.specs et product_variants.options : figée dès que l'attribut sert.
+  slug          String
+  type          AttributeType
+  /// Unité d'un nombre (W, mAh, h…) ; indicative pour une liste.
+  unit          String?
+  isVariantAxis Boolean             @default(false) @map("is_variant_axis")
+  /// Proposé comme filtre sur le site.
+  filterable    Boolean             @default(false)
+  position      Int                 @default(0)
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  archivedAt    DateTime?           @map("archived_at")
+  store         Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  values        AttributeValue[]
+  categories    CategoryAttribute[]
+
+  @@unique([storeId, slug])
+  @@index([storeId, position])
+  @@map("attributes")
+}
+
+/// Attribut proposé par une catégorie (et ses sous-catégories).
+model CategoryAttribute {
+  storeId     String    @map("store_id") @db.Uuid
+  categoryId  String    @map("category_id") @db.Uuid
+  attributeId String    @map("attribute_id") @db.Uuid
+  /// Obligatoire pour publier le produit.
+  required    Boolean   @default(false)
+  position    Int       @default(0)
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@id([categoryId, attributeId])
+  @@index([attributeId])
+  @@index([storeId])
+  @@map("category_attributes")
+}
+
+/// Valeur proposée d'un attribut de type liste (SELECT, MULTI_SELECT).
+model AttributeValue {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  storeId     String    @map("store_id") @db.Uuid
+  attributeId String    @map("attribute_id") @db.Uuid
+  value       String
+  /// Segment de SKU (Noir → BLK, 256 Go → 256).
+  code        String
+  /// Pastille d'une couleur : #RRGGBB.
+  swatch      String?
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@unique([attributeId, value])
+  @@index([attributeId, position])
+  @@index([storeId])
+  @@map("attribute_values")
+}
+
 // ───────────── inventory ─────────────
 model InventoryLevel {
   variantId         String         @id @map("variant_id") @db.Uuid
@@ -293,6 +412,8 @@ model InventoryLevel {
   onHand            Int            @default(0) @map("on_hand")
   reserved          Int            @default(0)
   lowStockThreshold Int?           @map("low_stock_threshold") // null ⇒ Store.lowStockDefault
+  /// Variante suivie à l'unité (IMEI) : son stock ne bouge que par l'entrée ou la sortie d'unités.
+  tracksUnits       Boolean        @default(false) @map("tracks_units")
   version           Int            @default(0)
   updatedAt         DateTime       @updatedAt @map("updated_at")
   variant           ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
@@ -311,29 +432,70 @@ model StockMovement {
   reason      String?
   orderId     String?           @map("order_id") @db.Uuid
   actorUserId String?           @map("actor_user_id") @db.Uuid
+  /// Unité (IMEI) entrée ou sortie par ce mouvement, pour une variante suivie à l'unité.
+  stockUnitId String?           @map("stock_unit_id") @db.Uuid
   createdAt   DateTime          @default(now()) @map("created_at")
   variant     ProductVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  stockUnit   StockUnit?        @relation(fields: [stockUnitId], references: [id], onDelete: SetNull)
 
   @@index([storeId, variantId, createdAt(sort: Desc)])
+  @@index([stockUnitId])
   @@map("stock_movements")
+}
+
+enum UnitCondition {
+  NEW
+  USED
+}
+
+enum StockUnitStatus {
+  IN_STOCK
+  SOLD
+  REMOVED
+}
+
+/// Appareil suivi à l'unité (téléphone, console, ordinateur) : IMEI ou numéro de série.
+/// Le stock d'une variante suivie = nombre de ses unités IN_STOCK (chaque entrée ou sortie est un mouvement).
+model StockUnit {
+  id            String          @id @default(uuid(7)) @db.Uuid
+  storeId       String          @map("store_id") @db.Uuid
+  variantId     String          @map("variant_id") @db.Uuid
+  /// IMEI ou numéro de série (majuscules, sans espaces), unique dans la boutique.
+  serial        String
+  /// Neuf ou d'occasion : découle de l'axe État de la variante.
+  condition     UnitCondition   @default(NEW)
+  /// Santé de la batterie (%), pour un appareil d'occasion.
+  batteryHealth Int?            @map("battery_health")
+  status        StockUnitStatus @default(IN_STOCK)
+  notes         String?
+  /// Ligne de commande qui a vendu l'unité.
+  orderLineId   String?         @map("order_line_id") @db.Uuid
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  variant       ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  movements     StockMovement[]
+
+  @@unique([storeId, serial])
+  @@index([variantId, status])
+  @@map("stock_units")
 }
 
 // ───────────── orders ─────────────
 model Customer {
-  id             String   @id @default(uuid(7)) @db.Uuid
-  storeId        String   @map("store_id") @db.Uuid
-  email          String // normalisé en minuscules
-  firstName      String?  @map("first_name")
-  lastName       String?  @map("last_name")
-  phone          String?
-  defaultAddress Json?    @map("default_address")
+  id               String            @id @default(uuid(7)) @db.Uuid
+  storeId          String            @map("store_id") @db.Uuid
+  email            String // normalisé en minuscules
+  firstName        String?           @map("first_name")
+  lastName         String?           @map("last_name")
+  phone            String?
+  defaultAddress   Json?             @map("default_address")
   /// Consentement aux nouveautés par WhatsApp (case cochée au paiement), et désinscription (« STOP »).
-  whatsappOptInAt  DateTime? @map("whatsapp_opt_in_at")
-  whatsappOptOutAt DateTime? @map("whatsapp_opt_out_at")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  store          Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  orders         Order[]
+  whatsappOptInAt  DateTime?         @map("whatsapp_opt_in_at")
+  whatsappOptOutAt DateTime?         @map("whatsapp_opt_out_at")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  store            Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders           Order[]
   campaignMessages CampaignMessage[]
 
   @@unique([storeId, email])
@@ -342,35 +504,35 @@ model Customer {
 }
 
 model Order {
-  id              String        @id @default(uuid(7)) @db.Uuid
-  storeId         String        @map("store_id") @db.Uuid
+  id              String          @id @default(uuid(7)) @db.Uuid
+  storeId         String          @map("store_id") @db.Uuid
   number          Int? // attribué au passage (DRAFT ⇒ null)
-  publicToken     String        @unique @map("public_token") // lien de suivi acheteur (32 octets base64url)
-  customerId      String?       @map("customer_id") @db.Uuid
+  publicToken     String          @unique @map("public_token") // lien de suivi acheteur (32 octets base64url)
+  customerId      String?         @map("customer_id") @db.Uuid
   email           String? // instantané
-  status          OrderStatus   @default(DRAFT)
-  paymentStatus   PaymentStatus @default(UNPAID) @map("payment_status")
+  status          OrderStatus     @default(DRAFT)
+  paymentStatus   PaymentStatus   @default(UNPAID) @map("payment_status")
   source          OrderSource
-  currency        String        @db.Char(3)
-  subtotalAmount  Int           @default(0) @map("subtotal_amount")
+  currency        String          @db.Char(3)
+  subtotalAmount  Int             @default(0) @map("subtotal_amount")
   /// Remises des packs, figées au passage : [{ bundleId, title, amount }].
-  discounts       Json          @default("[]")
-  discountAmount  Int           @default(0) @map("discount_amount")
-  shippingAmount  Int           @default(0) @map("shipping_amount")
-  totalAmount     Int           @default(0) @map("total_amount")
-  shippingAddress Json?         @map("shipping_address")
-  shippingMethod  String?       @map("shipping_method")
+  discounts       Json            @default("[]")
+  discountAmount  Int             @default(0) @map("discount_amount")
+  shippingAmount  Int             @default(0) @map("shipping_amount")
+  totalAmount     Int             @default(0) @map("total_amount")
+  shippingAddress Json?           @map("shipping_address")
+  shippingMethod  String?         @map("shipping_method")
   note            String?
-  cancelReason    String?       @map("cancel_reason")
-  placedAt        DateTime?     @map("placed_at")
-  paidAt          DateTime?     @map("paid_at")
-  fulfilledAt     DateTime?     @map("fulfilled_at")
-  cancelledAt     DateTime?     @map("cancelled_at")
-  version         Int           @default(0)
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-  store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  customer        Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  cancelReason    String?         @map("cancel_reason")
+  placedAt        DateTime?       @map("placed_at")
+  paidAt          DateTime?       @map("paid_at")
+  fulfilledAt     DateTime?       @map("fulfilled_at")
+  cancelledAt     DateTime?       @map("cancelled_at")
+  version         Int             @default(0)
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  store           Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer        Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
   lines           OrderLine[]
   specialRequest  SpecialRequest?
 
@@ -454,16 +616,16 @@ enum CampaignMessageStatus {
 
 /// Campagne WhatsApp : un produit envoyé aux clients qui ont accepté de recevoir les nouveautés.
 model Campaign {
-  id              String         @id @default(uuid(7)) @db.Uuid
-  storeId         String         @map("store_id") @db.Uuid
-  productId       String?        @map("product_id") @db.Uuid
-  productTitle    String         @map("product_title")
-  templateName    String         @map("template_name")
-  status          CampaignStatus @default(SENDING)
-  createdByUserId String?        @map("created_by_user_id") @db.Uuid
-  createdAt       DateTime       @default(now()) @map("created_at")
-  finishedAt      DateTime?      @map("finished_at")
-  store           Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  id              String            @id @default(uuid(7)) @db.Uuid
+  storeId         String            @map("store_id") @db.Uuid
+  productId       String?           @map("product_id") @db.Uuid
+  productTitle    String            @map("product_title")
+  templateName    String            @map("template_name")
+  status          CampaignStatus    @default(SENDING)
+  createdByUserId String?           @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime          @default(now()) @map("created_at")
+  finishedAt      DateTime?         @map("finished_at")
+  store           Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
   messages        CampaignMessage[]
 
   @@index([storeId, createdAt])
@@ -631,4 +793,42 @@ model DeviceModel {
   @@unique([provider, providerId])
   @@index([searchName])
   @@map("device_models")
+}
+
+// ───────────── developers (clés d'API) ─────────────
+
+enum ApiKeyKind {
+  PUBLISHABLE
+  SECRET
+}
+
+/// Clé d'API d'une boutique. pk_ (publique) : le site ou l'application d'un tiers lit le catalogue et
+/// passe commande depuis le navigateur, limitée aux origines déclarées. sk_ (secrète) : un serveur
+/// appelle l'API d'administration avec les droits accordés. Seule l'empreinte SHA-256 est gardée ;
+/// la clé secrète n'est montrée qu'une fois, à la création.
+model ApiKey {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  storeId        String     @map("store_id") @db.Uuid
+  name           String
+  kind           ApiKeyKind
+  /// Empreinte SHA-256 (hex) de la clé complète : sert à la retrouver.
+  tokenHash      String     @unique @map("token_hash")
+  /// Clé publique en clair (réaffichable) ; null pour une clé secrète.
+  token          String?
+  /// Début et fin de la clé (« sk_…3f9a ») pour la reconnaître sans la révéler.
+  prefix         String
+  last4          String
+  /// Droits d'une clé secrète : catalog:read, orders:write…
+  scopes         String[]   @default([])
+  /// Origines autorisées d'une clé publique (https://www.exemple.com).
+  allowedOrigins String[]   @default([]) @map("allowed_origins")
+  lastUsedAt     DateTime?  @map("last_used_at")
+  createdById    String?    @map("created_by_id") @db.Uuid
+  revokedAt      DateTime?  @map("revoked_at")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  store          Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, createdAt])
+  @@map("api_keys")
 }

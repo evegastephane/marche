@@ -27,7 +27,7 @@ import {
   updateDraftOrderSchema,
 } from '@marche/contracts';
 import { NotFoundError } from '../../../shared/domain/domain-error.js';
-import { ADMIN_API, Roles } from '../../../shared/infrastructure/http/access.decorators.js';
+import { ADMIN_API, Roles, ApiScope } from '../../../shared/infrastructure/http/access.decorators.js';
 import { Idempotent } from '../../../shared/infrastructure/http/idempotency.interceptor.js';
 import { ApiZodBody, ZodBody, ZodQuery } from '../../../shared/infrastructure/http/zod-validation.js';
 import {
@@ -42,6 +42,7 @@ import { SpecialRequestUseCases } from '../application/special-request.use-cases
 
 @ApiTags('commandes')
 @ApiBearerAuth()
+@ApiScope('orders')
 @Controller(`${ADMIN_API}/orders`)
 export class OrdersController {
   constructor(
@@ -119,6 +120,7 @@ export class OrdersController {
 
 @ApiTags('clients')
 @ApiBearerAuth()
+@ApiScope('customers')
 @Controller(`${ADMIN_API}/customers`)
 export class CustomersController {
   constructor(private readonly readModel: OrdersReadModel) {}
@@ -139,6 +141,7 @@ export class CustomersController {
 
 @ApiTags('demandes')
 @ApiBearerAuth()
+@ApiScope('orders')
 @Controller(`${ADMIN_API}/special-requests`)
 export class SpecialRequestsController {
   constructor(private readonly requests: SpecialRequestUseCases) {}

@@ -176,6 +176,18 @@ export class Order extends AggregateRoot {
       .map((line) => ({ variantId: line.variantId as string, quantity: line.quantity }));
   }
 
+  /** Lignes expédiées (après fulfill) : chacune porte ses IMEI pour les articles suivis à l'unité. */
+  shippedLines(): { variantId: string; quantity: number; orderLineId: string; serials: string[] }[] {
+    return this.data.lines
+      .filter((line) => line.tracksInventory && line.variantId !== null)
+      .map((line) => ({
+        variantId: line.variantId as string,
+        quantity: line.quantity,
+        orderLineId: line.id,
+        serials: line.serialNumbers ?? [],
+      }));
+  }
+
   /** Brouillon uniquement : remplace les lignes (et leurs remises) et recalcule les totaux. */
   replaceLines(priced: PricedLines, shipping: ShippingStrategy, now: Date): void {
     if (!this.state.canEditLines) throw new InvalidOrderTransitionError(this.status, 'modifier');

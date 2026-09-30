@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { AccessoryChooser, BundleOffer } from '@/components/shop/accessories';
 import { ServiceNotes, useConditionHint } from '@/components/shop/services';
 import { SizeGuideButton } from '@/components/shop/size-guide';
-import { SpecSheet } from '@/components/shop/spec-sheet';
+import { SpecSheet, specRows } from '@/components/shop/spec-sheet';
 import { SpecialRequestButton } from '@/components/shop/special-request';
 import { useConfigurator } from '@/components/shop/use-configurator';
 import { cn, formatMoney } from '@/lib/format';
@@ -58,7 +58,7 @@ export function ProductView({
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean);
-  const hasSheet = Object.keys(product.attributes).length > 0;
+  const hasSheet = specRows(product).length > 0;
 
   return (
     <div className="mx-auto grid max-w-7xl gap-12 px-4 pt-10 sm:px-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-16 lg:pt-14">
@@ -268,8 +268,7 @@ export function ProductView({
               Caractéristiques
             </h2>
             <SpecSheet
-              kind={product.kind}
-              attributes={product.attributes}
+              product={product}
               exclude={['compatibleModels']}
               className="rounded-md border border-line px-5 py-2 text-[0.9375rem]"
               rowClassName="border-b border-line py-2.5 last:border-0"

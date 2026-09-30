@@ -25,6 +25,7 @@ export function createLoggerModule(config: AppConfig) {
           'req.headers.cookie',
           'req.headers["x-storefront-token"]',
           'req.headers["x-preview-token"]',
+          'req.headers["x-publishable-key"]',
           'req.headers["svix-signature"]',
         ],
         remove: true,

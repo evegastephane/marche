@@ -1,13 +1,20 @@
-import { formatAttribute, KIND_ATTRIBUTES, type ProductAttributes, type ProductKind } from '@marche/contracts';
+import { LEGACY_SPEC_KEY_BY_SLUG, type StorefrontProductDto } from '@marche/contracts';
 import { cn } from '@/lib/format';
 
-/** Lignes renseignées de la fiche d'une sorte d'article, dans l'ordre du registre. */
-export function specRows(kind: ProductKind | null, attributes: ProductAttributes, exclude: string[] = []) {
-  if (!kind) return [];
-  return KIND_ATTRIBUTES[kind].flatMap((field) => {
-    const value = attributes[field.key];
-    if (value === undefined || exclude.includes(field.key)) return [];
-    return [{ key: field.key, label: field.label, value: formatAttribute(field, value) }];
+type SpecSource = Pick<StorefrontProductDto, 'specs'>;
+
+/**
+ * Lignes renseignées de la fiche, dans l'ordre des attributs de la catégorie (libellé et unité venus
+ * de l'API). `key` garde l'ancienne clé quand elle existe, pour que les exclusions des templates
+ * (compatibleModels, composition…) restent valables.
+ */
+export function specRows(product: SpecSource, exclude: string[] = []) {
+  // Réponse mise en cache par le site avant le catalogue dynamique : pas encore de specs.
+  const specs = (product.specs as StorefrontProductDto['specs'] | undefined) ?? [];
+  return specs.flatMap((spec) => {
+    const key = LEGACY_SPEC_KEY_BY_SLUG[spec.slug] ?? spec.slug;
+    if (exclude.includes(key) || exclude.includes(spec.slug)) return [];
+    return [{ key, label: spec.label, value: spec.value }];
   });
 }
 
@@ -16,19 +23,17 @@ export function specRows(kind: ProductKind | null, attributes: ProductAttributes
  * Chaque template lui donne sa typographie ; la structure reste lisible par les lecteurs d'écran.
  */
 export function SpecSheet({
-  kind,
-  attributes,
+  product,
   exclude,
   className,
   rowClassName,
 }: {
-  kind: ProductKind | null;
-  attributes: ProductAttributes;
+  product: SpecSource;
   exclude?: string[];
   className?: string;
   rowClassName?: string;
 }) {
-  const rows = specRows(kind, attributes, exclude);
+  const rows = specRows(product, exclude);
   if (rows.length === 0) return null;
   return (
     <dl className={cn('flex flex-col', className)}>

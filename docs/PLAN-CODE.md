@@ -69,6 +69,11 @@ Les versions publiées ont été vérifiées le 2026-09-27, ce qui entraîne les
 | Client Prisma | `prisma generate` dans les scripts `pre*` | **Tâche Turborepo `db:generate`**, dont dépendent build, lint, typecheck et tests | Les hooks lancés en parallèle écrivaient en même temps dans `src/generated` |
 | Audit npm | – | **`overrides`** : `deepmerge-ts` ^8, `mysql2` ^3.24 | Failles « high » de la CLI Prisma 7.10 (non exploitables ici), corrigées sans attendre Prisma 8 |
 | Image Docker | `npm prune --omit=dev` | **`npm ci --omit=dev`** dans l'étape finale + **cible `migrate`** séparée | Couches plus propres ; le moteur de migration est téléchargé à la construction (npm 12 bloque son script d'installation) |
+| Catalogue | Sortes d'articles et fiches codées en dur (`verticals.ts`) | **Catégories et attributs en base, par boutique** (2026-09-29) ; `verticals.ts` ne garde que les types de boutique et leurs réglages | Le commerçant crée ses rayons et ses champs sans développeur ; 10 000 produits variés |
+| Stock | `onHand` mis à jour par l'application | **Journal d'abord** : déclencheurs Postgres, `onHand` = projection du journal | Stock toujours égal à la somme des mouvements, même en cas de bug applicatif |
+| Import | CSV en V2 | **Excel (.xlsx) avec `exceljs` 4.4.0**, override `uuid` ^14 (0 vulnérabilité) | Les commerçants tiennent leur catalogue dans Excel ; SheetJS sur npm est figé et vulnérable |
+| Unit of Work | `run(work)` | **`run(work, { timeoutMs })`** | L'import dépasse les 5 s par défaut d'une transaction Prisma |
+| Documentation de l'API | Swagger en développement | **`/docs` et `/openapi.json` servis aussi en production**, portail public `/developers` sur le site vitrine | N'importe quel front se branche sur une boutique (clés `pk_`/`sk_`) |
 
 ---
 
@@ -819,6 +824,24 @@ ALTER TABLE orders ADD CONSTRAINT number_when_placed CHECK (status = 'DRAFT' OR 
 CREATE INDEX outbox_unpublished ON outbox_events (occurred_at) WHERE published_at IS NULL;
 ```
 
+**Migrations réversibles (depuis le catalogue dynamique, 2026-09-29).** Chaque nouveau dossier de migration contient, à côté de `migration.sql`, un `down.sql` :
+- généré avec `prisma migrate diff --from-schema <nouveau schéma> --to-schema <schéma précédent> --script`, puis complété à la main pour le SQL manuel (déclencheurs, fonctions, vues) ;
+- terminé par `DELETE FROM "_prisma_migrations" WHERE "migration_name" = '…'` : `migrate resolve --rolled-back` n'accepte que les migrations en échec.
+
+Retour arrière : `npx prisma db execute --file prisma/migrations/<nom>/down.sql`, puis `npx prisma migrate deploy` pour rejouer. Chaque migration est testée aller → retour → aller, puis `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` doit renvoyer 0.
+
+`prisma migrate dev` refuse de tourner hors d'un terminal interactif dès qu'il affiche un avertissement ; on génère alors la migration avec `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script -o <dossier>/migration.sql`, puis on l'applique avec `migrate deploy`.
+
+**Journal du stock** (`catalog_products_variants_stock`) :
+- le déclencheur `stock_movements_apply` applique chaque mouvement à `inventory_levels.on_hand` et remplit `on_hand_after` ;
+- `inventory_levels_on_hand_guard` refuse toute écriture directe de `on_hand` (un niveau naît à 0) ;
+- `stock_movements_immutable` refuse la modification d'un mouvement ;
+- la vue `variant_stock` recalcule le stock depuis le journal pour l'audit.
+
+**Reprise** : le script `db:backfill-catalog` a rangé les produits d'avant le catalogue dynamique ; il a été retiré avec la migration `catalog_contract` (2026-09-30), qui supprime les anciennes colonnes. Son garde-fou refuse de s'exécuter tant qu'un produit n'a pas de catégorie ou qu'une variante n'a pas de combinaison : une base qui n'aurait pas reçu la reprise doit d'abord passer par l'historique Git (commit d'avant la migration).
+
+**Accord préalable** : une migration, son `down.sql` et leur application à une base se font avec l'accord explicite du porteur du projet. On teste d'abord l'aller-retour sur une copie jetable (`pg_dump | psql` dans une base temporaire), jamais sur la base de travail.
+
 ### 5.2 Découpage des migrations
 | Phase | Migration | Modèles |
 |---|---|---|
@@ -827,6 +850,11 @@ CREATE INDEX outbox_unpublished ON outbox_events (occurred_at) WHERE published_a
 | P2 | `inventory` | InventoryLevel, StockMovement |
 | P3 | `orders` | Customer, Order, OrderLine |
 | P4 | `sites` | Site |
+| Catalogue dynamique | `catalog_categories_attributes` | Category, Attribute, CategoryAttribute, AttributeValue |
+| Catalogue dynamique | `catalog_products_variants_stock` | specs, options, combinationKey, StockUnit, journal du stock (déclencheurs, vue `variant_stock`) |
+| Catalogue dynamique | `inventory_tracks_units` | InventoryLevel.tracksUnits |
+| Développeurs | `developer_api_keys` | ApiKey |
+| Catalogue dynamique | `catalog_contract` | Suppression de kind, attributes, options, option_values ; catégorie et combinaison obligatoires |
 
 **Seed** (`prisma/seed.ts`, idempotent) : 2 boutiques de démonstration (EUR et XOF), 3 marques, 12 produits avec variantes, du stock, 2 catalogues, quelques commandes. Il sert au développement et aux tests d'isolation.
 

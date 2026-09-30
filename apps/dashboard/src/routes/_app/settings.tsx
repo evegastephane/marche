@@ -1,5 +1,4 @@
 import {
-  DEFAULT_SIZE_GUIDES,
   type MediaDto,
   type ShippingSettings,
   type SizeGuide,
@@ -18,7 +17,7 @@ import { SingleImage } from '@/features/media/media-gallery';
 import { COUNTRIES, CURRENCY_NAMES } from '@/features/onboarding/countries';
 import { useMediaById, useUpdateStore } from '@/features/settings/api';
 import { useCurrentStore } from '@/features/shell/use-current-store';
-import { SizeGuideEditor } from '@/features/verticals/size-guide-editor';
+import { SizeGuidesCard } from '@/features/verticals/size-guides-card';
 import { StoreTypePicker } from '@/features/verticals/store-type-picker';
 import {
   FashionServices,
@@ -79,18 +78,11 @@ const SERVICE_ERRORS: Record<string, string> = {
   defaultMonths: 'Entre 0 et 60 mois.',
 };
 
-type GuideKind = keyof typeof DEFAULT_SIZE_GUIDES;
-type Guides = Record<GuideKind, SizeGuide>;
+type Guides = Record<string, SizeGuide>;
 
-/** Guides de la boutique, ou ceux proposés par Upsell quand elle n'en a pas. */
+/** Guides propres à la boutique, par catégorie (les autres viennent d'Upsell). */
 function guidesOf(store: StoreDto): Guides {
-  return {
-    CLOTHING:
-      store.verticalSettings.sizeGuides?.CLOTHING ??
-      DEFAULT_SIZE_GUIDES.CLOTHING,
-    SHOES:
-      store.verticalSettings.sizeGuides?.SHOES ?? DEFAULT_SIZE_GUIDES.SHOES,
-  };
+  return { ...store.verticalSettings.sizeGuides };
 }
 
 /**
@@ -125,7 +117,6 @@ function SettingsForm({
   );
   const [type, setType] = useState<StoreType>(store.type);
   const [guides, setGuides] = useState<Guides>(() => guidesOf(store));
-  const [guideKind, setGuideKind] = useState<GuideKind>('CLOTHING');
   const [services, setServices] = useState<VerticalDraft>(() =>
     verticalDraftOf(store),
   );
@@ -187,13 +178,12 @@ function SettingsForm({
         rows: guide.rows.map((cells) => cells.map((c) => c.trim())),
         ...(guide.note?.trim() ? { note: guide.note.trim() } : {}),
       });
-      const next = {
-        CLOTHING: clean(guides.CLOTHING),
-        SHOES: clean(guides.SHOES),
-      };
-      for (const kind of ['CLOTHING', 'SHOES'] as const) {
-        if (!sizeGuideSchema.safeParse(next[kind]).success) {
-          errs[`sizeGuides.${kind}`] =
+      const next = Object.fromEntries(
+        Object.entries(guides).map(([slug, guide]) => [slug, clean(guide)]),
+      );
+      for (const [slug, guide] of Object.entries(next)) {
+        if (!sizeGuideSchema.safeParse(guide).success) {
+          errs[`sizeGuides.${slug}`] =
             'Donnez un titre et un nom à chaque colonne (2 colonnes au moins).';
         }
       }
@@ -521,44 +511,7 @@ function SettingsForm({
         )}
       </section>
 
-      {type === 'FASHION' && (
-        <Card>
-          <CardHeader
-            title="Guides des tailles"
-            actions={
-              <Tabs
-                label="Guide à modifier"
-                items={[
-                  { value: 'CLOTHING' as const, label: 'Vêtements' },
-                  { value: 'SHOES' as const, label: 'Chaussures' },
-                ]}
-                value={guideKind}
-                onChange={setGuideKind}
-              />
-            }
-          />
-          <div className="flex flex-col gap-4 px-5 pb-6">
-            <p className="max-w-[60ch] text-[0.875rem] text-ink-2">
-              Un lien « Guide des tailles » s’affiche sur les fiches des
-              vêtements et des chaussures de votre site.
-            </p>
-            <SizeGuideEditor
-              key={guideKind}
-              guide={guides[guideKind]}
-              onChange={(guide) =>
-                setGuides((prev) => ({ ...prev, [guideKind]: guide }))
-              }
-              onReset={() =>
-                setGuides((prev) => ({
-                  ...prev,
-                  [guideKind]: DEFAULT_SIZE_GUIDES[guideKind],
-                }))
-              }
-              error={errors[`sizeGuides.${guideKind}`]}
-            />
-          </div>
-        </Card>
-      )}
+      <SizeGuidesCard guides={guides} onChange={setGuides} errors={errors} />
     </form>
   );
 }

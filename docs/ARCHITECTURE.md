@@ -42,8 +42,11 @@ Un marchand s'inscrit, crée sa boutique, ajoute ses **marques**, ses **produits
 | MVP (dans le périmètre) | Hors MVP (V2+) |
 |---|---|
 | Auth + onboarding boutique | Équipes et rôles fins |
-| Marques (CRUD) | Import/export CSV |
+| Marques (CRUD) | Export du catalogue |
 | Produits + variantes + images + statut | Promotions, codes promo |
+| **Catalogue dynamique** (2026-09-29) : catégories et attributs propres à chaque boutique, variantes générées depuis les axes, suivi à l'unité (IMEI) | Attributs calculés, traductions |
+| **Import Excel** du catalogue (vérification ligne par ligne, tout ou rien) | Import planifié ou par URL |
+| **Partie Développeurs** : clés `pk_` et `sk_`, référence des API, portail public | Webhooks sortants, OAuth pour applications tierces |
 | Catalogues (collections manuelles, ordonnées) | Collections automatiques (règles) |
 | Stock : niveau, ajustements, historique, alertes de stock bas | Multi-entrepôts, transferts |
 | Commandes : brouillon back-office, passage, paiement marqué manuellement, expédition, annulation | Paiement en ligne (Stripe, Mobile Money…), remboursements |
@@ -78,10 +81,18 @@ Un marchand s'inscrit, crée sa boutique, ajoute ses **marques**, ses **produits
 | Boutique | `Store` | Le tenant, dont toutes les données dépendent. |
 | Marque | `Brand` | Marque commerciale rattachée à des produits. |
 | Produit | `Product` | Fiche : titre, description, images, statut `DRAFT/ACTIVE/ARCHIVED`. |
-| Variante | `ProductVariant` | Déclinaison vendable (SKU, prix, options taille/couleur). **Un produit a toujours au moins une variante.** |
+| Variante | `ProductVariant` | Déclinaison vendable : SKU, prix, prix d'achat, et `options` = une valeur par axe (`{ stockage: "256 Go", couleur: "Noir" }`). **Un produit a toujours au moins une variante** ; sans axe, c'est la variante par défaut (`{}`). |
+| Catégorie | `Category` | Nœud de l'arbre du catalogue d'une boutique (4 niveaux au plus). Décide des attributs proposés et du **suivi à l'unité**, hérités par les sous-catégories. |
+| Attribut | `Attribute` | Champ défini par la boutique : texte, nombre (avec unité), liste à un ou plusieurs choix, oui/non. Sa clé (`slug`) est figée une fois utilisée. |
+| Axe de variante | `Attribute.isVariantAxis` | Attribut « liste à un choix » qui fait varier prix, stock et SKU (stockage, couleur, taille, état). |
+| Valeur d'attribut | `AttributeValue` | Choix d'une liste, avec son **code SKU** (Noir → NOI) et sa pastille (#RRGGBB). |
+| Fiche technique | `Product.specs` | Valeurs des attributs non-axes du produit : `{ slug: valeur }`. |
+| Référence | `Product.reference` | Code du modèle (« sku parent », IP17P) : préfixe des SKU proposés, clé de l'import. |
+| Unité | `StockUnit` | Pièce suivie par son IMEI ou numéro de série : `IN_STOCK`, `SOLD`, `REMOVED`. |
+| Clé d'API | `ApiKey` | `pk_` (publique, vitrine, origines déclarées) ou `sk_` (secrète, administration, droits par domaine). |
 | Catalogue | `Collection` | Groupe ordonné de produits, affiché sur le site. |
 | Stock | `InventoryLevel` | `enMain` (onHand) et `réservé` par variante. Disponible = enMain − réservé. |
-| Mouvement de stock | `StockMovement` | Journal immuable des variations de `enMain`. |
+| Mouvement de stock | `StockMovement` | Journal immuable des variations de `enMain` : **la source de vérité**. `InventoryLevel.onHand` n'en est qu'une projection, tenue par la base. |
 | Commande | `Order` | Statuts `DRAFT → PLACED → FULFILLED`, ou `CANCELLED`. Paiement `UNPAID / PAID`. |
 | Ligne de commande | `OrderLine` | **Instantané** (titre, SKU, prix) figé au passage de la commande. |
 | Client | `Customer` | Acheteur, identifié par son e-mail au sein de la boutique. |
@@ -107,9 +118,12 @@ Un marchand s'inscrit, crée sa boutique, ajoute ses **marques**, ses **produits
 | UC-15 | Dupliquer un produit | Marchand | catalog | MVP |
 | UC-16 | Créer un catalogue et y ordonner des produits | Marchand | catalog | MVP |
 | UC-17 | Rechercher et filtrer les produits | Marchand | catalog | MVP |
+| UC-18 | Gérer les catégories et les attributs (arbre, héritage, valeurs, codes SKU) | Marchand | catalog | MVP |
+| UC-19 | Importer le catalogue depuis Excel (modèle, vérification, import) | Marchand | catalog | MVP |
 | UC-20 | Ajuster le stock (réception, correction, perte + motif) | Marchand | inventory | MVP |
 | UC-21 | Consulter l'historique des mouvements | Marchand | inventory | MVP |
 | UC-22 | Recevoir une alerte de stock bas | Système | inventory → notifications | MVP |
+| UC-23 | Recevoir, corriger, sortir ou remettre une unité (IMEI) | Marchand | inventory | MVP |
 | UC-30 | Créer une commande manuelle (brouillon) | Marchand | orders | MVP |
 | UC-31 | **Passer une commande** (réserve le stock) | Marchand / Acheteur | orders | MVP |
 | UC-32 | Marquer une commande payée | Marchand | orders | MVP |
@@ -127,6 +141,8 @@ Un marchand s'inscrit, crée sa boutique, ajoute ses **marques**, ses **produits
 | UC-47 | Relier un domaine personnalisé | Marchand | sites | V2 |
 | UC-50 | Voir le tableau de bord (CA, commandes, ruptures) | Marchand | reporting | MVP |
 | UC-51 | Envoyer les e-mails transactionnels (confirmation, nouvelle commande) | Système | notifications | MVP |
+| UC-60 | Créer, copier, révoquer ses clés d'API (portail Développeurs) | Marchand | developers | MVP |
+| UC-61 | Brancher un front ou un serveur sur la boutique (`pk_` / `sk_`) | Développeur | storefront, tous les modules | MVP |
 
 ### 3.2 Règles métier (invariants)
 - **R1** : le SKU et le slug (handle) d'un produit sont uniques **par boutique**.
@@ -139,6 +155,11 @@ Un marchand s'inscrit, crée sa boutique, ajoute ses **marques**, ses **produits
 - **R8** : le numéro de commande est séquentiel par boutique (#1001, #1002…).
 - **R9** : une boutique n'accède jamais aux données d'une autre.
 - **R10** : on peut générer le site à tout moment. Sans produit actif, il affiche un état « Bientôt disponible ».
+- **R11** : un produit ne passe `ACTIVE` que si les attributs **obligatoires** de sa catégorie sont renseignés, et chaque axe obligatoire sur chaque variante.
+- **R12** : le stock en main d'une variante est **la somme de ses mouvements**. La base refuse toute écriture directe de `on_hand` et toute modification d'un mouvement : une correction est un contre-mouvement.
+- **R13** : pour une catégorie suivie à l'unité, le stock est le nombre d'unités `IN_STOCK` : pas d'ajustement libre, l'expédition sort les IMEI vendus. Un IMEI est unique **par boutique**.
+- **R14** : une clé `sk_` n'ouvre que les domaines cochés (catalogue, stock, commandes, clients), en lecture ou en écriture ; tout le reste est refusé. Une clé `pk_` n'est acceptée que depuis les origines déclarées.
+- **R15** : un import Excel est **tout ou rien** : toutes les erreurs sont listées (feuille, ligne, colonne) et rien n'est écrit tant qu'il en reste une ; réimporter le même fichier ne crée rien de plus.
 
 ### 3.3 Machine à états de la commande
 ```mermaid
@@ -575,6 +596,16 @@ erDiagram
   PRODUCT ||--o{ PRODUCT_MEDIA : "illustre"
   PRODUCT_VARIANT ||--|| INVENTORY_LEVEL : "stock"
   PRODUCT_VARIANT ||--o{ STOCK_MOVEMENT : "historique"
+  PRODUCT_VARIANT ||--o{ STOCK_UNIT : "IMEI"
+  STOCK_UNIT |o--o{ STOCK_MOVEMENT : "entre / sort"
+  STORE ||--o{ CATEGORY : "range"
+  CATEGORY |o--o{ CATEGORY : "parent"
+  CATEGORY ||--o{ PRODUCT : "contient"
+  STORE ||--o{ ATTRIBUTE : "définit"
+  ATTRIBUTE ||--o{ ATTRIBUTE_VALUE : "propose"
+  CATEGORY ||--o{ CATEGORY_ATTRIBUTE : "demande"
+  ATTRIBUTE ||--o{ CATEGORY_ATTRIBUTE : "est demandé"
+  STORE ||--o{ API_KEY : "ouvre"
   STORE ||--o{ COLLECTION : "possède"
   COLLECTION ||--o{ COLLECTION_PRODUCT : "ordonne"
   PRODUCT ||--o{ COLLECTION_PRODUCT : "apparaît"
@@ -597,6 +628,17 @@ erDiagram
 - `Order.shippingAddress` au format JSON (instantané).
 - `Site.themeSettings` (thème en ligne) et `Site.draftThemeSettings` (brouillon de l'éditeur), au format JSON validé par le `settingsSchema` du template.
 
+**Catalogue dynamique** (2026-09-29, migration « contract » le 2026-09-30) :
+- `products.category_id` obligatoire ; `products.specs` en JSONB (index GIN `jsonb_path_ops`) ; `(store_id, reference)` unique.
+- `product_variants.options` en JSONB (GIN) ; `combination_key` normalisée (`couleur=noir|stockage=256 go`), unique par produit : une combinaison retirée puis recochée retrouve sa variante et son historique.
+- `category_attributes (category_id, attribute_id, required, position)` : l'héritage se calcule de la racine vers la catégorie, le lien le plus proche décide du caractère obligatoire.
+- CHECK : un attribut nombre a une unité ; un axe est une liste à un choix.
+- `stock_units` : `(store_id, serial)` unique, `battery_health` entre 0 et 100.
+- Journal du stock (déclencheurs Postgres) : chaque mouvement s'applique à `inventory_levels.on_hand` et fixe `on_hand_after` ; écriture directe de `on_hand` et modification d'un mouvement refusées ; vue `variant_stock` pour l'audit.
+- `api_keys` : empreinte SHA-256 de la clé (la clé secrète n'est jamais stockée), jeton en clair pour les seules `pk_`, droits (`sk_`) et origines (`pk_`) exclusifs selon la sorte (CHECK).
+- Les anciennes colonnes (`kind`, `attributes`, `options` du produit, `option_values`) sont supprimées. Le site garde une forme rétrocompatible (`kind`, `options[].type`) calculée depuis les catégories et les axes : `packages/contracts/src/storefront-vocabulary.ts`.
+- Toutes les migrations depuis le catalogue dynamique ont un `down.sql` (docs/PLAN-CODE.md §5.1).
+
 ---
 
 ## 8. API : conventions et endpoints principaux
@@ -610,9 +652,14 @@ erDiagram
 | Espace | Auth | Exemples |
 |---|---|---|
 | `/api/v1` (admin) | JWT Clerk + boutique active | `POST /stores` · `PATCH /stores/current` · CRUD `/brands` · CRUD `/products`, `POST /products/:id/duplicate`, `POST /products/:id/publish` · `POST /media/upload-url` · CRUD `/collections`, `PUT /collections/:id/products` · `GET /inventory?lowStock=true`, `POST /inventory/:variantId/adjustments`, `GET /inventory/:variantId/movements` · `GET/POST /orders`, `POST /orders/:id/{place,mark-paid,fulfill,cancel}` · `GET /customers` · `GET /site`, `POST /site/generate`, `PATCH /site/theme`, `POST /site/{publish,unpublish}` · `GET /reporting/overview` |
-| `/storefront/v1` (public) | Aucune, tenant résolu par l'hôte, rate limiting | `GET /store` · `GET /products`, `GET /products/:slug` · `GET /collections/:slug` · `POST /carts`, `POST/PATCH/DELETE /carts/:id/lines` · `POST /checkout` · `GET /orders/:publicToken` |
+| `/api/v1` (catalogue dynamique) | JWT Clerk ou clé `sk_` | CRUD `/categories` (arbre, `PUT /categories/:id/attributes`, `POST /categories/template`) · CRUD `/attributes` et `/attributes/:id/values` · `POST /products/sku-check` · `GET/POST /inventory/:variantId/units`, `PATCH /inventory/units/:id`, `POST /inventory/units/:id/{remove,return}` · `GET /imports/catalog/template`, `POST /imports/catalog?dryRun=` |
+| `/api/v1/developers` | JWT Clerk, propriétaire ou administrateur | `GET/POST /api-keys`, `PATCH /api-keys/:id`, `POST /api-keys/:id/revoke` |
+| `/storefront/v1` (public) | Jeton de la plateforme (site généré) ou en-tête `x-publishable-key: pk_…` (front libre, origine contrôlée), rate limiting | `GET /store` · `GET /products`, `GET /products/:slug` · `GET /collections/:slug` · `POST /carts`, `POST/PATCH/DELETE /carts/:id/lines` · `POST /checkout` · `GET /orders/:publicToken` |
 | `/webhooks` | Signature svix | `POST /webhooks/clerk` |
 | `/health` | Aucune | `live`, `ready` (DB, Redis) |
+| `/docs`, `/openapi.json` | Aucune (servis aussi en production) | Référence de toutes les routes ; le portail Développeurs du site vitrine (`/developers`) la lit en direct |
+
+**Clés d'API** : une clé `sk_` passe par `ClerkAuthGuard` (reconnue à son préfixe), `TenantGuard` prend la boutique de la clé, puis `ApiScopeGuard` exige un `@ApiScope(domaine)` sur la route (GET = lecture, le reste = écriture) : une route sans ce décorateur est refusée (`API_KEY_FORBIDDEN`). Le CORS de `/storefront/v1` accepte en plus les origines des clés `pk_` actives.
 
 ---
 
@@ -653,7 +700,7 @@ Marche/
 
 **Sécurité**
 - Vérification du JWT Clerk (clé publique / JWKS, `authorizedParties`).
-- Guards en chaîne : `ClerkAuthGuard` → `TenantGuard` → `RolesGuard`.
+- Guards en chaîne : `ClerkAuthGuard` → `TenantGuard` → `RolesGuard` → `ApiScopeGuard` (clés `sk_`).
 - Signature des webhooks.
 - CORS en liste blanche, Helmet, rate limiting (renforcé sur le checkout).
 - Validation Zod de toutes les entrées.
@@ -668,6 +715,7 @@ Marche/
 - Front : Testing Library.
 - Parcours complet Playwright : créer un produit → générer le site → commander en invité → le stock est réservé.
 - Tests d'**isolation tenant** et de **concurrence** sur la réservation de stock.
+- Catalogue dynamique : fonctions pures de `catalog-model.ts` (combinaisons, héritage, SKU, fiche, R11) en unitaire ; en e2e, **stock = somme du journal** après un parcours complet et refus des écritures directes en base (`ledger.e2e-spec.ts`), isolation des catégories, attributs, SKU et IMEI (`taxonomy-isolation.e2e-spec.ts`), import tout ou rien et idempotent (`catalog-import.e2e-spec.ts`), clés `pk_`/`sk_` (`developers.e2e-spec.ts`).
 
 **Observabilité**
 - Logs JSON (pino) avec `requestId`, `storeId` et `userId`.
@@ -687,7 +735,8 @@ Marche/
 | **3. Commandes** | Brouillon, passage, paiement, expédition, annulation, clients, e-mails | ERP utilisable |
 | **4. Site** | Template par défaut, génération en un clic, thème, aperçu, panier, checkout invité, revalidation | Boutique en ligne |
 | **5. Durcissement et prod** | Tableau de bord KPI, PostHog, tests e2e, rate limits, déploiement staging et prod | MVP en production |
-| **V2** | Paiement en ligne, domaines perso, templates multiples, équipes, import CSV, promotions, RLS | — |
+| **6. Catalogue dynamique et Développeurs** (2026-09-29/30) | Catégories et attributs par boutique, variantes par axes, stock par journal, IMEI, import Excel, clés `pk_`/`sk_`, portail Développeurs | Boutique Observe (tech, Douala) prête à 10 000 produits |
+| **V2** | Paiement en ligne, domaines perso, équipes, export du catalogue, promotions, RLS | — |
 
 ---
 

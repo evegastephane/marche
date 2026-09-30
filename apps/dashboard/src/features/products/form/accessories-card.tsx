@@ -1,8 +1,6 @@
 import {
-  DEVICE_KINDS,
   MAX_PRODUCT_ACCESSORIES,
   type ProductAccessoryDto,
-  type ProductKind,
 } from '@marche/contracts';
 import { Plus, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -20,19 +18,19 @@ import { Thumbnail } from '../thumbnail';
  */
 export function AccessoriesCard({
   productId,
-  kind,
+  device,
   model,
   accessories,
   onChange,
 }: {
   productId?: string;
-  kind: ProductKind | null;
+  /** Appareil (suivi à l'unité) : les accessoires compatibles s'ajoutent d'eux-mêmes. */
+  device: boolean;
   model: string;
   accessories: ProductAccessoryDto[];
   onChange: (accessories: ProductAccessoryDto[]) => void;
 }) {
   const [picking, setPicking] = useState(false);
-  const device = kind !== null && DEVICE_KINDS.includes(kind);
   const exclude = new Set([...accessories.map((a) => a.id), ...(productId ? [productId] : [])]);
   const full = accessories.length >= MAX_PRODUCT_ACCESSORIES;
 

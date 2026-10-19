@@ -69,12 +69,20 @@ describe('Boutique électronique : catégories, IMEI, accessoires, packs, demand
       specs: { 'reduction-bruit': true, connectivite: ['Bluetooth'] },
     });
 
-    const axes = (stockage: string, couleur: string, etat: string) => ({ stockage, ram: '12 Go', couleur, etat });
+    // Un téléphone se décrit jusqu'au bout : stockage, couleur, état, SIM, taille d'écran (RAM facultative).
+    const axes = (stockage: string, couleur: string, etat: string) => ({
+      stockage,
+      ram: '12 Go',
+      couleur,
+      etat,
+      sim: 'Double SIM',
+      'taille-ecran': '6,3 pouces',
+    });
     phone = await publishedProduct({
       title: 'iPhone 17 Pro',
       categoryId: await categoryId(t, token, 'smartphones'),
       reference: 'IP17P',
-      specs: { 'taille-ecran': 6.3, reseau: '5G' },
+      specs: { reseau: '5G' },
       variants: [
         {
           sku: 'IP17P-256-BLU-NEW',
@@ -166,12 +174,12 @@ describe('Boutique électronique : catégories, IMEI, accessoires, packs, demand
       category: { slug: 'smartphones' },
       tracksUnits: true,
       reference: 'IP17P',
-      specs: { 'taille-ecran': 6.3, reseau: '5G' },
+      specs: { reseau: '5G' },
       accessories: [{ id: earphones.id, title: 'Écouteurs sans fil' }],
     });
     expect(product.body.variants[0]).toMatchObject({
-      title: '256 Go / 12 Go / Bleu / Neuf',
-      options: { stockage: '256 Go', ram: '12 Go', couleur: 'Bleu', etat: 'Neuf' },
+      title: '256 Go / Bleu / Neuf / Double SIM / 6,3 pouces / 12 Go',
+      options: { stockage: '256 Go', ram: '12 Go', couleur: 'Bleu', etat: 'Neuf', sim: 'Double SIM', 'taille-ecran': '6,3 pouces' },
       inventory: { onHand: 3 },
     });
     const units = await t.http().get(`/api/v1/inventory/${phone.variants[2]!.id}/units`).set(admin());
@@ -190,12 +198,21 @@ describe('Boutique électronique : catégories, IMEI, accessoires, packs, demand
     expect(product.body).toMatchObject({ kind: 'PHONE', category: { slug: 'smartphones' } });
     expect(product.body.specs).toEqual(
       expect.arrayContaining([
-        { slug: 'taille-ecran', label: 'Taille écran', value: '6,3 pouces' },
         { slug: 'reseau', label: 'Réseau', value: '5G' },
       ]),
     );
-    expect(product.body.options.map((o: { type: string }) => o.type)).toEqual(['storage', 'memory', 'color', 'condition']);
-    expect(product.body.options[2]).toMatchObject({ swatches: { Violet: '#6A4C93' } });
+    // La taille d'écran et la SIM sont des choix de l'acheteur, plus des lignes de fiche.
+    expect(product.body.specs.map((spec: { slug: string }) => spec.slug)).not.toContain('taille-ecran');
+    expect(product.body.options.map((o: { name: string; type: string }) => [o.name, o.type])).toEqual([
+      ['Stockage', 'storage'],
+      ['Couleur', 'color'],
+      ['État', 'condition'],
+      ['SIM', 'text'],
+      ['Taille écran', 'screen'],
+      ['RAM', 'memory'],
+    ]);
+    expect(product.body.options[3]).toMatchObject({ values: ['Double SIM'] });
+    expect(product.body.options[1]).toMatchObject({ swatches: { Violet: '#6A4C93' } });
     const ids = product.body.accessories.map((a: { id: string }) => a.id);
     expect(ids[0]).toBe(earphones.id);
     expect(ids).toEqual(expect.arrayContaining([charger.id, case17.id]));

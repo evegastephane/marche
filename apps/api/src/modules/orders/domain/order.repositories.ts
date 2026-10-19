@@ -29,6 +29,11 @@ export interface WhatsAppRecipient {
 export abstract class CustomerRepository {
   /** Crée ou complète le client identifié par son e-mail (unique par boutique). Retourne son id. */
   abstract upsertByEmail(details: CustomerDetails): Promise<string>;
+  /**
+   * Client du comptoir : retrouvé par son e-mail, sinon par son téléphone (mêmes derniers chiffres),
+   * sinon créé (sans e-mail s'il n'en a pas donné). Retourne son id.
+   */
+  abstract upsertForCounter(details: Omit<CustomerDetails, 'email'> & { email?: string | null }): Promise<string>;
   /** Clients de la boutique courante qui ont accepté les nouveautés WhatsApp, sans désinscription, avec un numéro. */
   abstract listWhatsAppRecipients(): Promise<WhatsAppRecipient[]>;
   /**

@@ -10,6 +10,7 @@ export const boiteTemplateManifest: TemplateManifest = {
   id: 'boite',
   name: 'La boîte du téléphone',
   version: '1.0.0',
+  tier: 'premium',
   tagline: 'Chaque appareil comme sa boîte d’origine : la photo en façade, l’étiquette où l’on coche capacité, couleur et état.',
   storeTypes: ['ELECTRONICS'],
   fontChoice: false,

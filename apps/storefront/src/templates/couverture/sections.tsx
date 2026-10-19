@@ -1,12 +1,22 @@
 import type { Currency, Section, StorefrontProductCardDto, StorefrontStoreDto } from '@marche/contracts';
+import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { cn, formatMoney } from '@/lib/format';
-import { getBrands, getCollections, getProducts } from '@/lib/storefront-api';
+import { getBrands, getProducts } from '@/lib/storefront-api';
 import { imageProps } from '../default/components/media';
 import { issueMonth } from './chrome';
 import { Masthead } from './masthead';
 import { PageCard, PagesGrid } from './product-card';
+import {
+  contactLines,
+  faqItemsOf,
+  featuredSelection,
+  hasContact,
+  paragraphsOf,
+  SectionList,
+  sectionImage,
+} from '../shared/home-sections';
 
 interface SectionProps<T extends Section['type']> {
   site: string;
@@ -146,24 +156,19 @@ async function Cover({ site, store, section }: SectionProps<'hero'>) {
 
 /** À la une : un encadré pleine largeur dans la seconde couleur, le dossier du numéro et ses pièces. */
 async function FeaturedCollection({ site, store, section }: SectionProps<'featured-collection'>) {
-  if (!section.collectionId) return null;
-  const collections = await getCollections(site, store.id);
-  const collection = collections.find((c) => c.id === section.collectionId);
-  if (!collection) return null;
-  const products = await getProducts(site, store.id, { collection: collection.slug, limit: section.limit });
-  if (products.items.length === 0) return null;
+  const selection = await featuredSelection(site, store, section);
+  if (!selection) return null;
   return (
     <section className="mt-28 bg-surface text-on-surface sm:mt-36">
       <div className="mx-auto grid max-w-[88rem] gap-12 px-4 py-16 sm:px-8 sm:py-20 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-16">
         <div className="flex flex-col items-start gap-6 lg:sticky lg:top-28 lg:self-start">
-          <h2 className={rubricTitle}>{section.title || collection.title}</h2>
-          {section.title && section.title !== collection.title && <p className="font-heading text-2xl leading-none font-extrabold uppercase">{collection.title}</p>}
-          <Link href={`/collections/${collection.slug}`} className={cn(more, 'text-on-surface')}>
+          <h2 className={rubricTitle}>{selection.title}</h2>
+          <Link href={selection.href} className={cn(more, 'text-on-surface')}>
             Tout le dossier →
           </Link>
         </div>
         <ul className="grid grid-cols-2 gap-x-4 gap-y-12 sm:gap-x-8 md:grid-cols-3">
-          {products.items.slice(0, 6).map((product) => (
+          {selection.products.slice(0, 6).map((product) => (
             <li key={product.id}>
               <PageCard product={product} currency={store.currency} sizes="(min-width: 1024px) 18vw, 50vw" />
             </li>
@@ -243,27 +248,136 @@ function Editorial({ store, section }: SectionProps<'rich-text'>) {
   );
 }
 
+/** Le reportage : une grande photo pleine colonne, le titre de rubrique et le texte qui l'accompagne. */
+function ImageText({ store, section }: SectionProps<'image-text'>) {
+  const image = sectionImage(store, section.imageMediaId);
+  const paragraphs = paragraphsOf(section.body);
+  if (!image && paragraphs.length === 0 && !section.title) return null;
+  return (
+    <section className="mt-28 sm:mt-36">
+      <div className="mx-auto grid max-w-[88rem] items-end gap-10 px-4 sm:px-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-16">
+        {image && (
+          <div className={cn('relative aspect-[4/5] overflow-hidden lg:aspect-[5/4]', section.imagePosition === 'right' && 'lg:order-2')}>
+            <img {...imageProps(image, '(min-width: 1024px) 55vw, 100vw')} alt={image.alt ?? ''} className="absolute inset-0 size-full object-cover" />
+          </div>
+        )}
+        <div className="flex flex-col items-start gap-6">
+          {section.title && <h2 className={rubricTitle}>{section.title}</h2>}
+          {paragraphs.map((p, i) => (
+            <p key={i} className="max-w-[48ch] text-xl leading-relaxed">
+              {p}
+            </p>
+          ))}
+          {section.ctaLabel && (
+            <Link href={section.ctaHref ?? '/collections'} className={cn(more, 'text-fg')}>
+              {section.ctaLabel} →
+            </Link>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Le courrier des lecteurs : chaque question en capitales serrées, la réponse de la rédaction dessous. */
+function Faq({ section }: SectionProps<'faq'>) {
+  const items = faqItemsOf(section);
+  if (items.length === 0) return null;
+  return (
+    <Rubric title={section.title}>
+      <div className="grid gap-x-16 border-t-[3px] border-fg lg:grid-cols-2">
+        {items.map((item, index) => (
+          <details key={item.id} className="group border-b border-fg/25">
+            <summary className="flex min-h-16 cursor-pointer list-none items-start gap-4 py-5 [&::-webkit-details-marker]:hidden">
+              <span className="tabular pt-1 font-heading text-[1rem] font-extrabold text-primary">Q{index + 1}</span>
+              <span className="flex-1 font-heading text-[clamp(1.5rem,2.2vw,2rem)] leading-[0.95] font-black uppercase text-balance">
+                {item.question}
+              </span>
+              <span aria-hidden className="pt-1 font-heading text-2xl font-black transition-transform duration-300 group-open:rotate-45">
+                <Plus className="size-[1em]" strokeWidth={2} />
+              </span>
+            </summary>
+            <div className="flex flex-col gap-3 pb-6 pl-10 text-lg leading-relaxed">
+              {paragraphsOf(item.answer).map((p, i) => (
+                <p key={i} className="max-w-[56ch]">
+                  {p}
+                </p>
+              ))}
+            </div>
+          </details>
+        ))}
+      </div>
+    </Rubric>
+  );
+}
+
+/** « Pour nous joindre » : l'encadré de l'ours du magazine, sur l'aplat de la couleur de couverture. */
+function Contact({ store, section }: SectionProps<'contact'>) {
+  const lines = contactLines(store, section);
+  if (!hasContact(section, lines)) return null;
+  return (
+    <section className="mt-28 bg-accent text-on-accent sm:mt-36">
+      <div className="mx-auto grid max-w-[88rem] gap-10 px-4 py-16 sm:px-8 sm:py-20 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+        <div className="flex flex-col gap-5">
+          {section.title && <h2 className={rubricTitle}>{section.title}</h2>}
+          {section.subtitle && <p className="max-w-[38ch] text-lg leading-snug font-medium">{section.subtitle}</p>}
+          {(section.address || section.hours) && (
+            <p className="border-y-[3px] border-current py-2 font-heading text-[1rem] leading-tight font-extrabold tracking-[0.04em] uppercase">
+              {[section.address, section.hours].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </div>
+        {lines.length > 0 && (
+          <ul className="flex flex-col gap-6 lg:justify-end">
+            {lines.map((line) => (
+              <li key={line.kind}>
+                <a
+                  href={line.href}
+                  target={line.kind === 'whatsapp' ? '_blank' : undefined}
+                  rel={line.kind === 'whatsapp' ? 'noreferrer' : undefined}
+                  className="group flex flex-col gap-1 text-on-accent no-underline"
+                >
+                  <span className="font-heading text-[1rem] font-extrabold tracking-[0.04em] uppercase opacity-80">{line.action}</span>
+                  <span className="font-heading text-[clamp(1.75rem,3.2vw,3rem)] leading-[0.9] font-black break-words uppercase decoration-[0.08em] underline-offset-[0.12em] group-hover:underline">
+                    {line.value}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function HomeSections({ site, store }: { site: string; store: StorefrontStoreDto }) {
   return (
     <div className="page-turn">
-      {store.theme.sections
-        .filter((section) => section.enabled)
-        .map((section) => {
+      <SectionList store={store}>
+        {(section) => {
           switch (section.type) {
             case 'hero':
-              return <Cover key={section.id} site={site} store={store} section={section} />;
+              return <Cover site={site} store={store} section={section} />;
             case 'featured-collection':
-              return <FeaturedCollection key={section.id} site={site} store={store} section={section} />;
+              return <FeaturedCollection site={site} store={store} section={section} />;
             case 'product-grid':
-              return <ProductGridSection key={section.id} site={site} store={store} section={section} />;
+              return <ProductGridSection site={site} store={store} section={section} />;
             case 'brand-strip':
-              return <BrandStrip key={section.id} site={site} store={store} section={section} />;
+              return <BrandStrip site={site} store={store} section={section} />;
             case 'rich-text':
-              return <Editorial key={section.id} site={site} store={store} section={section} />;
+              return <Editorial site={site} store={store} section={section} />;
+            case 'image-text':
+              return <ImageText site={site} store={store} section={section} />;
+            case 'faq':
+              return <Faq site={site} store={store} section={section} />;
+            case 'contact':
+              return <Contact site={site} store={store} section={section} />;
             default:
               return null;
           }
-        })}
+        }}
+      </SectionList>
     </div>
   );
 }

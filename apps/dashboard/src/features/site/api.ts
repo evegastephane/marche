@@ -1,10 +1,4 @@
-import type {
-  CollectionDto,
-  Paginated,
-  PreviewTokenDto,
-  SiteDto,
-  ThemeSettings,
-} from '@marche/contracts';
+import type { PreviewTokenDto, SiteDto, ThemeSettings } from '@marche/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/shared/api/client';
 import { qk } from '@/shared/api/query-keys';
@@ -25,20 +19,6 @@ export function useSite() {
         throw error;
       }
     },
-  });
-}
-
-export function useCollections() {
-  const api = useApi();
-  const store = useStoreKey();
-  return useQuery({
-    queryKey: qk.collections(store),
-    queryFn: ({ signal }) =>
-      api<Paginated<CollectionDto>>('GET', '/api/v1/collections', {
-        signal,
-        query: { limit: 100 },
-      }),
-    staleTime: 5 * 60_000,
   });
 }
 

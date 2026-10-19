@@ -27,11 +27,12 @@ export function ProductCard({ product, currency }: { product: StorefrontProductC
             )}
           </div>
         </CutFrame>
+        {/* Taille fixe : titre sur deux lignes réservées, prix et vues sur une ligne chacun (le surplus passe hors de vue). */}
         <div className="flex flex-col gap-2 px-0.5">
-          <span className="font-heading text-lg leading-[0.95] font-black tracking-[-0.01em] uppercase [font-stretch:112%] decoration-2 underline-offset-4 group-hover:underline">
+          <span className="line-clamp-2 min-h-[2lh] font-heading text-lg leading-[0.95] font-black tracking-[-0.01em] uppercase [font-stretch:112%] decoration-2 underline-offset-4 group-hover:underline">
             {product.title}
           </span>
-          <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="flex h-[1lh] flex-wrap items-baseline gap-x-3 overflow-y-clip whitespace-nowrap">
             <span className="tabular font-heading text-base font-bold">
               {product.priceMinAmount !== product.priceMaxAmount && <span className="mr-1 font-body text-xs font-semibold">dès</span>}
               {formatMoney(product.priceMinAmount, currency)}
@@ -43,16 +44,19 @@ export function ProductCard({ product, currency }: { product: StorefrontProductC
               </s>
             )}
           </span>
-          {product.swatches.length > 1 && (
-            <span className="flex flex-wrap gap-x-3 gap-y-1" aria-label={`${product.swatches.length} coloris`}>
-              {product.swatches.slice(0, 6).map((s, i) => (
-                <span key={s.value} title={s.value} className="inline-flex items-center gap-1 text-xs font-bold">
+          <span
+            className="flex h-[1lh] flex-wrap gap-x-3 overflow-y-clip text-xs"
+            aria-label={product.swatches.length > 1 ? `${product.swatches.length} coloris` : undefined}
+            aria-hidden={product.swatches.length > 1 ? undefined : true}
+          >
+            {product.swatches.length > 1 &&
+              product.swatches.slice(0, 6).map((s, i) => (
+                <span key={s.value} title={s.value} className="inline-flex items-center gap-1 font-bold">
                   <span aria-hidden className="size-3 rounded-full border border-fg/40" style={{ backgroundColor: s.hex }} />
                   <span aria-hidden>{VIEW_LETTERS[i]}</span>
                 </span>
               ))}
-            </span>
-          )}
+          </span>
         </div>
       </div>
     </Link>

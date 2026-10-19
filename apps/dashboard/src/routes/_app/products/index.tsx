@@ -3,6 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { FileSpreadsheet, PackagePlus, Plus, SearchX } from 'lucide-react';
 import { motion } from 'motion/react';
 import { z } from 'zod';
+import { CatalogTabs } from '@/features/products/catalog-tabs';
 import { useProductList } from '@/features/products/api';
 import { PRODUCT_FILTERS, PRODUCT_STATUS } from '@/features/products/status';
 import { Thumbnail } from '@/features/products/thumbnail';
@@ -48,6 +49,7 @@ function Produits() {
 
   return (
     <div className="flex flex-col gap-6">
+      <CatalogTabs />
       <PageHeader
         title="Produits"
         subtitle="Ce qui est en vente apparaît aussitôt sur votre site."

@@ -1,7 +1,17 @@
 import type { Section, StorefrontStoreDto } from '@marche/contracts';
+import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { getBrands, getCollections, getProducts } from '@/lib/storefront-api';
+import { getBrands, getProducts } from '@/lib/storefront-api';
+import {
+  contactLines,
+  faqItemsOf,
+  featuredSelection,
+  hasContact,
+  paragraphsOf,
+  SectionList,
+  sectionImage,
+} from '../shared/home-sections';
 import { imageProps } from './components/media';
 import { Reveal } from './components/motion';
 import { ProductGrid } from './components/product-card';
@@ -65,20 +75,13 @@ function Hero({ store, section }: SectionProps<'hero'>) {
 }
 
 async function FeaturedCollection({ site, store, section }: SectionProps<'featured-collection'>) {
-  if (!section.collectionId) return null;
-  const collections = await getCollections(site, store.id);
-  const collection = collections.find((c) => c.id === section.collectionId);
-  if (!collection) return null;
-  const products = await getProducts(site, store.id, {
-    collection: collection.slug,
-    limit: section.limit,
-  });
-  if (products.items.length === 0) return null;
+  const selection = await featuredSelection(site, store, section);
+  if (!selection) return null;
   return (
     <SectionShell
-      title={section.title || collection.title}
+      title={selection.title}
       action={
-        <Link href={`/collections/${collection.slug}`} className={seeAll}>
+        <Link href={selection.href} className={seeAll}>
           Tout voir{' '}
           <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-0.5">
             →
@@ -86,7 +89,7 @@ async function FeaturedCollection({ site, store, section }: SectionProps<'featur
         </Link>
       }
     >
-      <ProductGrid products={products.items} currency={store.currency} />
+      <ProductGrid products={selection.products} currency={store.currency} />
     </SectionShell>
   );
 }
@@ -150,25 +153,163 @@ function RichText({ section }: SectionProps<'rich-text'>) {
   );
 }
 
+/** Une photo à côté d'un titre et d'un texte ; la photo passe à droite si le marchand le choisit. */
+function ImageText({ store, section }: SectionProps<'image-text'>) {
+  const image = sectionImage(store, section.imageMediaId);
+  const paragraphs = paragraphsOf(section.body);
+  if (!image && paragraphs.length === 0 && !section.title) return null;
+  return (
+    <section className="mx-auto max-w-6xl px-4 pt-16 sm:px-6 sm:pt-24">
+      <Reveal className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
+        {image && (
+          <div
+            className={`aspect-[4/3] overflow-hidden rounded-3xl bg-surface ${section.imagePosition === 'right' ? 'lg:order-2' : ''}`}
+          >
+            <img {...imageProps(image, '(min-width: 1024px) 50vw, 100vw')} className="size-full object-cover" />
+          </div>
+        )}
+        <div className="flex flex-col items-start gap-5">
+          {section.title && <h2 className="text-2xl font-bold sm:text-3xl">{section.title}</h2>}
+          {paragraphs.map((p, i) => (
+            <p key={i} className="max-w-[60ch] text-lg leading-relaxed text-fg/85">
+              {p}
+            </p>
+          ))}
+          {section.ctaLabel && (
+            <Link
+              href={section.ctaHref ?? '/collections'}
+              className="group mt-1 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-semibold text-on-primary no-underline transition-transform duration-300 ease-out-soft hover:-translate-y-0.5 active:scale-[0.97]"
+            >
+              {section.ctaLabel}
+              <span aria-hidden className="transition-transform duration-300 ease-out-soft group-hover:translate-x-1">
+                →
+              </span>
+            </Link>
+          )}
+        </div>
+      </Reveal>
+    </section>
+  );
+}
+
+/** Questions fréquentes : chaque réponse se déplie sous sa question, même sans JavaScript. */
+function Faq({ section }: SectionProps<'faq'>) {
+  const items = faqItemsOf(section);
+  if (items.length === 0) return null;
+  return (
+    <SectionShell title={section.title}>
+      <Reveal className="max-w-3xl border-t border-line">
+        {items.map((item) => (
+          <details key={item.id} className="group border-b border-line">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-5 text-lg font-semibold [&::-webkit-details-marker]:hidden">
+              {item.question}
+              <span
+                aria-hidden
+                className="grid size-8 shrink-0 place-items-center rounded-full bg-surface text-xl leading-none transition-transform duration-300 ease-out-soft group-open:rotate-45"
+              >
+                <Plus className="size-[1em]" strokeWidth={2} />
+              </span>
+            </summary>
+            <div className="flex flex-col gap-3 pb-6 text-fg/80">
+              {paragraphsOf(item.answer).map((p, i) => (
+                <p key={i} className="max-w-[65ch] leading-relaxed">
+                  {p}
+                </p>
+              ))}
+            </div>
+          </details>
+        ))}
+      </Reveal>
+    </SectionShell>
+  );
+}
+
+/** Contact : WhatsApp d'abord (le canal des clients), puis l'appel et l'e-mail, l'adresse et les horaires. */
+function Contact({ store, section }: SectionProps<'contact'>) {
+  const lines = contactLines(store, section);
+  if (!hasContact(section, lines)) return null;
+  return (
+    <SectionShell>
+      <Reveal className="grid gap-8 rounded-3xl bg-surface p-6 text-on-surface sm:p-10 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+        <div className="flex flex-col gap-4">
+          {section.title && <h2 className="text-2xl font-bold sm:text-3xl">{section.title}</h2>}
+          {section.subtitle && <p className="max-w-[46ch] text-lg opacity-80">{section.subtitle}</p>}
+          <ContactDetails section={section} />
+        </div>
+        {lines.length > 0 && (
+          <ul className="flex flex-col gap-3">
+            {lines.map((line, index) => (
+              <li key={line.kind}>
+                <a
+                  href={line.href}
+                  target={line.kind === 'whatsapp' ? '_blank' : undefined}
+                  rel={line.kind === 'whatsapp' ? 'noreferrer' : undefined}
+                  className={`flex items-center justify-between gap-4 rounded-2xl px-5 py-4 no-underline transition-transform duration-300 ease-out-soft hover:-translate-y-0.5 ${
+                    index === 0 ? 'bg-primary text-on-primary' : 'bg-bg text-fg ring-1 ring-line'
+                  }`}
+                >
+                  <span className="flex min-w-0 flex-col">
+                    <span className="font-semibold">{line.action}</span>
+                    <span className="truncate text-sm opacity-75">{line.value}</span>
+                  </span>
+                  <span aria-hidden>→</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Reveal>
+    </SectionShell>
+  );
+}
+
+function ContactDetails({ section }: { section: SectionProps<'contact'>['section'] }) {
+  if (!section.address && !section.hours) return null;
+  return (
+    <dl className="mt-2 grid gap-3 text-sm">
+      {section.address && (
+        <div>
+          <dt className="font-semibold">Adresse</dt>
+          <dd className="opacity-80">{section.address}</dd>
+        </div>
+      )}
+      {section.hours && (
+        <div>
+          <dt className="font-semibold">Horaires</dt>
+          <dd className="opacity-80">{section.hours}</dd>
+        </div>
+      )}
+    </dl>
+  );
+}
+
 /** Rendu des sections de l'accueil, dans l'ordre choisi par le marchand (Composite). */
 export function HomeSections({ site, store }: { site: string; store: StorefrontStoreDto }) {
-  return store.theme.sections
-    .filter((section) => section.enabled)
-    .map((section) => {
-      switch (section.type) {
-        case 'hero':
-          return <Hero key={section.id} site={site} store={store} section={section} />;
-        case 'featured-collection':
-          return <FeaturedCollection key={section.id} site={site} store={store} section={section} />;
-        case 'product-grid':
-          return <ProductGridSection key={section.id} site={site} store={store} section={section} />;
-        case 'brand-strip':
-          return <BrandStrip key={section.id} site={site} store={store} section={section} />;
-        case 'rich-text':
-          return <RichText key={section.id} site={site} store={store} section={section} />;
-        default:
-          // La lettre d'information attend un fournisseur d'e-mailing : pas encore rendue.
-          return null;
-      }
-    });
+  return (
+    <SectionList store={store}>
+      {(section) => {
+        switch (section.type) {
+          case 'hero':
+            return <Hero site={site} store={store} section={section} />;
+          case 'featured-collection':
+            return <FeaturedCollection site={site} store={store} section={section} />;
+          case 'product-grid':
+            return <ProductGridSection site={site} store={store} section={section} />;
+          case 'brand-strip':
+            return <BrandStrip site={site} store={store} section={section} />;
+          case 'rich-text':
+            return <RichText site={site} store={store} section={section} />;
+          case 'image-text':
+            return <ImageText site={site} store={store} section={section} />;
+          case 'faq':
+            return <Faq site={site} store={store} section={section} />;
+          case 'contact':
+            return <Contact site={site} store={store} section={section} />;
+          default:
+            // La lettre d'information attend un fournisseur d'e-mailing : pas encore rendue.
+            return null;
+        }
+      }}
+    </SectionList>
+  );
 }

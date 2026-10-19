@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ADDABLE_SECTION_TYPES,
   addressSchema,
   adjustStockSchema,
+  answeredFaqItems,
   availabilityQuerySchema,
   checkoutSchema,
   createDraftOrderSchema,
   createProductSchema,
   defaultTemplateSettings,
   getTemplate,
+  newSection,
+  sectionAddBlocker,
   setCollectionProductsSchema,
   shippingSettingsSchema,
   themeSettingsBaseSchema,
@@ -144,6 +148,44 @@ describe('templates', () => {
 
   it('retourne undefined pour un template inconnu', () => {
     expect(getTemplate('inconnu')).toBeUndefined();
+  });
+
+  it('refuse une seconde bannière ou une seconde section contact', () => {
+    const contact = newSection('contact', []);
+    const twoContacts = {
+      ...defaultTemplateSettings,
+      sections: [...defaultTemplateSettings.sections, contact, { ...contact, id: 'contact-2' }],
+    };
+    expect(themeSettingsBaseSchema.safeParse(twoContacts).success).toBe(false);
+    const oneContact = { ...defaultTemplateSettings, sections: [...defaultTemplateSettings.sections, contact] };
+    expect(themeSettingsBaseSchema.safeParse(oneContact).success).toBe(true);
+  });
+});
+
+describe('newSection', () => {
+  it('donne un identifiant libre et des réglages valides pour chaque type proposé', () => {
+    let sections = [...defaultTemplateSettings.sections];
+    for (const type of ADDABLE_SECTION_TYPES) {
+      if (sectionAddBlocker(sections, type)) continue;
+      const section = newSection(type, sections, 'Chez Awa');
+      expect(sections.some((s) => s.id === section.id), type).toBe(false);
+      sections = [...sections, section];
+    }
+    const parsed = themeSettingsBaseSchema.safeParse({ ...defaultTemplateSettings, sections });
+    expect(parsed.success).toBe(true);
+    expect(sections.filter((s) => s.type === 'faq')).toHaveLength(1);
+    expect(newSection('faq', sections).id).toBe('faq-2');
+  });
+
+  it('bloque la seconde bannière et explique pourquoi', () => {
+    expect(sectionAddBlocker(defaultTemplateSettings.sections, 'hero')).toMatch(/bannière/);
+    expect(sectionAddBlocker(defaultTemplateSettings.sections, 'faq')).toBeNull();
+  });
+
+  it('suggère des questions sans réponse, qui restent hors du site', () => {
+    const faq = newSection('faq', []);
+    expect(faq.type === 'faq' && answeredFaqItems(faq)).toEqual([]);
+    expect(newSection('hero', [], 'Chez Awa')).toMatchObject({ title: 'Bienvenue chez Awa' });
   });
 });
 

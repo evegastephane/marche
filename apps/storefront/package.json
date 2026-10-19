@@ -14,8 +14,10 @@
   "dependencies": {
     "@clerk/localizations": "^4.21.0",
     "@clerk/react": "^6.17.3",
+    "@gsap/react": "^2.1.2",
     "@marche/contracts": "*",
     "clsx": "^2.1.1",
+    "gsap": "^3.15.0",
     "lucide-react": "^1.48.0",
     "motion": "^13.4.4",
     "next": "16.3.6",

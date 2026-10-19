@@ -61,7 +61,10 @@ describe('Worker : outbox, notifications, revalidation, médias (e2e)', () => {
     expect(confirmation.idempotencyKey).toMatch(/-order-confirmation$/);
 
     // Destinataire marchand : l'e-mail du propriétaire (annuaire simulé).
-    const merchant = await eventually(() => worker.emails.sent.find((e) => e.to.includes(`${userId}@example.test`)));
+    // Le marchand reçoit aussi l'alerte « Stock bas » (6 − 2 sous le seuil) : on prend l'alerte de commande.
+    const merchant = await eventually(() =>
+      worker.emails.sent.find((e) => e.to.includes(`${userId}@example.test`) && e.subject.startsWith('Nouvelle commande')),
+    );
     expect(merchant.subject).toMatch(/^Nouvelle commande #\d+ : 36,00/);
   });
 

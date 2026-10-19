@@ -30,6 +30,12 @@ export const TENANT_MODELS: ReadonlySet<string> = new Set([
   'AttributeValue',
   'StockUnit',
   'ApiKey',
+  'PosSession',
+  'CashMovement',
+  'OrderPayment',
+  'OrderReturn',
+  'OrderReturnLine',
+  'PosSettings',
 ]);
 
 const WHERE_OPERATIONS: ReadonlySet<string> = new Set([

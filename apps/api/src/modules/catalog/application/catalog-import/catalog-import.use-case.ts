@@ -11,6 +11,8 @@ import {
   IMPORT_COLUMNS,
   IMPORT_REQUIRED_COLUMNS,
   type ImportIssueDto,
+  MAX_PRODUCT_MEDIA,
+  parseImageUrls,
   type ImportSheet,
   type ProductDto,
   type ProductSpecs,
@@ -36,6 +38,7 @@ import { ActorContext } from '../../../../shared/application/actor-context.port.
 import { UnitOfWork } from '../../../../shared/application/unit-of-work.port.js';
 import { DomainError, ValidationError } from '../../../../shared/domain/domain-error.js';
 import { InventoryFacade } from '../../../inventory/inventory.facade.js';
+import { MediaFacade } from '../../../media/media.facade.js';
 import { StoresFacade } from '../../../stores/stores.facade.js';
 import { ProductRepository } from '../../domain/catalog.repositories.js';
 import { BrandUseCases } from '../brand-collection.use-cases.js';
@@ -57,6 +60,8 @@ import {
 } from './import-cells.js';
 
 const IMPORT_TIMEOUT_MS = 120_000;
+/** Photos téléchargées en même temps (le site d'origine n'est pas assailli, l'import reste rapide). */
+const IMAGE_CONCURRENCY = 4;
 const IMPORT_REASON = 'Import Excel';
 
 interface Located {
@@ -89,6 +94,10 @@ interface PlannedProduct extends Located {
   variantRows: Located[];
   newVariants: number;
   updatedVariants: number;
+  /** Colonne « images » : liens des photos du produit, dans l'ordre ; null = colonne vide, photos gardées. */
+  images: string[] | null;
+  /** Colonne « image » des variantes : la photo de la variante et la couleur qu'elle montre (galerie du site). */
+  variantImages: { index: number; url: string; tag: string | null; located: Located }[];
 }
 
 interface Plan {
@@ -107,6 +116,7 @@ const EMPTY_SUMMARY: CatalogImportSummaryDto = {
   variantsUpdated: 0,
   stockAdjusted: 0,
   unitsReceived: 0,
+  images: 0,
 };
 
 /** Erreur survenue pendant l'écriture, rattachée à la ligne qui l'a causée. */
@@ -138,6 +148,7 @@ export class CatalogImportUseCase {
     private readonly updateProduct: UpdateProductUseCase,
     private readonly changeStatus: ChangeProductStatusUseCase,
     private readonly inventory: InventoryFacade,
+    private readonly media: MediaFacade,
     private readonly stores: StoresFacade,
     private readonly actor: ActorContext,
     private readonly uow: UnitOfWork,
@@ -160,8 +171,12 @@ export class CatalogImportUseCase {
     if (issues.length > 0) return this.reject({ dryRun, issues, summary });
     if (dryRun) return { dryRun, ok: true, issues: [], summary };
 
+    // Photos : téléchargées avant la transaction (un site lent ne la bloque pas) ; au moindre échec, rien d'autre n'est écrit.
+    const images = await this.importImages(plan);
+    if (images.issues.length > 0) return this.reject({ dryRun, issues: images.issues, summary });
+
     try {
-      await this.uow.run(() => this.apply(plan), { timeoutMs: IMPORT_TIMEOUT_MS });
+      await this.uow.run(() => this.apply(plan, images.ids), { timeoutMs: IMPORT_TIMEOUT_MS });
     } catch (error) {
       if (!(error instanceof ImportStepError)) throw error;
       const cause = error.cause;
@@ -397,6 +412,15 @@ export class CatalogImportUseCase {
       if (!isBlank(cells.garantie_mois) && (warranty === null || warranty < 0 || warranty > 120)) at('garantie_mois', 'Nombre de mois entier, de 0 à 120');
       const publish = publishFlag(cells.statut);
       if (publish === 'invalid') at('statut', 'Statut : « en vente » ou « brouillon »');
+      let images: string[] | null = null;
+      if (!isBlank(cells.images)) {
+        const parsedImages = parseImageUrls(text(cells.images));
+        for (const bad of parsedImages.invalid) at('images', `Lien de photo refusé (lien https attendu) : ${bad}`);
+        images = parsedImages.urls;
+      }
+      const colorAxis = effective.find(
+        (attribute) => attribute.isVariantAxis && (attribute.slug === 'couleur' || valueKey(attribute.name).includes('couleur')),
+      );
 
       // Fiche technique : colonnes d'attributs de la catégorie, cellules non vides (le reste est gardé).
       const specInput: Record<string, unknown> = { ...(current && current.category?.id === categoryId ? current.specs : {}) };
@@ -436,6 +460,8 @@ export class CatalogImportUseCase {
         variantRows: [],
         newVariants: 0,
         updatedVariants: 0,
+        images,
+        variantImages: [],
       };
       const variants: VariantInput[] = [];
       const touched = new Set<string>();
@@ -477,6 +503,16 @@ export class CatalogImportUseCase {
         if (bucket && !tracksUnits) vat('sku', `${category?.name ?? 'Cette catégorie'} n’est pas suivie à l’unité : retirez ses IMEI de la feuille UNITS`);
         if (tracksUnits && stock !== null && stock !== (bucket?.units.length ?? 0) && !bySku.has(sku)) {
           vat('stock', 'Suivi à l’unité : le stock est le nombre d’IMEI de la feuille UNITS (laissez la colonne vide)');
+        }
+
+        if (!isBlank(vcells.image)) {
+          const parsedImage = parseImageUrls(text(vcells.image));
+          if (parsedImage.invalid.length > 0 || parsedImage.urls.length !== 1) {
+            vat('image', 'Une seule photo par variante, en lien https');
+          } else {
+            const tag = colorAxis && 'options' in options ? (options.options[colorAxis.slug] ?? null) : null;
+            planned.variantImages.push({ index: variants.length, url: parsedImage.urls[0]!, tag, located: { sheet: 'VARIANTS', row } });
+          }
         }
 
         touched.add(sku);
@@ -524,6 +560,11 @@ export class CatalogImportUseCase {
         at('reference', `Aucune variante pour ${reference} : ajoutez au moins une ligne dans VARIANTS`);
         continue;
       }
+      const photoCount = new Set([
+        ...(images ?? current?.media.map((media) => media.id) ?? []),
+        ...planned.variantImages.map((image) => image.url),
+      ]).size;
+      if (photoCount > MAX_PRODUCT_MEDIA) at('images', `${MAX_PRODUCT_MEDIA} photos au plus par produit (variantes comprises)`);
       const taken = await this.products.takenSkus(
         variants.map((variant) => variant.sku),
         current?.id,
@@ -580,9 +621,45 @@ export class CatalogImportUseCase {
     return index;
   }
 
+  // ───────────── Photos : téléchargées avant la transaction ─────────────
+
+  /**
+   * Télécharge chaque lien de photo une fois (ou le retrouve s'il a déjà été importé dans la boutique),
+   * quelques-uns à la fois. Un lien qui échoue est signalé à sa ligne ; les photos déjà récupérées restent
+   * rangées et serviront au prochain import.
+   */
+  private async importImages(plan: Plan): Promise<{ ids: Map<string, string>; issues: ImportIssueDto[] }> {
+    const wanted = new Map<string, { located: Located; column: string; alt: string }>();
+    for (const product of plan.products) {
+      const title = product.input.title;
+      for (const url of product.images ?? []) if (!wanted.has(url)) wanted.set(url, { located: product, column: 'images', alt: title });
+      for (const image of product.variantImages) {
+        if (!wanted.has(image.url)) {
+          wanted.set(image.url, { located: image.located, column: 'image', alt: image.tag ? `${title}, ${image.tag}` : title });
+        }
+      }
+    }
+    const ids = new Map<string, string>();
+    const issues: ImportIssueDto[] = [];
+    const queue = [...wanted.entries()];
+    const worker = async () => {
+      for (let next = queue.shift(); next; next = queue.shift()) {
+        const [url, { located, column, alt }] = next;
+        try {
+          ids.set(url, await this.media.importFromUrl(url, alt));
+        } catch (error) {
+          const reason = error instanceof DomainError || error instanceof Error ? error.message : 'Photo non récupérée';
+          issues.push({ sheet: located.sheet, row: located.row, column, message: `${reason} (${url})` });
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(IMAGE_CONCURRENCY, queue.length) }, worker));
+    return { ids, issues };
+  }
+
   // ───────────── Application : une seule transaction ─────────────
 
-  private async apply(plan: Plan): Promise<void> {
+  private async apply(plan: Plan, imageIds: ReadonlyMap<string, string> = new Map()): Promise<void> {
     const step = async <T>(located: Located, work: () => Promise<T>): Promise<T> => {
       try {
         return await work();
@@ -623,7 +700,8 @@ export class CatalogImportUseCase {
 
     for (const product of plan.products) {
       const brandId = (product.input as { brandId?: string | null }).brandId;
-      const input = brandId && brandIds.has(brandId) ? { ...product.input, brandId: brandIds.get(brandId) as string } : product.input;
+      const withBrand = brandId && brandIds.has(brandId) ? { ...product.input, brandId: brandIds.get(brandId) as string } : product.input;
+      const input = withImages(withBrand, product, imageIds);
       const saved = await step(product, () =>
         product.existing
           ? this.updateProduct.execute(product.existing.id, input as UpdateProductInput)
@@ -645,6 +723,28 @@ export class CatalogImportUseCase {
   }
 }
 
+/**
+ * Photos du fichier posées sur le produit : la colonne « images » remplace la galerie (vide, elle la garde),
+ * chaque photo de variante s'y ajoute, devient la photo de la variante et suit sa couleur sur le site.
+ */
+function withImages<T extends CreateProductInput | UpdateProductInput>(input: T, product: PlannedProduct, ids: ReadonlyMap<string, string>): T {
+  if (product.images === null && product.variantImages.length === 0) return input;
+  const own = product.images === null ? input.mediaIds : product.images.flatMap((url) => (ids.has(url) ? [ids.get(url)!] : []));
+  const variantMedia = product.variantImages.flatMap((image) => (ids.has(image.url) ? [{ ...image, id: ids.get(image.url)! }] : []));
+  const mediaIds = [...new Set([...own, ...variantMedia.map((image) => image.id)])].slice(0, MAX_PRODUCT_MEDIA);
+  const kept = Object.fromEntries(Object.entries(input.mediaOptionValues).filter(([id]) => mediaIds.includes(id)));
+  const tags = Object.fromEntries(variantMedia.flatMap((image) => (image.tag ? [[image.id, image.tag]] : [])));
+  return {
+    ...input,
+    mediaIds,
+    mediaOptionValues: { ...kept, ...tags },
+    variants: input.variants.map((variant, index) => {
+      const image = variantMedia.find((candidate) => candidate.index === index);
+      return image ? { ...variant, imageMediaId: image.id } : variant;
+    }),
+  };
+}
+
 function summarize(plan: Plan): CatalogImportSummaryDto {
   return {
     attributesCreated: plan.attributes.length,
@@ -661,6 +761,7 @@ function summarize(plan: Plan): CatalogImportSummaryDto {
         product.input.variants.reduce((count, variant) => count + (variant.id ? 0 : (variant.units?.length ?? 0)), 0),
       0,
     ),
+    images: new Set(plan.products.flatMap((product) => [...(product.images ?? []), ...product.variantImages.map((image) => image.url)])).size,
   };
 }
 

@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { getTemplate, type SiteStatus, type ThemeSettings } from '@marche/contracts';
+import {
+  canUseTemplate,
+  DEFAULT_TEMPLATE_ID,
+  getTemplate,
+  type SiteStatus,
+  type StorePlan,
+  type ThemeSettings,
+} from '@marche/contracts';
 import { JsonCache } from '../../shared/infrastructure/cache/json-cache.js';
 import { TenantContext } from '../../shared/infrastructure/cls/tenant-context.js';
 import { type PreviewClaims, PreviewThemeStore, PreviewTokens, SiteRepository } from './application/sites.ports.js';
@@ -47,16 +54,24 @@ export class SitesFacade {
   /**
    * Thème à afficher pour la boutique courante : en aperçu, les réglages en cours d'édition de la session
    * (aperçu en direct) ou à défaut le brouillon ; sinon le thème en ligne.
+   * Un modèle Premium d'une boutique en formule Gratuite s'affiche en modèle natif, sections comprises,
+   * sauf dans l'aperçu en direct, où le marchand essaie les modèles avant de passer à Premium.
    */
   async currentTheme(
     preview: boolean,
-    session?: string,
+    session: string | undefined,
+    plan: StorePlan,
   ): Promise<{ templateId: string; templateVersion: string; theme: ThemeSettings } | null> {
     const site = await this.sites.findCurrent();
     if (!site) return null;
     const s = site.snapshot();
     const live = preview && session ? await this.previewThemes.find(site.id, session) : null;
-    const theme = live ?? (preview ? s.draftThemeSettings : s.themeSettings);
+    const chosen = live ?? (preview ? s.draftThemeSettings : s.themeSettings);
+    const template = getTemplate(chosen.template);
+    const theme =
+      live || !template || canUseTemplate(plan, template.manifest)
+        ? chosen
+        : { ...chosen, template: DEFAULT_TEMPLATE_ID, palette: '' };
     // En aperçu, le brouillon peut déjà porter un autre template.
     return {
       templateId: theme.template,

@@ -9,6 +9,7 @@ export const devantureTemplateManifest: TemplateManifest = {
   id: 'devanture',
   name: 'La devanture peinte',
   version: '1.0.0',
+  tier: 'premium',
   tagline: 'Votre boutique comme une devanture peinte : le nom en grandes lettres, les rayons en enseignes, des couleurs franches.',
   storeTypes: ['FASHION', 'ELECTRONICS'],
   fontChoice: false,

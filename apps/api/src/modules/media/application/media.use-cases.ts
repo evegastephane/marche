@@ -11,7 +11,7 @@ import { OutboxPort } from '../../../shared/application/outbox.port.js';
 import { UnitOfWork } from '../../../shared/application/unit-of-work.port.js';
 import { NotFoundError } from '../../../shared/domain/domain-error.js';
 import { Media, MediaNotUploadedError } from '../domain/media.aggregate.js';
-import { ImageProcessor, MediaRepository, ObjectStorage } from './media.ports.js';
+import { ImageProcessor, MediaRepository, ObjectStorage, RemoteImageFetcher } from './media.ports.js';
 
 const UPLOAD_URL_TTL_SECONDS = 5 * 60;
 
@@ -88,6 +88,42 @@ export class CompleteMediaUploadUseCase {
       await this.outbox.addAll(media.pullEvents());
     });
     return toMediaDto(media, this.storage);
+  }
+}
+
+/**
+ * Photo importée depuis un lien (colonne « images » de l'import Excel) : téléchargée par le serveur,
+ * rangée comme un téléversement, puis déclinée par le worker. Un lien déjà importé dans la boutique
+ * est réutilisé : réimporter le même fichier ne télécharge rien de plus.
+ */
+@Injectable()
+export class ImportRemoteMediaUseCase {
+  constructor(
+    private readonly media: MediaRepository,
+    private readonly storage: ObjectStorage,
+    private readonly fetcher: RemoteImageFetcher,
+    private readonly actor: ActorContext,
+    private readonly uow: UnitOfWork,
+    private readonly outbox: OutboxPort,
+    private readonly clock: Clock,
+  ) {}
+
+  async execute(url: string, alt: string | null = null): Promise<string> {
+    const existing = await this.media.findBySourceUrl(url);
+    if (existing) return existing.id;
+    const image = await this.fetcher.fetch(url);
+    const now = this.clock.now();
+    const media = Media.requestUpload(
+      { storeId: this.actor.storeId, contentType: image.contentType, sizeBytes: image.body.length, alt, sourceUrl: url },
+      now,
+    );
+    await this.storage.put(media.key, image.body, image.contentType);
+    media.confirmUpload({ sizeBytes: image.body.length, contentType: image.contentType }, now);
+    await this.uow.run(async () => {
+      await this.media.insert(media);
+      await this.outbox.addAll(media.pullEvents());
+    });
+    return media.id;
   }
 }
 

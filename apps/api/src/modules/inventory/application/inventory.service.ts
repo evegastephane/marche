@@ -287,6 +287,27 @@ export class InventoryService {
     return this.moveUnit(unitId, 'IN_STOCK', input.reason);
   }
 
+  findUnitBySerial(serial: string): Promise<UnitRecord | null> {
+    return this.repository.findUnitBySerial(serial);
+  }
+
+  /**
+   * Retour en rayon d'appareils vendus (retour en caisse) : chaque IMEI doit être vendu,
+   * sur la variante attendue ; mouvement RETURN +1 par unité.
+   */
+  async returnSoldUnits(variantId: string, serials: readonly string[], reason: string): Promise<void> {
+    await this.uow.run(async () => {
+      for (const serial of serials) {
+        const unit = await this.repository.findUnitBySerial(serial);
+        if (!unit || unit.variantId !== variantId) throw new NotFoundError('Appareil', serial);
+        if (unit.status !== 'SOLD') {
+          throw new ValidationError('VALIDATION_FAILED', `L’appareil ${serial} n’est pas enregistré comme vendu`);
+        }
+        await this.moveUnit(unit.id, 'IN_STOCK', reason);
+      }
+    });
+  }
+
   /** Correction d'une unité : l'IMEI ne change que tant qu'elle est en stock. */
   async updateUnit(unitId: string, input: UpdateUnitInput): Promise<StockUnitDto> {
     return this.uow.run(async () => {

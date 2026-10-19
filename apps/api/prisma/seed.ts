@@ -56,6 +56,11 @@ interface SeedProduct {
   specs?: Record<string, SpecValue>;
   /** Axes dans l'ordre d'affichage (le libellé des variantes suit cet ordre). */
   axes?: string[];
+  /**
+   * Valeurs d'axe communes à toutes les variantes : la taille d'écran d'un téléphone vendu en une seule
+   * taille (c'est un axe, pas une ligne de fiche, pour pouvoir proposer d'autres tailles ensuite).
+   */
+  sharedOptions?: Record<string, string>;
   /** Axes propres à la boutique, créés s'ils manquent : slug → nom. */
   newAxes?: Record<string, string>;
   /** Pastilles de couleurs absentes du nuancier. */
@@ -125,8 +130,9 @@ const STORES: SeedStore[] = [
         category: 'smartphones',
         reference: 'IP17P',
         warrantyMonths: 12,
-        specs: { 'taille-ecran': 6.3, reseau: '5G' },
-        axes: ['stockage', 'ram', 'couleur'],
+        specs: { reseau: '5G' },
+        sharedOptions: { 'taille-ecran': '6,3 pouces' },
+        axes: ['stockage', 'ram', 'couleur', 'taille-ecran'],
         // 1 To n'existe qu'en Orange : les autres combinaisons ont été décochées.
         variants: [
           { sku: 'IP17P-256-12G-SLV', options: { stockage: '256 Go', ram: '12 Go', couleur: 'Argent' }, price: 1050000, cost: 910000, stock: 3 },
@@ -145,8 +151,9 @@ const STORES: SeedStore[] = [
         category: 'smartphones',
         reference: 'SGS25U',
         warrantyMonths: 24,
-        specs: { 'taille-ecran': 6.9, reseau: '5G' },
-        axes: ['stockage', 'ram', 'couleur'],
+        specs: { reseau: '5G' },
+        sharedOptions: { 'taille-ecran': '6,9 pouces' },
+        axes: ['stockage', 'ram', 'couleur', 'taille-ecran'],
         variants: [
           { sku: 'SGS25U-256-12G-TBK', options: { stockage: '256 Go', ram: '12 Go', couleur: 'Titane noir' }, price: 890000, stock: 2 },
           { sku: 'SGS25U-256-12G-SLV', options: { stockage: '256 Go', ram: '12 Go', couleur: 'Argent' }, price: 890000, stock: 1 },
@@ -160,8 +167,9 @@ const STORES: SeedStore[] = [
         category: 'smartphones',
         reference: 'IP13P',
         warrantyMonths: 6,
-        specs: { 'taille-ecran': 6.1, reseau: '5G' },
-        axes: ['stockage', 'ram', 'couleur', 'etat'],
+        specs: { reseau: '5G' },
+        sharedOptions: { 'taille-ecran': '6,1 pouces' },
+        axes: ['stockage', 'ram', 'couleur', 'etat', 'taille-ecran'],
         variants: [
           {
             sku: 'IP13P-128-6G-GPH-RFA',
@@ -499,8 +507,9 @@ const STORES: SeedStore[] = [
         category: 'smartphones',
         reference: 'IP12',
         warrantyMonths: 12,
-        specs: { 'taille-ecran': 6.1, reseau: '5G' },
-        axes: ['stockage', 'ram', 'couleur', 'etat'],
+        specs: { reseau: '5G' },
+        sharedOptions: { 'taille-ecran': '6,1 pouces' },
+        axes: ['stockage', 'ram', 'couleur', 'etat', 'taille-ecran'],
         variants: [
           { sku: 'IP12-128-BL-N', options: { stockage: '128 Go', ram: '4 Go', couleur: 'Bleu', etat: 'Neuf' }, price: 320000, stock: 3 },
           { sku: 'IP12-256-BL-N', options: { stockage: '256 Go', ram: '4 Go', couleur: 'Bleu', etat: 'Neuf' }, price: 365000, stock: 1 },
@@ -532,8 +541,9 @@ const STORES: SeedStore[] = [
         category: 'smartphones',
         reference: 'SGA54',
         warrantyMonths: 24,
-        specs: { 'taille-ecran': 6.4, reseau: '5G' },
-        axes: ['stockage', 'ram', 'couleur'],
+        specs: { reseau: '5G' },
+        sharedOptions: { 'taille-ecran': '6,4 pouces' },
+        axes: ['stockage', 'ram', 'couleur', 'taille-ecran'],
         variants: [
           { sku: 'A54-128-NO', options: { stockage: '128 Go', ram: '8 Go', couleur: 'Noir' }, price: 215000, stock: 6 },
           { sku: 'A54-128-VI', options: { stockage: '128 Go', ram: '8 Go', couleur: 'Violet' }, price: 215000, stock: 3 },
@@ -696,7 +706,7 @@ async function seedProducts(tx: Tx, storeId: string, seed: SeedStore, brandIds: 
 
     for (const [position, variant] of product.variants.entries()) {
       const options: Record<string, string> = {};
-      for (const [slug, value] of Object.entries(variant.options ?? {})) {
+      for (const [slug, value] of Object.entries({ ...variant.options, ...product.sharedOptions })) {
         const name = product.newAxes?.[slug];
         const attribute = name
           ? await taxonomy.attribute({ slug, name, type: 'SELECT', isVariantAxis: true })

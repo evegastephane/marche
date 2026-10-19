@@ -2,7 +2,8 @@ import type { CatalogTemplate, TemplateValue } from './catalog-template.js';
 
 /**
  * Boutique « Électronique » (téléphones, audio, accessoires, gaming, informatique).
- * Axes de variante : Couleur, Stockage, RAM, Taille, Longueur, État. Le reste décrit le produit.
+ * Axes de variante : Couleur, Stockage, RAM, SIM, Taille écran, Taille, Longueur, État. Le reste décrit le produit.
+ * Un smartphone se choisit par stockage, couleur, état, SIM et taille d'écran (la RAM reste facultative).
  */
 
 const values = (list: readonly (string | [string, string])[]): TemplateValue[] =>
@@ -31,9 +32,25 @@ export const TECH_COLORS: TemplateValue[] = [
   { value: 'Lumière stellaire', code: 'STL', swatch: '#F0E9DD' },
 ];
 
+/** Cartes SIM (axe) : Double SIM couvre deux puces comme puce + eSIM. */
+export const SIM_VALUES: TemplateValue[] = [
+  { value: 'Nano-SIM', code: 'NANO' },
+  { value: 'Double SIM', code: 'DUAL' },
+  { value: 'eSIM', code: 'ESIM' },
+];
+
+/** Tailles d'écran courantes (axe) : téléphones, tablettes, ordinateurs. Le commerçant en ajoute d'autres. */
+export const SCREEN_SIZES: TemplateValue[] = values([
+  '5,4 pouces', '6,1 pouces', '6,3 pouces', '6,4 pouces', '6,5 pouces', '6,6 pouces', '6,7 pouces', '6,8 pouces', '6,9 pouces',
+  '8,3 pouces', '10,9 pouces', '11 pouces', '12,9 pouces', '13 pouces',
+  '13,3 pouces', '13,6 pouces', '14 pouces', '15,3 pouces', '16 pouces',
+]);
+
 /** États proposés (axe) : le prix d'un appareil dépend de son état. */
 export const CONDITION_VALUES: TemplateValue[] = [
   { value: 'Neuf', code: 'NEW' },
+  // Déballé, jamais utilisé : vendu moins cher qu'un neuf, sans l'usure d'un reconditionné.
+  { value: 'Open box', code: 'OBX' },
   { value: 'Reconditionné – Excellent', code: 'RFA' },
   { value: 'Reconditionné – Très bon', code: 'RFB' },
   { value: 'Reconditionné – Bon', code: 'RFC' },
@@ -90,8 +107,17 @@ export const ELECTRONICS_TEMPLATE: CatalogTemplate = {
       values: values(['0,5 m', '1 m', '1,5 m', '2 m', '3 m']),
     },
     { slug: 'etat', name: 'État', type: 'SELECT', isVariantAxis: true, filterable: true, values: CONDITION_VALUES },
+    { slug: 'sim', name: 'SIM', type: 'SELECT', isVariantAxis: true, filterable: true, values: SIM_VALUES },
+    {
+      slug: 'taille-ecran',
+      name: 'Taille écran',
+      type: 'SELECT',
+      unit: 'pouces',
+      isVariantAxis: true,
+      filterable: true,
+      values: SCREEN_SIZES,
+    },
     // ── Fiche technique
-    { slug: 'taille-ecran', name: 'Taille écran', type: 'NUMBER', unit: 'pouces' },
     { slug: 'reseau', name: 'Réseau', type: 'SELECT', filterable: true, values: values(['4G', '5G']) },
     {
       slug: 'connectivite',
@@ -193,10 +219,11 @@ export const ELECTRONICS_TEMPLATE: CatalogTemplate = {
           tracksUnits: true,
           attributes: [
             { slug: 'stockage', required: true },
-            { slug: 'ram', required: true },
             { slug: 'couleur', required: true },
             { slug: 'etat' },
+            { slug: 'sim' },
             { slug: 'taille-ecran' },
+            { slug: 'ram' },
             { slug: 'reseau' },
           ],
         },

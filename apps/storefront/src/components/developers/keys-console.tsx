@@ -165,7 +165,7 @@ function Sheet({ open, onClose, title, description, children }: {
       ref={ref}
       onClose={onClose}
       onClick={(event) => event.target === ref.current && onClose()}
-      className="up-portal m-auto max-h-[88dvh] w-[min(34rem,calc(100vw-1rem))] overflow-y-auto rounded-2xl bg-[var(--up-surface)] p-0 text-[var(--up-ink)] shadow-[0_24px_56px_-20px_rgb(16_17_21/0.32),0_0_0_1px_var(--up-line)] backdrop:bg-[var(--up-overlay)] max-sm:mb-2 max-sm:w-[calc(100vw-1rem)]"
+      className="m-auto max-h-[88dvh] w-[min(34rem,calc(100vw-1rem))] overflow-y-auto rounded-2xl bg-[var(--up-surface)] p-0 text-[var(--up-ink)] shadow-[0_24px_56px_-20px_rgb(16_17_21/0.32),0_0_0_1px_var(--up-line)] backdrop:bg-[var(--up-overlay)] max-sm:mb-2 max-sm:w-[calc(100vw-1rem)]"
       style={{ minHeight: 0 }}
     >
       <div className="flex flex-col gap-5 p-6">

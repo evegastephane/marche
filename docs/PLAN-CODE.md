@@ -61,7 +61,8 @@ Les versions publiées ont été vérifiées le 2026-09-27, ce qui entraîne les
 | Socle Nest | `@nestjs/config`, `@nestjs/terminus`, `@nestjs/event-emitter` | **Config Zod maison, `/health` maison, outbox + BullMQ** | Moins de dépendances ; les événements passent tous par l'outbox |
 | Migrations | Une migration par phase | **Une migration `init`** | Aucun déploiement entre les phases : un seul schéma initial, plus lisible |
 | Commandes | – | **Colonne `order_lines.tracks_inventory`** | L'expédition et l'annulation savent si la ligne a réservé du stock, même si la variante change ensuite |
-| Postgres local | Port 5432 | **Port 5434** | 5432 et 5433 sont déjà pris sur le poste de dev |
+| Postgres local | Port 5432 | **Port 7432** (5434 jusqu'au 2026-10-14) | 5432 à 5434 sont déjà pris sur le poste de dev |
+| Pile locale | Infra seule dans docker compose | **Projet compose `upsell`** : infra + API, dashboard et storefront en conteneurs, ports du bloc 7000 (voir README) | 3000, 5173 et 5434 servent à d'autres projets du poste ; `S3_PUBLIC_ENDPOINT` signe les envois du navigateur quand l'API joint le stockage par `s3:9000` |
 | Rate limiting | 100 requêtes/min | **`RATE_LIMIT_PER_MINUTE`** (120 par défaut) ; checkout et paniers à 10/min | Réglable par environnement |
 | Variables | – | **`DASHBOARD_URL`** | Liens vers le dashboard dans les e-mails marchand |
 | Organisations Clerk | Slug de la boutique = slug de l'organisation | **Slug gardé chez nous**, recopié dans `publicMetadata.storeSlug` | L'instance Clerk a les slugs d'organisation désactivés |

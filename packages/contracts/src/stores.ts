@@ -40,6 +40,14 @@ export const storeSlugSchema = z
     { error: 'Cette adresse est réservée' },
   );
 
+/**
+ * Formule de la boutique. Premium débloque les modèles de site payants ; la plateforme l'active
+ * (commande `store:plan` de l'API) tant que le paiement en ligne n'existe pas.
+ */
+export const STORE_PLANS = ['FREE', 'PREMIUM'] as const;
+export const storePlanSchema = z.enum(STORE_PLANS);
+export type StorePlan = z.infer<typeof storePlanSchema>;
+
 /** Calcul des frais de livraison (pattern Strategy côté API). */
 export const shippingSettingsSchema = z.discriminatedUnion('strategy', [
   z.object({
@@ -104,6 +112,7 @@ export const storeSchema = z.object({
   lowStockDefault: z.number().int(),
   type: storeTypeSchema,
   verticalSettings: verticalSettingsSchema,
+  plan: storePlanSchema,
   createdAt: z.iso.datetime(),
 });
 export type StoreDto = z.infer<typeof storeSchema>;

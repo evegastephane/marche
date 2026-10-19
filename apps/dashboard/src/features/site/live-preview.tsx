@@ -41,9 +41,12 @@ const PUSH_DELAY = 350;
 export function LivePreview({
   settings,
   host,
+  focus,
 }: {
   settings: ThemeSettings;
   host: string;
+  /** Section à montrer : l'aperçu revient à l'accueil et défile jusqu'à elle (nonce : même section, nouvelle demande). */
+  focus?: { id: string; nonce: number } | null;
 }) {
   const api = useApi();
   const frame = useRef<HTMLIFrameElement>(null);
@@ -105,7 +108,12 @@ export function LivePreview({
   }, [link, open]);
 
   const post = useCallback(
-    (message: { type: 'refresh' } | { type: 'navigate'; path: string }) => {
+    (
+      message:
+        | { type: 'refresh' }
+        | { type: 'navigate'; path: string }
+        | { type: 'focus-section'; id: string },
+    ) => {
       if (!link) return;
       frame.current?.contentWindow?.postMessage(
         { source: 'upsell-editor', ...message },
@@ -128,6 +136,16 @@ export function LivePreview({
     }, PUSH_DELAY);
     return () => clearTimeout(timer);
   }, [settings, link, push, post]);
+
+  // Montrer la section ouverte ou ajoutée : retour à l'accueil si besoin, puis défilement (le site attend
+  // la fin de sa mise à jour pour une section toute neuve).
+  const pathRef = useRef(path);
+  pathRef.current = path;
+  useEffect(() => {
+    if (!focus || !link) return;
+    if (pathRef.current !== '/') post({ type: 'navigate', path: '/' });
+    post({ type: 'focus-section', id: focus.id });
+  }, [focus, link, post]);
 
   // Le site dit la page qu'il affiche et s'il se redessine.
   useEffect(() => {

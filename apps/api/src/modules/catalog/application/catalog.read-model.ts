@@ -33,6 +33,26 @@ export abstract class CatalogReadModel {
   abstract getCollection(id: string): Promise<CollectionDetailDto | null>;
   abstract listBundles(filter: { anchorProductId?: string }): Promise<BundleDto[]>;
   abstract getBundle(id: string): Promise<BundleDto | null>;
+  /** Caisse : variantes en vente ou en brouillon (ni archivées, ni d'un produit archivé), par titre, SKU, code-barres ou marque. */
+  abstract searchSellableVariants(query: { q?: string; cursor?: string; limit: number }): Promise<Paginated<SellableVariant>>;
+  /** Caisse : la variante d'un code-barres (exact) ou d'un SKU (sans tenir compte de la casse). */
+  abstract findSellableVariantByCode(code: string): Promise<SellableVariant | null>;
+  /** Caisse : ces variantes, si elles sont vendables (un IMEI lu donne sa variante). */
+  abstract findSellableVariants(variantIds: readonly string[]): Promise<Map<string, SellableVariant>>;
+}
+
+/** Variante vendable au comptoir (le stock est lu à part, dans le module inventory). */
+export interface SellableVariant {
+  variantId: string;
+  productId: string;
+  productTitle: string;
+  variantTitle: string;
+  sku: string;
+  barcode: string | null;
+  priceAmount: number;
+  trackInventory: boolean;
+  imageMediaId: string | null;
+  productActive: boolean;
 }
 
 /** Instantané d'une variante au moment d'une commande (R6). */
@@ -54,6 +74,8 @@ export interface VariantSnapshot {
 
 export interface StorefrontProductFilter {
   collectionSlug?: string;
+  /** Slug d'une catégorie : ses produits et ceux de ses sous-catégories. */
+  categorySlug?: string;
   brandSlug?: string;
   kind?: ProductKind;
   /** Valeurs d'options par nature (même nature = « ou », natures différentes = « et »). */
@@ -75,6 +97,8 @@ export abstract class CatalogStorefrontReadModel {
   abstract getCollection(slug: string): Promise<StorefrontCollectionDto | null>;
   abstract listBrands(): Promise<StorefrontBrandDto[]>;
   abstract listProductCards(filter: StorefrontProductFilter): Promise<Paginated<StorefrontProductCardDto> | null>;
+  /** Catégories (non archivées) désignées par le thème : nom et slug, par identifiant. */
+  abstract categoriesById(ids: readonly string[]): Promise<Map<string, { name: string; slug: string }>>;
   abstract getProduct(slug: string): Promise<StorefrontProductDto | null>;
   abstract facets(query: StorefrontFacetsQuery): Promise<StorefrontFacetsDto | null>;
   /** Packs actifs dont l'appareil figure parmi ces produits (calcul des remises). */

@@ -8,10 +8,13 @@ import type {
   OrderDto,
   OrderListItemDto,
   OrderListQuery,
+  OrderPaymentDto,
+  OrderReturnDto,
   Paginated,
   PublicOrderDto,
 } from '@marche/contracts';
 import type { Prisma } from '../../../generated/prisma/client.js';
+import { ActorContext } from '../../../shared/application/actor-context.port.js';
 import { decodeCursor, toPage } from '../../../shared/application/pagination.js';
 import type { PrismaAdapter } from '../../../shared/infrastructure/prisma/transaction.js';
 import { type OrderSummary, OrdersReadModel } from '../application/orders.ports.js';
@@ -26,12 +29,44 @@ type ListRow = Prisma.OrderGetPayload<{ include: typeof listInclude }>;
 const detailInclude = {
   lines: { orderBy: { position: 'asc' } },
   customer: true,
+  payments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+  returns: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], include: { lines: true } },
 } satisfies Prisma.OrderInclude;
 type DetailRow = Prisma.OrderGetPayload<{ include: typeof detailInclude }>;
 
 function fullName(first: string | null | undefined, last: string | null | undefined): string | null {
   const name = [first, last].filter(Boolean).join(' ').trim();
   return name || null;
+}
+
+export function toPaymentDto(row: Prisma.OrderPaymentGetPayload<object>): OrderPaymentDto {
+  return {
+    id: row.id,
+    kind: row.kind,
+    method: row.method,
+    amount: row.amount,
+    tenderedAmount: row.tenderedAmount,
+    changeAmount: row.tenderedAmount === null ? 0 : row.tenderedAmount - row.amount,
+    provider: row.provider,
+    reference: row.reference,
+    returnId: row.returnId,
+    sessionId: row.sessionId,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+export function toReturnDto(row: Prisma.OrderReturnGetPayload<{ include: { lines: true } }>): OrderReturnDto {
+  return {
+    id: row.id,
+    reason: row.reason,
+    restocked: row.restocked,
+    refundAmount: row.refundAmount,
+    refundMethod: row.refundMethod,
+    creditRemaining: row.creditRemaining,
+    sessionId: row.sessionId,
+    createdAt: row.createdAt.toISOString(),
+    lines: row.lines.map((line) => ({ orderLineId: line.orderLineId, quantity: line.quantity, amount: line.amount, serials: line.serials })),
+  };
 }
 
 function customerNameOf(row: ListRow | DetailRow): string | null {
@@ -61,7 +96,10 @@ const COUNTED_STATUSES = ['PLACED', 'FULFILLED'] as const;
 
 @Injectable()
 export class PrismaOrdersReadModel extends OrdersReadModel {
-  constructor(private readonly txHost: TransactionHost<PrismaAdapter>) {
+  constructor(
+    private readonly txHost: TransactionHost<PrismaAdapter>,
+    private readonly actor: ActorContext,
+  ) {
     super();
   }
 
@@ -110,6 +148,8 @@ export class PrismaOrdersReadModel extends OrdersReadModel {
           { email: { contains: query.q, mode: 'insensitive' } },
           { firstName: { contains: query.q, mode: 'insensitive' } },
           { lastName: { contains: query.q, mode: 'insensitive' } },
+          { phone: { contains: query.q } },
+          ...(await this.customerIdsByPhoneDigits(query.q)),
         ],
       });
     }
@@ -176,6 +216,7 @@ export class PrismaOrdersReadModel extends OrdersReadModel {
       id: row.id,
       number: row.number,
       status: row.status,
+      source: row.source,
       email: row.email,
       customerName: customerNameOf(row),
       currency: row.currency as Currency,
@@ -239,6 +280,10 @@ export class PrismaOrdersReadModel extends OrdersReadModel {
       note: row.note,
       cancelReason: row.cancelReason,
       publicToken: row.publicToken,
+      payments: row.payments.map(toPaymentDto),
+      returns: row.returns.map(toReturnDto),
+      refundedAmount: row.refundedAmount,
+      posSessionId: row.posSessionId,
       placedAt: row.placedAt?.toISOString() ?? null,
       paidAt: row.paidAt?.toISOString() ?? null,
       fulfilledAt: row.fulfilledAt?.toISOString() ?? null,
@@ -247,6 +292,18 @@ export class PrismaOrdersReadModel extends OrdersReadModel {
       updatedAt: row.updatedAt.toISOString(),
       version: row.version,
     };
+  }
+
+  /** Numéros saisis librement (« +225 07 07… ») : une recherche de chiffres compare les chiffres seuls. */
+  private async customerIdsByPhoneDigits(q: string): Promise<Prisma.CustomerWhereInput[]> {
+    const digits = q.replace(/\D/g, '');
+    if (digits.length < 4 || digits.length !== q.replace(/[\s.+()-]/g, '').length) return [];
+    const rows = await this.txHost.tx.$queryRaw<{ id: string }[]>`
+      SELECT id FROM customers
+      WHERE store_id = ${this.actor.storeId}::uuid AND phone IS NOT NULL
+        AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE '%' || ${digits} || '%'
+      LIMIT 200`;
+    return rows.length ? [{ id: { in: rows.map((row) => row.id) } }] : [];
   }
 
   private async customerStats(customerIds: string[]) {

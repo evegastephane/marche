@@ -85,6 +85,8 @@ export abstract class InventoryRepository {
     actorUserId: string | null;
   }): Promise<LevelChange | 'not_found'>;
   abstract findUnit(unitId: string): Promise<UnitRecord | null>;
+  /** Unité de la boutique portant ce numéro (IMEI ou numéro de série normalisé). */
+  abstract findUnitBySerial(serial: string): Promise<UnitRecord | null>;
   /** Sortie (REMOVED, mouvement LOSS −1) ou retour en stock (IN_STOCK, mouvement RETURN +1) d'une unité. */
   abstract moveUnit(input: {
     unit: UnitRecord;

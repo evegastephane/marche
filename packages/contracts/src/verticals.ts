@@ -28,6 +28,7 @@ export const STORE_TYPE_LABELS: Record<StoreType, { label: string; description: 
 /** Explication de l'état, affichée sous les cartes « État » du site (la boutique peut la réécrire). */
 export const CONDITION_HINTS: Record<string, string> = {
   Neuf: 'Jamais utilisé, emballage d’origine.',
+  'Open box': 'Déballé mais jamais utilisé : ouvert pour une démonstration ou un retour, vendu complet.',
   'Reconditionné – Excellent': 'Comme neuf : aucune trace visible, testé et garanti.',
   'Reconditionné – Très bon': 'Micro-rayures à peine visibles, parfaitement fonctionnel.',
   'Reconditionné – Bon': 'Traces d’usage visibles, parfaitement fonctionnel. Le meilleur prix.',

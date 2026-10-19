@@ -24,7 +24,7 @@ export function useCustomer(id: string) {
   });
 }
 
-/** « Awa Diop », sinon l'e-mail. */
-export function customerName(customer: Pick<CustomerDto, 'firstName' | 'lastName' | 'email'>): string {
-  return [customer.firstName, customer.lastName].filter(Boolean).join(' ') || customer.email;
+/** « Awa Diop », sinon l'e-mail, sinon le téléphone (client du comptoir). */
+export function customerName(customer: Pick<CustomerDto, 'firstName' | 'lastName' | 'email'> & { phone?: string | null }): string {
+  return [customer.firstName, customer.lastName].filter(Boolean).join(' ') || customer.email || customer.phone || 'Client du comptoir';
 }

@@ -70,7 +70,8 @@ export class NotificationService {
       return;
     }
     const order = await this.orders.getSummary(event.aggregateId);
-    if (!order) return;
+    // Une vente au comptoir est faite par le marchand lui-même : pas d'alerte.
+    if (!order || order.source === 'POS') return;
     const store = await this.stores.getSettings(event.storeId);
     const rendered = renderMerchantNewOrder({
       storeName: store.name,
@@ -85,10 +86,10 @@ export class NotificationService {
     await this.email.send({ to: recipients, ...rendered, idempotencyKey: `${event.id}-merchant-new-order` });
   }
 
-  /** Avis d'expédition à l'acheteur. */
+  /** Avis d'expédition à l'acheteur (pas pour une vente au comptoir : il repart avec ses articles). */
   async sendOrderShipped(event: SerializedDomainEvent): Promise<void> {
     const order = await this.orders.getSummary(event.aggregateId);
-    if (!order?.email) return;
+    if (!order?.email || order.source === 'POS') return;
     const store = await this.stores.getSettings(event.storeId);
     const rendered = renderOrderShipped({
       storeName: store.name,

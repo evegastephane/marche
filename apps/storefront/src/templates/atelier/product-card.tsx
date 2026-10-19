@@ -32,13 +32,17 @@ export function ProductCard({ product, currency, index = 0 }: { product: Storefr
           )}
         </div>
       </div>
+      {/* Taille fixe : titre sur deux lignes réservées, prix sur une ligne, place des pastilles gardée. */}
       <div className="flex flex-col gap-1">
-        <span className="font-heading leading-snug font-semibold decoration-accent decoration-2 underline-offset-4 group-hover:underline">
+        <span className="line-clamp-2 min-h-[2lh] font-heading leading-snug font-semibold decoration-accent decoration-2 underline-offset-4 group-hover:underline">
           {product.title}
         </span>
-        <span className="flex flex-wrap items-baseline gap-x-2 font-hand text-xl leading-tight font-bold text-accent">
-          {product.priceMinAmount !== product.priceMaxAmount && <span className="text-base font-normal">dès</span>}
-          {formatMoney(product.priceMinAmount, currency)}
+        <span className="flex h-[1lh] flex-wrap items-baseline gap-x-2 overflow-y-clip font-hand text-xl leading-tight font-bold whitespace-nowrap text-accent">
+          {/* « dès » et le prix restent ensemble ; seul le prix barré passe à la ligne, donc hors de vue, si la place manque. */}
+          <span className="flex items-baseline gap-x-2">
+            {product.priceMinAmount !== product.priceMaxAmount && <span className="text-base font-normal">dès</span>}
+            {formatMoney(product.priceMinAmount, currency)}
+          </span>
           {onSale && (
             <s className="text-base font-normal text-muted">
               <span className="sr-only">au lieu de </span>
@@ -46,13 +50,16 @@ export function ProductCard({ product, currency, index = 0 }: { product: Storefr
             </s>
           )}
         </span>
-        {product.swatches.length > 1 && (
-          <span className="flex gap-1.5 pt-1" aria-label={`${product.swatches.length} couleurs`}>
-            {product.swatches.slice(0, 6).map((s) => (
+        <span
+          className="flex h-[1.125rem] gap-1.5 pt-1"
+          aria-label={product.swatches.length > 1 ? `${product.swatches.length} couleurs` : undefined}
+          aria-hidden={product.swatches.length > 1 ? undefined : true}
+        >
+          {product.swatches.length > 1 &&
+            product.swatches.slice(0, 6).map((s) => (
               <span key={s.value} title={s.value} className="size-3.5 rounded-full ring-1 ring-fg/25" style={{ backgroundColor: s.hex }} />
             ))}
-          </span>
-        )}
+        </span>
       </div>
     </Link>
   );

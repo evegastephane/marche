@@ -9,6 +9,7 @@ export const atelierTemplateManifest: TemplateManifest = {
   id: 'atelier',
   name: 'Le cahier du tailleur',
   version: '1.0.0',
+  tier: 'premium',
   tagline: 'Votre boutique comme le cahier de l’atelier : photos collées, tailles entourées au stylo, bon de commande à détacher.',
   storeTypes: ['FASHION'],
   fontChoice: false,

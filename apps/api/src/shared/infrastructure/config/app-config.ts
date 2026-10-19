@@ -52,6 +52,9 @@ export const envSchema = z
     CORS_ORIGINS: csv,
 
     S3_ENDPOINT: optionalString,
+    // Adresse du stockage vue par le navigateur, pour signer les envois du dashboard (PUT pré-signés).
+    // Utile quand l'API joint le stockage par une adresse interne (s3:9000 dans docker compose).
+    S3_PUBLIC_ENDPOINT: optionalString,
     S3_REGION: z.string().default('auto'),
     S3_BUCKET: z.string().min(1),
     S3_ACCESS_KEY_ID: z.string().min(1),
@@ -154,6 +157,8 @@ export interface AppConfig {
   cors: { origins: string[] };
   s3: {
     endpoint?: string;
+    /** Adresse signée dans les URL d'envoi données au navigateur (par défaut : endpoint). */
+    publicEndpoint?: string;
     region: string;
     bucket: string;
     accessKeyId: string;
@@ -193,6 +198,28 @@ export class InvalidConfigError extends Error {
   }
 }
 
+/**
+ * Hors production, « localhost » devient 127.0.0.1 dans les URL de Postgres, de Redis, du stockage S3
+ * et des images servies au navigateur.
+ * Node essaie d'abord l'adresse IPv6 ::1, et sous Windows ce n'est pas toujours Docker qui l'écoute :
+ * le relais de WSL (wslrelay.exe) peut tenir [::1]:9000 et couper les connexions (ECONNRESET),
+ * alors que 127.0.0.1 mène bien au conteneur. L'API restait bloquée au démarrage, et l'envoi des
+ * photos importées vers le stockage échouait.
+ */
+export function preferIpv4Loopback(url: string, env: Env['NODE_ENV']): string {
+  if (env === 'production') return url;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== 'localhost') return url;
+    parsed.hostname = '127.0.0.1';
+    const result = parsed.toString();
+    // http(s) ajoute « / » à une URL sans chemin : on garde l'écriture d'origine.
+    return !url.endsWith('/') && result.endsWith('/') ? result.slice(0, -1) : result;
+  } catch {
+    return url;
+  }
+}
+
 export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = envSchema.safeParse(source);
   if (!parsed.success) {
@@ -207,8 +234,8 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     workerInApi: env.WORKER_IN_API === 'auto' ? env.NODE_ENV === 'development' : env.WORKER_IN_API === 'true',
     port: env.PORT,
     logLevel: env.LOG_LEVEL,
-    databaseUrl: env.DATABASE_URL,
-    redisUrl: env.REDIS_URL,
+    databaseUrl: preferIpv4Loopback(env.DATABASE_URL, env.NODE_ENV),
+    redisUrl: preferIpv4Loopback(env.REDIS_URL, env.NODE_ENV),
     clerk: {
       secretKey: env.CLERK_SECRET_KEY,
       // Les clés PEM sont souvent écrites sur une ligne avec des « \n » échappés.
@@ -228,13 +255,17 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     },
     cors: { origins: env.CORS_ORIGINS },
     s3: {
-      endpoint: env.S3_ENDPOINT,
+      endpoint: env.S3_ENDPOINT ? preferIpv4Loopback(env.S3_ENDPOINT, env.NODE_ENV) : env.S3_ENDPOINT,
+      publicEndpoint: env.S3_PUBLIC_ENDPOINT
+        ? preferIpv4Loopback(env.S3_PUBLIC_ENDPOINT, env.NODE_ENV)
+        : undefined,
       region: env.S3_REGION,
       bucket: env.S3_BUCKET,
       accessKeyId: env.S3_ACCESS_KEY_ID,
       secretAccessKey: env.S3_SECRET_ACCESS_KEY,
     },
-    media: { publicBaseUrl: env.MEDIA_PUBLIC_BASE_URL.replace(/\/+$/, '') },
+    // Adresse donnée au navigateur : même piège ::1 que pour le stockage (images jamais affichées).
+    media: { publicBaseUrl: preferIpv4Loopback(env.MEDIA_PUBLIC_BASE_URL, env.NODE_ENV).replace(/\/+$/, '') },
     email: {
       provider: env.EMAIL_PROVIDER,
       smtpUrl: env.SMTP_URL,

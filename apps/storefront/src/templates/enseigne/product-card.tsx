@@ -18,18 +18,25 @@ function Photo({ product, sizes, className }: { product: StorefrontProductCardDt
   );
 }
 
-/** Un appareil sur l'étal éclairé, et sous lui son nom et son prix allumé. */
+/**
+ * Un appareil sur l'étal éclairé, et sous lui son nom et son prix allumé. Taille fixe : la photo est posée
+ * hors du flux (une photo en hauteur ne grandit plus l'étal), le titre tient sur deux lignes réservées,
+ * et les lignes marque et coloris gardent leur place même vides.
+ */
 export function ProductTile({ product, currency }: { product: StorefrontProductCardDto; currency: Currency }) {
   const onSale = product.compareAtAmount != null && product.compareAtAmount > product.priceMinAmount;
+  const hasSwatches = product.swatches.length > 1;
   return (
     <Link href={`/products/${product.slug}`} className="group flex flex-col gap-4 text-fg no-underline">
-      <span className="lit-shelf relative block aspect-square rounded-md p-5 transition-transform duration-300 ease-out-soft group-hover:-translate-y-1 sm:p-7">
-        <Photo product={product} sizes="(min-width: 1024px) 22vw, 45vw" />
+      <span className="lit-shelf relative block aspect-square rounded-md transition-transform duration-300 ease-out-soft group-hover:-translate-y-1">
+        <span className="absolute inset-5 sm:inset-7">
+          <Photo product={product} sizes="(min-width: 1024px) 22vw, 45vw" />
+        </span>
       </span>
       <span className="flex flex-col gap-2">
-        <span className="text-[1.0625rem] leading-snug font-bold text-balance group-hover:underline">{product.title}</span>
-        {product.brand && <span className="-mt-1 text-sm text-muted">{product.brand.name}</span>}
-        <span className="flex flex-wrap items-end gap-x-3 gap-y-1">
+        <span className="line-clamp-2 min-h-[2lh] text-[1.0625rem] leading-snug font-bold text-balance group-hover:underline">{product.title}</span>
+        <span className="-mt-1 truncate text-sm text-muted">{product.brand?.name ?? ' '}</span>
+        <span className="flex items-end gap-x-3 whitespace-nowrap">
           <SegmentPrice
             amount={product.priceMinAmount}
             currency={currency}
@@ -43,13 +50,16 @@ export function ProductTile({ product, currency }: { product: StorefrontProductC
             </s>
           )}
         </span>
-        {product.swatches.length > 1 && (
-          <span className="flex gap-1.5" aria-label={`${product.swatches.length} coloris`}>
-            {product.swatches.slice(0, 6).map((s) => (
+        <span
+          className="flex h-3.5 gap-1.5"
+          aria-label={hasSwatches ? `${product.swatches.length} coloris` : undefined}
+          aria-hidden={hasSwatches ? undefined : true}
+        >
+          {hasSwatches &&
+            product.swatches.slice(0, 6).map((s) => (
               <span key={s.value} title={s.value} className="size-3.5 rounded-full shadow-[inset_0_0_0_1px_rgb(255_255_255/0.25)]" style={{ backgroundColor: s.hex }} />
             ))}
-          </span>
-        )}
+        </span>
       </span>
     </Link>
   );

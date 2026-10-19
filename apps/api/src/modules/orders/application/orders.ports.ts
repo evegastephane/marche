@@ -19,6 +19,7 @@ export interface OrderSummary {
   id: string;
   number: number | null;
   status: OrderDto['status'];
+  source: OrderDto['source'];
   email: string | null;
   customerName: string | null;
   currency: Currency;

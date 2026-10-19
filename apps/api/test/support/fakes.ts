@@ -2,7 +2,13 @@ import { randomBytes } from 'node:crypto';
 import { OrganizationDirectory } from '../../src/modules/stores/application/organization-directory.port.js';
 import { UserDirectory } from '../../src/modules/identity/application/identity.ports.js';
 import type { UserProfile } from '../../src/modules/identity/domain/user.repository.js';
-import { ObjectStorage, type PresignedUpload } from '../../src/modules/media/application/media.ports.js';
+import {
+  ObjectStorage,
+  type PresignedUpload,
+  type RemoteImage,
+  RemoteImageError,
+  RemoteImageFetcher,
+} from '../../src/modules/media/application/media.ports.js';
 import { EmailSender, type OutgoingEmail } from '../../src/modules/notifications/application/email.port.js';
 import { StorefrontRevalidator } from '../../src/modules/sites/application/sites.ports.js';
 import { type TemplateMessage, WhatsAppSender } from '../../src/modules/campaigns/application/campaigns.ports.js';
@@ -74,6 +80,29 @@ export class InMemoryObjectStorage extends ObjectStorage {
 
   simulateUpload(key: string, body: Buffer, contentType: string): void {
     this.objects.set(key, { body, contentType });
+  }
+}
+
+/** PNG 1×1 : une vraie image, reconnue à ses octets. */
+export const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+/** Sites de photos simulés : chaque lien connu renvoie une image, les autres une erreur 404. */
+export class FakeRemoteImageFetcher extends RemoteImageFetcher {
+  readonly images = new Map<string, RemoteImage>();
+  readonly requested: string[] = [];
+
+  serve(url: string, body: Buffer = TINY_PNG): void {
+    this.images.set(url, { body, contentType: 'image/png' });
+  }
+
+  async fetch(url: string): Promise<RemoteImage> {
+    this.requested.push(url);
+    const image = this.images.get(url);
+    if (!image) throw new RemoteImageError('le site a répondu 404');
+    return image;
   }
 }
 

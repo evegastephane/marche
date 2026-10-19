@@ -2,22 +2,62 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "upsell-dashboard",
+      "url": "http://localhost:7000",
+      "port": 7000
+    },
+    {
+      "name": "upsell-storefront",
+      "url": "http://localhost:7001",
+      "port": 7001
+    },
+    {
       "name": "api",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "-w", "@marche/api"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "-w",
+        "@marche/api"
+      ],
       "port": 3000
     },
     {
       "name": "dashboard",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "-w", "@marche/dashboard"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "-w",
+        "@marche/dashboard"
+      ],
       "port": 5173
     },
     {
       "name": "storefront",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "-w", "@marche/storefront"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "-w",
+        "@marche/storefront"
+      ],
       "port": 3001
+    },
+    {
+      "name": "video",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "video",
+        "run",
+        "dev",
+        "--",
+        "--no-open",
+        "--port",
+        "3123"
+      ],
+      "port": 3123
     }
   ]
 }

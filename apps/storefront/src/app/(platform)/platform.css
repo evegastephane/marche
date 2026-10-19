@@ -1,0 +1,469 @@
+/*
+ * Pages de la plateforme (accueil, portail Développeurs, confidentialité) : le monde « L'instrument » du
+ * dashboard (apps/dashboard/DESIGN.md), limité à .up-platform pour ne jamais toucher les sites des boutiques.
+ * Clair ou sombre selon l'appareil.
+ */
+@layer components {
+  .up-platform {
+    --up-canvas: #f2f2ef;
+    --up-surface: #ffffff;
+    --up-surface-2: #f4f4f1;
+    --up-surface-3: #e9e9e5;
+    --up-ink: #101115;
+    --up-ink-2: #4a4c54;
+    --up-ink-3: #6b6d75;
+    --up-line: #e4e4e0;
+    --up-line-strong: #cfcfca;
+    --up-key: #ffffff;
+    --up-key-pressed: #ebebe7;
+    --up-key-edge: rgb(16 17 21 / 0.16);
+    --up-display: #e8e9e3;
+    --up-display-ink: #101115;
+    --up-display-dim: #5d5f66;
+    --up-display-line: rgb(16 17 21 / 0.1);
+    --up-display-glass:
+      inset 0 2px 3px rgb(16 17 21 / 0.08), inset 0 0 0 1px rgb(16 17 21 / 0.12);
+    --up-led-glow: none;
+    --up-accent: #f66b21;
+    --up-accent-strong: #ea5d12;
+    --up-on-accent: #101115;
+    --up-danger: #d2281b;
+    --up-danger-soft: #fbe9e7;
+    --up-danger-ink: #a01b10;
+    --up-overlay: rgb(16 17 21 / 0.42);
+    --up-shadow: 240 10% 8%;
+
+    color-scheme: light;
+    background: var(--up-canvas);
+    color: var(--up-ink);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100dvh;
+  }
+
+  /* Sombre : selon l'appareil, sauf si le visiteur a choisi « Clair » ; ou forcé par « Sombre ». */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-up-theme='light']) .up-platform {
+      color-scheme: dark;
+      --up-canvas: #0c0c0e;
+      --up-surface: #141417;
+      --up-surface-2: #1b1b1f;
+      --up-surface-3: #242429;
+      --up-ink: #f2f2ef;
+      --up-ink-2: #abacb2;
+      --up-ink-3: #8a8b92;
+      --up-line: #232327;
+      --up-line-strong: #34343a;
+      --up-key: #1e1e22;
+      --up-key-pressed: #17171a;
+      --up-key-edge: rgb(0 0 0 / 0.55);
+      --up-display: #060607;
+      --up-display-ink: #f2f2ef;
+      --up-display-dim: #8e9097;
+      --up-display-line: rgb(255 255 255 / 0.08);
+      --up-display-glass:
+        inset 0 1px 0 rgb(255 255 255 / 0.06), 0 0 0 1px var(--up-line);
+      --up-led-glow: 0 0 8px rgb(255 255 255 / 0.5);
+      --up-accent-strong: #ff7d36;
+      --up-danger: #ff5b4f;
+      --up-danger-soft: rgb(255 91 79 / 0.14);
+      --up-danger-ink: #ff8f86;
+      --up-overlay: rgb(0 0 0 / 0.62);
+      --up-shadow: 0 0% 0%;
+    }
+  }
+  :root[data-up-theme='dark'] .up-platform {
+    color-scheme: dark;
+    --up-canvas: #0c0c0e;
+    --up-surface: #141417;
+    --up-surface-2: #1b1b1f;
+    --up-surface-3: #242429;
+    --up-ink: #f2f2ef;
+    --up-ink-2: #abacb2;
+    --up-ink-3: #8a8b92;
+    --up-line: #232327;
+    --up-line-strong: #34343a;
+    --up-key: #1e1e22;
+    --up-key-pressed: #17171a;
+    --up-key-edge: rgb(0 0 0 / 0.55);
+    --up-display: #060607;
+    --up-display-ink: #f2f2ef;
+    --up-display-dim: #8e9097;
+    --up-display-line: rgb(255 255 255 / 0.08);
+    --up-display-glass:
+      inset 0 1px 0 rgb(255 255 255 / 0.06), 0 0 0 1px var(--up-line);
+    --up-led-glow: 0 0 8px rgb(255 255 255 / 0.5);
+    --up-accent-strong: #ff7d36;
+    --up-danger: #ff5b4f;
+    --up-danger-soft: rgb(255 91 79 / 0.14);
+    --up-danger-ink: #ff8f86;
+    --up-overlay: rgb(0 0 0 / 0.62);
+    --up-shadow: 0 0% 0%;
+  }
+
+  .up-platform ::selection {
+    background: var(--up-ink);
+    color: var(--up-canvas);
+  }
+  .up-platform :focus-visible {
+    outline: 2px solid var(--up-ink);
+    outline-offset: 2px;
+  }
+  .up-platform input,
+  .up-platform textarea {
+    caret-color: var(--up-accent);
+  }
+  .up-platform {
+    scrollbar-color: var(--up-line-strong) transparent;
+  }
+
+  /* Typographie de l'instrument. */
+  .up-display-title {
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.04;
+    text-wrap: balance;
+  }
+  .up-heading {
+    font-weight: 650;
+    letter-spacing: -0.015em;
+    line-height: 1.25;
+  }
+  .up-legend {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--up-ink-3);
+  }
+  .up-code {
+    font-family:
+      ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+    font-variant-ligatures: none;
+  }
+
+  /* Face : plate, au filet fin. */
+  .up-panel {
+    background: var(--up-surface);
+    border-radius: 1rem;
+    box-shadow: 0 0 0 1px var(--up-line);
+  }
+  /* Creux : champ, rail, bloc de code. */
+  .up-well {
+    background: var(--up-surface-2);
+    box-shadow:
+      inset 0 1px 2px hsl(var(--up-shadow) / 0.07),
+      inset 0 0 0 1px var(--up-line);
+  }
+  /* Afficheur : verre enfoncé dans le boîtier. */
+  .up-lcd {
+    background: var(--up-display);
+    color: var(--up-display-ink);
+    box-shadow: var(--up-display-glass);
+  }
+  .up-lcd .up-legend {
+    color: var(--up-display-dim);
+  }
+  .up-led {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 1.5px var(--up-ink-3);
+  }
+  .up-led[data-on='true'] {
+    background: var(--up-ink);
+    box-shadow: none;
+  }
+  .up-lcd .up-led {
+    box-shadow: inset 0 0 0 1.5px var(--up-display-dim);
+  }
+  .up-lcd .up-led[data-on='true'] {
+    background: var(--up-display-ink);
+    box-shadow: var(--up-led-glow);
+  }
+  .up-led[data-tone='attention'] {
+    background: var(--up-accent);
+    box-shadow: none;
+  }
+  .up-led[data-tone='danger'] {
+    background: var(--up-danger);
+    box-shadow: none;
+  }
+
+  /* Touches : une arête, un enfoncement d'un pixel. Une seule orange par écran. */
+  .up-key {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 2.5rem;
+    padding: 0 1rem;
+    border-radius: 0.7rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    white-space: nowrap;
+    text-decoration: none;
+    user-select: none;
+    cursor: pointer;
+    transition:
+      background-color 0.2s,
+      box-shadow 0.2s,
+      transform 0.12s;
+    background: var(--up-key);
+    color: var(--up-ink);
+    box-shadow:
+      0 0 0 1px var(--up-line-strong),
+      0 1px 0 var(--up-key-edge),
+      0 2px 4px -1px hsl(var(--up-shadow) / 0.08);
+  }
+  .up-key:hover {
+    background: var(--up-surface-2);
+  }
+  .up-key:active {
+    transform: translateY(1px);
+    background: var(--up-key-pressed);
+    box-shadow:
+      0 0 0 1px var(--up-line-strong),
+      inset 0 1px 2px hsl(var(--up-shadow) / 0.14);
+  }
+  .up-key:disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+  .up-key svg {
+    width: 1.1em;
+    height: 1.1em;
+    flex-shrink: 0;
+  }
+  .up-key[data-variant='primary'] {
+    background: var(--up-accent);
+    color: #101115;
+    box-shadow:
+      0 1px 0 var(--up-key-edge),
+      0 2px 4px -1px hsl(var(--up-shadow) / 0.08);
+  }
+  .up-key[data-variant='primary']:hover {
+    background: var(--up-accent-strong);
+  }
+  .up-key[data-variant='ghost'] {
+    background: transparent;
+    color: var(--up-ink-2);
+    box-shadow: none;
+  }
+  .up-key[data-variant='ghost']:hover {
+    background: var(--up-surface-2);
+    color: var(--up-ink);
+  }
+  .up-key[data-variant='danger'] {
+    background: var(--up-danger);
+    color: #ffffff;
+    box-shadow:
+      0 1px 0 var(--up-key-edge),
+      0 2px 4px -1px hsl(var(--up-shadow) / 0.08);
+  }
+  .up-key[data-size='sm'] {
+    height: 2rem;
+    padding: 0 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+  }
+  .up-key[data-size='lg'] {
+    height: 3rem;
+    padding: 0 1.25rem;
+    border-radius: 0.75rem;
+    font-size: 1rem;
+  }
+  @media (max-width: 767px) {
+    .up-key {
+      height: 2.75rem;
+    }
+    .up-key[data-size='sm'] {
+      height: 2.5rem;
+    }
+  }
+
+  /* Champ en creux. */
+  .up-field {
+    width: 100%;
+    min-height: 2.5rem;
+    padding: 0.5rem 0.875rem;
+    border-radius: 0.7rem;
+    background: var(--up-surface-2);
+    color: var(--up-ink);
+    box-shadow:
+      inset 0 1px 2px hsl(var(--up-shadow) / 0.07),
+      inset 0 0 0 1px var(--up-line);
+    transition:
+      box-shadow 0.2s,
+      background-color 0.2s;
+  }
+  .up-field::placeholder {
+    color: var(--up-ink-3);
+  }
+  .up-field:hover {
+    box-shadow:
+      inset 0 1px 2px hsl(var(--up-shadow) / 0.07),
+      inset 0 0 0 1px var(--up-line-strong);
+  }
+  .up-field:focus-visible {
+    outline: none;
+    background: var(--up-surface);
+    box-shadow:
+      inset 0 0 0 1.5px var(--up-ink),
+      0 0 0 4px var(--up-surface-3);
+  }
+  .up-field[aria-invalid='true'] {
+    box-shadow:
+      inset 0 0 0 1.5px var(--up-danger),
+      0 0 0 4px var(--up-danger-soft);
+  }
+  @media (max-width: 767px) {
+    .up-field {
+      min-height: 2.75rem;
+      font-size: 1rem;
+    }
+  }
+
+  /* Rail en creux et curseur qui glisse (sélecteur). */
+  .up-rail {
+    display: inline-flex;
+    max-width: 100%;
+    gap: 0.125rem;
+    overflow-x: auto;
+    padding: 0.25rem;
+    border-radius: 0.75rem;
+    scrollbar-width: none;
+  }
+  .up-knob {
+    background: var(--up-key);
+    box-shadow:
+      0 0 0 1px var(--up-line-strong),
+      0 1px 0 var(--up-key-edge),
+      0 2px 4px -1px hsl(var(--up-shadow) / 0.08);
+  }
+
+  /* Liens de lecture : soulignés, jamais orange. */
+  .up-link {
+    color: var(--up-ink);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.22em;
+    text-decoration-color: var(--up-line-strong);
+    transition: text-decoration-color 0.2s;
+  }
+  .up-link:hover {
+    text-decoration-color: var(--up-ink);
+  }
+
+  /* Entrée en montée, CSS pur (connexions lentes). */
+  .up-rise {
+    animation: up-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--up-delay, 0ms);
+  }
+  @keyframes up-rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .up-rise {
+      animation: none;
+    }
+  }
+
+  /* Chiffres qui roulent : chaque chiffre glisse dans sa colonne jusqu'à sa valeur. */
+  .up-digits {
+    display: inline-flex;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .up-digit {
+    display: inline-block;
+    height: 1em;
+    overflow: hidden;
+    line-height: 1;
+  }
+  .up-digit-strip {
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .up-digit-strip > span {
+    display: block;
+    height: 1em;
+    line-height: 1;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .up-digit-strip {
+      transition: none;
+    }
+  }
+
+  /* Lumière partagée : une seule face orange, qui glisse vers la touche de l'action à faire. */
+  .up-key[data-lit='true'] {
+    color: #101115;
+    box-shadow:
+      0 1px 0 var(--up-key-edge),
+      0 2px 4px -1px hsl(var(--up-shadow) / 0.08);
+  }
+  .up-light {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background: var(--up-accent);
+    transition: background-color 0.2s;
+  }
+  .up-key[data-lit='true']:hover .up-light {
+    background: var(--up-accent-strong);
+  }
+  .up-key-label {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Champ posé dans l'afficheur : un creux dans le verre. */
+  .up-lcd-field {
+    width: 100%;
+    min-height: 3rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
+    background: rgb(255 255 255 / 0.55);
+    color: var(--up-display-ink);
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    box-shadow:
+      inset 0 1px 2px hsl(var(--up-shadow) / 0.08),
+      inset 0 0 0 1px var(--up-display-line);
+    transition:
+      box-shadow 0.2s,
+      background-color 0.2s;
+  }
+  .up-lcd-field::placeholder {
+    color: var(--up-display-dim);
+    font-weight: 500;
+  }
+  .up-lcd-field:focus-visible {
+    outline: none;
+    background: var(--up-surface);
+    box-shadow:
+      inset 0 0 0 1.5px var(--up-display-ink),
+      0 0 0 4px var(--up-display-line);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-up-theme='light']) .up-platform .up-lcd-field {
+      background: rgb(255 255 255 / 0.04);
+    }
+  }
+  :root[data-up-theme='dark'] .up-platform .up-lcd-field {
+    background: rgb(255 255 255 / 0.04);
+  }
+}

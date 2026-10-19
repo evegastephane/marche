@@ -84,9 +84,11 @@ describe('Import du catalogue Excel (e2e)', () => {
       return (sheet.getRow(1).values as unknown[]).filter(Boolean);
     };
     const headers = headersOf('PRODUCTS');
-    expect(headers).toEqual(expect.arrayContaining(['reference', 'titre', 'categorie', 'puissance', 'taille-ecran']));
+    expect(headers).toEqual(expect.arrayContaining(['reference', 'titre', 'categorie', 'puissance', 'reseau']));
     const axes = headersOf('VARIANTS');
-    expect(axes).toEqual(expect.arrayContaining(['sku', 'prix', 'stockage', 'couleur']));
+    // La taille d'écran et la SIM sont des choix : une colonne par variante, pas une ligne de fiche.
+    expect(axes).toEqual(expect.arrayContaining(['sku', 'prix', 'stockage', 'couleur', 'sim', 'taille-ecran']));
+    expect(headers).not.toContain('taille-ecran');
     expect(book.getWorksheet('CATEGORIES')?.rowCount).toBeGreaterThan(5);
   });
 
@@ -171,5 +173,83 @@ describe('Import du catalogue Excel (e2e)', () => {
     const list = await t.http().get('/api/v1/products').query({ q: 'CHG20' }).set(admin());
     const detail = await t.http().get(`/api/v1/products/${list.body.items[0].id}`).set(admin());
     expect(detail.body.variants[0].inventory.onHand).toBe(8);
+  });
+
+  it('télécharge les photos des liens une fois, et les pose sur le produit et ses couleurs', async () => {
+    const face = 'https://photos.example/iphone-15/face.png';
+    const dos = 'https://photos.example/iphone-15/dos.png';
+    const bleu = 'https://photos.example/iphone-15/bleu.png';
+    const rose = 'https://photos.example/iphone-15/rose.png';
+    for (const url of [face, dos, bleu, rose]) t.remoteImages.serve(url);
+    const file = await workbook({
+      PRODUCTS: [
+        ['reference', 'titre', 'categorie', 'marque', 'statut', 'images'],
+        ['IP15', 'iPhone 15', 'smartphones', 'Apple', 'brouillon', `${face} | ${dos}`],
+      ],
+      VARIANTS: [
+        ['reference', 'sku', 'prix', 'image', 'stockage', 'couleur'],
+        ['IP15', 'IP15-128-BLU', 480000, bleu, '128 Go', 'Bleu'],
+        ['IP15', 'IP15-128-PNK', 480000, rose, '128 Go', 'Rose'],
+      ],
+    });
+
+    const check = await upload(file, true);
+    expect(check.body, JSON.stringify(check.body)).toMatchObject({ ok: true, summary: { images: 4 } });
+    // La vérification ne télécharge rien.
+    expect(t.remoteImages.requested).toHaveLength(0);
+
+    const applied = await upload(file, false);
+    expect(applied.status, JSON.stringify(applied.body)).toBe(200);
+    expect(t.remoteImages.requested).toHaveLength(4);
+
+    const list = await t.http().get('/api/v1/products').query({ q: 'iPhone 15' }).set(admin());
+    const detail = await t.http().get(`/api/v1/products/${list.body.items[0].id}`).set(admin());
+    const media = detail.body.media as { id: string; alt: string | null }[];
+    expect(media).toHaveLength(4);
+    expect(media[0]?.alt).toBe('iPhone 15');
+    const blue = detail.body.variants.find((variant: { sku: string }) => variant.sku === 'IP15-128-BLU');
+    expect(blue.image?.id).toBe(media[2]?.id);
+    expect(detail.body.mediaOptionValues).toEqual({ [media[2]!.id]: 'Bleu', [media[3]!.id]: 'Rose' });
+
+    // Réimporter le même fichier : les photos sont retrouvées, rien n'est retéléchargé ni dupliqué.
+    const again = await upload(file, false);
+    expect(again.status, JSON.stringify(again.body)).toBe(200);
+    expect(t.remoteImages.requested).toHaveLength(4);
+    const reread = await t.http().get(`/api/v1/products/${list.body.items[0].id}`).set(admin());
+    expect(reread.body.media.map((m: { id: string }) => m.id)).toEqual(media.map((m) => m.id));
+  });
+
+  it('signale un lien non https ou une photo introuvable à sa ligne, sans rien écrire', async () => {
+    const refused = await workbook({
+      PRODUCTS: [
+        ['reference', 'titre', 'categorie', 'images'],
+        ['CASE1', 'Coque transparente', 'coques-pochettes', 'http://photos.example/coque.png'],
+      ],
+      VARIANTS: [
+        ['reference', 'sku', 'prix', 'couleur'],
+        ['CASE1', 'CASE1-CLR', 5000, 'Blanc'],
+      ],
+    });
+    const check = await upload(refused, true);
+    expect(check.body.ok).toBe(false);
+    expect(check.body.issues).toEqual([expect.objectContaining({ sheet: 'PRODUCTS', row: 2, column: 'images' })]);
+
+    const missing = await workbook({
+      PRODUCTS: [
+        ['reference', 'titre', 'categorie', 'images'],
+        ['CASE2', 'Coque silicone', 'coques-pochettes', 'https://photos.example/introuvable.png'],
+      ],
+      VARIANTS: [
+        ['reference', 'sku', 'prix', 'couleur'],
+        ['CASE2', 'CASE2-BLK', 5000, 'Noir'],
+      ],
+    });
+    const applied = await upload(missing, false);
+    expect(applied.status).toBe(422);
+    expect(applied.body.details.issues).toEqual([
+      expect.objectContaining({ sheet: 'PRODUCTS', row: 2, column: 'images', message: expect.stringContaining('404') }),
+    ]);
+    const list = await t.http().get('/api/v1/products').query({ q: 'Coque silicone' }).set(admin());
+    expect(list.body.items).toHaveLength(0);
   });
 });

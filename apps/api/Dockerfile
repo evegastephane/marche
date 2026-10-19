@@ -15,7 +15,10 @@ ARG NODE_VERSION=26
 FROM node:${NODE_VERSION}-slim AS base
 ENV TURBO_TELEMETRY_DISABLED=1 \
     NPM_CONFIG_UPDATE_NOTIFIER=false \
-    NPM_CONFIG_FUND=false
+    NPM_CONFIG_FUND=false \
+    NPM_CONFIG_FETCH_RETRIES=6 \
+    NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000 \
+    NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000
 # Même npm que le poste de dev (champ packageManager) : npm 12 applique allowScripts.
 RUN npm install -g npm@12.0.1
 WORKDIR /repo
@@ -49,7 +52,15 @@ RUN apt-get update \
 WORKDIR /repo/apps/api
 CMD ["npx", "prisma", "migrate", "deploy"]
 
-# 5. Image d'exécution : dépendances de production et code compilé uniquement.
+# 5. Pile locale « upsell » (docker-compose.yml) : API, migrations et préparation du bucket dans une
+#    même image. Elle garde les dépendances de dev : pino-pretty (logs lisibles quand NODE_ENV=development)
+#    et tsx (scripts/init-media-bucket.ts). Placée avant « runtime » : la cible par défaut ne change pas.
+FROM migrate AS local
+USER node
+EXPOSE 3000
+CMD ["node", "dist/main.js"]
+
+# 6. Image d'exécution : dépendances de production et code compilé uniquement.
 #    (La CLI Prisma y reste : npm la classe en production car c'est un pair optionnel de @prisma/client.)
 FROM base AS runtime
 ENV NODE_ENV=production

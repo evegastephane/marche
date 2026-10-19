@@ -34,6 +34,7 @@ const COUNTERS: { key: keyof CatalogImportSummaryDto; label: string }[] = [
   { key: 'variantsUpdated', label: 'Variantes mises à jour' },
   { key: 'stockAdjusted', label: 'Stocks ajustés' },
   { key: 'unitsReceived', label: 'IMEI reçus' },
+  { key: 'images', label: 'Photos' },
   { key: 'attributesCreated', label: 'Attributs créés' },
   { key: 'valuesCreated', label: 'Valeurs ajoutées' },
 ];

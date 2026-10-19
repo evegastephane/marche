@@ -18,3 +18,5 @@ export * from './taxonomy.js';
 export * from './catalog-model.js';
 export * from './developers.js';
 export * from './imports.js';
+export * from './pos.js';
+export * from './phone.js';

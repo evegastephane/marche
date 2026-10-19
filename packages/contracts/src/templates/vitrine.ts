@@ -9,6 +9,7 @@ export const vitrineTemplateManifest: TemplateManifest = {
   id: 'vitrine',
   name: 'La vitrine du vendeur',
   version: '1.0.0',
+  tier: 'premium',
   tagline: 'Votre boutique comme un comptoir vitré : appareils sur présentoirs, étiquettes de prix, état au marqueur.',
   storeTypes: ['ELECTRONICS'],
   fontChoice: false,

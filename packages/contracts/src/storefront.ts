@@ -30,6 +30,8 @@ export const STOREFRONT_HEADERS = {
 
 export const storefrontProductListQuerySchema = paginationQuerySchema.extend({
   collection: z.string().trim().min(1).max(100).optional(),
+  /** Slug d'une catégorie : ses produits et ceux de ses sous-catégories. */
+  category: z.string().trim().min(1).max(100).optional(),
   brand: z.string().trim().min(1).max(100).optional(),
   /** featured : ordre choisi par le marchand dans le catalogue (sinon les plus récents d'abord). */
   sort: z.enum(['featured', 'newest', 'price-asc', 'price-desc']).default('featured'),
@@ -75,6 +77,8 @@ export interface StorefrontStoreDto {
   currency: Currency;
   contactEmail: string | null;
   phone: string | null;
+  /** Le téléphone de la boutique au format WhatsApp (indicatif, sans « + »), s'il est exploitable. */
+  whatsapp: string | null;
   logo: MediaDto | null;
   /** Mode ou Électronique : le site adapte la fiche produit et les filtres. */
   type: StoreType;
@@ -85,8 +89,10 @@ export interface StorefrontStoreDto {
   templateId: string;
   templateVersion: string;
   theme: ThemeSettings;
-  /** Médias référencés par le thème (hero, logo), résolus en URL. */
+  /** Médias référencés par le thème (bannière, image et texte, logo), résolus en URL. */
   themeMedia: Record<string, MediaDto>;
+  /** Catégories mises en avant par le thème, par identifiant : nom et slug pour le lien « Voir tout ». */
+  themeCategories: Record<string, { name: string; slug: string }>;
   navigation: { collections: { title: string; slug: string }[] };
   hasProducts: boolean;
   preview: boolean;

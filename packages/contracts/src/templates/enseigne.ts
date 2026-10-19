@@ -11,6 +11,7 @@ export const enseigneTemplateManifest: TemplateManifest = {
   id: 'enseigne',
   name: 'L’enseigne lumineuse',
   version: '1.0.0',
+  tier: 'premium',
   tagline: 'Votre boutique comme une enseigne LED le soir : le nom qui défile, les prix en chiffres lumineux, les appareils sur l’étal éclairé.',
   storeTypes: ['ELECTRONICS'],
   fontChoice: false,

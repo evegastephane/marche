@@ -27,11 +27,12 @@ import {
 } from '@/features/verticals/vertical-settings';
 import { ApiError, errorMessage } from '@/shared/api/client';
 import { amountToInput, currencyLabel, parseAmount } from '@/shared/lib/format';
+import { Led } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { Card, CardHeader } from '@/shared/ui/card';
 import { LoadError, PageHeader, Skeleton } from '@/shared/ui/feedback';
 import { Field, Input, InputWithSuffix, Select } from '@/shared/ui/field';
-import { EASE_OUT } from '@/shared/ui/motion';
+import { EASE_OUT, glide } from '@/shared/ui/motion';
 import { SiteAddress, siteHost } from '@/shared/ui/site-address';
 import { Tabs } from '@/shared/ui/tabs';
 import { ThemeSwitch } from '@/shared/ui/theme';
@@ -247,7 +248,7 @@ function SettingsForm({
         actions={
           <Button
             type="submit"
-            variant={dirty ? 'primary' : 'secondary'}
+            variant="secondary"
             disabled={!dirty}
             loading={update.isPending}
           >
@@ -511,7 +512,30 @@ function SettingsForm({
         )}
       </section>
 
-      <SizeGuidesCard guides={guides} onChange={setGuides} errors={errors} />
+      {type === 'FASHION' && (
+        <SizeGuidesCard guides={guides} onChange={setGuides} errors={errors} />
+      )}
+
+      {/* La touche orange suit le marchand : en bas de l'écran dès qu'il y a des changements. */}
+      <AnimatePresence>
+        {dirty && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            transition={glide}
+            className="panel sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 flex flex-wrap items-center justify-between gap-3 p-4 shadow-float lg:bottom-6"
+          >
+            <span className="flex items-center gap-2 text-[0.875rem] text-ink-2">
+              <Led tone="attention" />
+              Modifications non enregistrées
+            </span>
+            <Button type="submit" variant="primary" loading={update.isPending}>
+              Enregistrer
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </form>
   );
 }

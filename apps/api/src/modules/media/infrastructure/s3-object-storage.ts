@@ -10,10 +10,10 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { APP_CONFIG, type AppConfig } from '../../../shared/infrastructure/config/app-config.js';
 import { ObjectStorage, type PresignedUpload } from '../application/media.ports.js';
 
-export function createS3Client(config: AppConfig): S3Client {
+export function createS3Client(config: AppConfig, endpoint = config.s3.endpoint): S3Client {
   return new S3Client({
     region: config.s3.region,
-    ...(config.s3.endpoint ? { endpoint: config.s3.endpoint, forcePathStyle: true } : {}),
+    ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
     credentials: {
       accessKeyId: config.s3.accessKeyId,
       secretAccessKey: config.s3.secretAccessKey,
@@ -25,11 +25,16 @@ export function createS3Client(config: AppConfig): S3Client {
 @Injectable()
 export class S3ObjectStorage extends ObjectStorage {
   private readonly client: S3Client;
+  /** Signe les envois du navigateur : l'hôte signé doit être celui que le navigateur appelle. */
+  private readonly presignClient: S3Client;
   private readonly bucket: string;
 
   constructor(@Inject(APP_CONFIG) private readonly config: AppConfig) {
     super();
     this.client = createS3Client(config);
+    this.presignClient = config.s3.publicEndpoint
+      ? createS3Client(config, config.s3.publicEndpoint)
+      : this.client;
     this.bucket = config.s3.bucket;
   }
 
@@ -40,7 +45,7 @@ export class S3ObjectStorage extends ObjectStorage {
     expiresInSeconds: number;
   }): Promise<PresignedUpload> {
     const url = await getSignedUrl(
-      this.client,
+      this.presignClient,
       new PutObjectCommand({
         Bucket: this.bucket,
         Key: input.key,

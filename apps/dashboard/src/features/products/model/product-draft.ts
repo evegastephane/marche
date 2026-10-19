@@ -425,7 +425,20 @@ export function draftToInput(
 
 // ───────────── Fiche d'appareil (catalogue MobileAPI) ─────────────
 
-const DEVICE_AXES = { storage: 'stockage' } as const;
+const DEVICE_AXES = { storage: 'stockage', screen: 'taille-ecran', sim: 'sim' } as const;
+
+/**
+ * Valeurs d'axe que la fiche d'appareil permet de déduire, en plus des capacités et des coloris :
+ * la taille d'écran (« 6,3 pouces ») et la SIM (Double SIM ou Nano-SIM, si la fiche le dit).
+ */
+function deviceAxisValues(device: DeviceModelDto): { screen: string | null; sim: string | null } {
+  const size = device.attributes.screenSize;
+  const dual = device.attributes.dualSim;
+  return {
+    screen: typeof size === 'number' && size > 0 ? `${String(size).replace('.', ',')} pouces` : null,
+    sim: dual === true ? 'Double SIM' : dual === false ? 'Nano-SIM' : null,
+  };
+}
 
 /** Valeur de l'ancienne fiche mise au format d'un attribut ; null si elle n'y entre pas. */
 function deviceSpec(attribute: CategoryAttributeDto, raw: unknown): SpecDraft | null {
@@ -461,6 +474,11 @@ export function missingDeviceValues(
   if (storage) {
     const values = device.storages.filter((value) => canonicalValue(storage, value) === null).map((value) => ({ value }));
     if (values.length > 0) plan.push({ attributeId: storage.id, values });
+  }
+  const { screen: screenValue } = deviceAxisValues(device);
+  const screen = axesOf(attributes).find((axis) => axis.slug === DEVICE_AXES.screen);
+  if (screen && screenValue && canonicalValue(screen, screenValue) === null) {
+    plan.push({ attributeId: screen.id, values: [{ value: screenValue }] });
   }
   const color = colorAxis(attributes);
   if (color) {
@@ -519,6 +537,10 @@ export function applyDevice(
       color,
       device.colors.map((c) => c.value),
     );
+    // Taille d'écran et SIM : une seule valeur cochée d'emblée, le commerçant en ajoute d'autres.
+    const deduced = deviceAxisValues(device);
+    pick(axesOf(attributes).find((axis) => axis.slug === DEVICE_AXES.screen), deduced.screen ? [deduced.screen] : []);
+    pick(axesOf(attributes).find((axis) => axis.slug === DEVICE_AXES.sim), deduced.sim ? [deduced.sim] : []);
     next = regenerateVariants({ ...next, axes, excluded: [] }, attributes);
   }
   return withSuggestedSkus(next, attributes);

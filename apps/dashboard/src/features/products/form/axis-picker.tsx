@@ -23,20 +23,42 @@ export function AxisPicker({
   /** Valeur créée sur l'attribut : la cocher une fois l'attribut relu. */
   onAdded: (slug: string, value: string) => Promise<void>;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const axes = axesOf(attributes);
   if (axes.length === 0) return null;
+  const errorOf = (axis: CategoryAttributeDto) => errors[`axes.${axis.slug}`] ?? errors[`specs.${axis.slug}`];
+  const required = axes.filter((axis) => axis.required);
+  const optional = axes.filter((axis) => !axis.required);
+  // Les axes facultatifs restent repliés tant qu'ils ne servent pas : ils s'ouvrent seuls dès qu'une
+  // valeur est cochée (produit existant, fiche préremplie) ou qu'une erreur les concerne.
+  const inUse = optional.some((axis) => (picked[axis.slug]?.length ?? 0) > 0 || errorOf(axis));
+  const shown = expanded || inUse || required.length === 0 ? axes : required;
+  const row = (axis: CategoryAttributeDto) => (
+    <AxisRow
+      key={axis.id}
+      axis={axis}
+      picked={picked[axis.slug] ?? []}
+      error={errorOf(axis)}
+      onToggle={(value, on) => onToggle(axis.slug, value, on)}
+      onAdded={(value) => onAdded(axis.slug, value)}
+    />
+  );
   return (
     <div className="flex flex-col gap-5">
-      {axes.map((axis) => (
-        <AxisRow
-          key={axis.id}
-          axis={axis}
-          picked={picked[axis.slug] ?? []}
-          error={errors[`axes.${axis.slug}`] ?? errors[`specs.${axis.slug}`]}
-          onToggle={(value, on) => onToggle(axis.slug, value, on)}
-          onAdded={(value) => onAdded(axis.slug, value)}
-        />
-      ))}
+      {shown.map(row)}
+      {shown.length < axes.length && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="flex min-h-11 items-center gap-2 self-start rounded-[0.7rem] px-3 text-left text-[0.875rem] font-[600] text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] transition-colors hover:bg-surface-2 hover:text-ink"
+        >
+          <Plus className="size-4 shrink-0" strokeWidth={1.8} aria-hidden />
+          <span>
+            Autres variantes{' '}
+            <span className="font-[500] text-ink-3">· {optional.map((axis) => axis.name).join(', ')}</span>
+          </span>
+        </button>
+      )}
     </div>
   );
 }

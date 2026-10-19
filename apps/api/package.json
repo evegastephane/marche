@@ -26,7 +26,8 @@
     "dev:worker": "nest start --watch --entryFile worker",
     "start:worker": "node dist/worker",
     "db:seed": "prisma db seed",
-    "media:init": "tsx scripts/init-media-bucket.ts"
+    "media:init": "tsx scripts/init-media-bucket.ts",
+    "store:plan": "tsx scripts/set-store-plan.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1141.0",

@@ -68,6 +68,8 @@ function toDomain(row: OrderRow): Order {
       shippingMethod: row.shippingMethod,
       note: row.note,
       cancelReason: row.cancelReason,
+      posSessionId: row.posSessionId,
+      refundedAmount: row.refundedAmount,
       placedAt: row.placedAt,
       paidAt: row.paidAt,
       fulfilledAt: row.fulfilledAt,
@@ -96,6 +98,8 @@ function orderFields(order: Order) {
     shippingMethod: o.shippingMethod,
     note: o.note,
     cancelReason: o.cancelReason,
+    posSessionId: o.posSessionId,
+    refundedAmount: o.refundedAmount,
     placedAt: o.placedAt,
     paidAt: o.paidAt,
     fulfilledAt: o.fulfilledAt,
@@ -201,6 +205,50 @@ export class PrismaCustomerRepository extends CustomerRepository {
       if (!existing) throw error;
       return existing.id;
     }
+  }
+
+  async upsertForCounter(details: Omit<CustomerDetails, 'email'> & { email?: string | null }): Promise<string> {
+    const email = details.email?.trim().toLowerCase() || null;
+    if (email) {
+      const known = await this.txHost.tx.customer.findFirst({ where: { email }, select: { id: true } });
+      if (known) return this.upsertByEmail({ ...details, email });
+    }
+    const digits = (details.phone ?? '').replace(/\D/g, '');
+    if (digits.length >= 6) {
+      // Les numéros sont saisis librement (+225 07…, 07…) : on compare les 8 derniers chiffres.
+      const suffix = digits.slice(-8);
+      const rows = await this.txHost.tx.$queryRaw<{ id: string; email: string | null }[]>`
+        SELECT id, email FROM customers
+        WHERE store_id = ${this.actor.storeId}::uuid AND phone IS NOT NULL
+          AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE '%' || ${suffix}
+        ORDER BY created_at ASC LIMIT 1`;
+      const match = rows[0];
+      if (match) {
+        await this.txHost.tx.customer.update({
+          where: { id: match.id },
+          data: {
+            ...(details.firstName ? { firstName: details.firstName } : {}),
+            ...(details.lastName ? { lastName: details.lastName } : {}),
+            ...(email && !match.email ? { email } : {}),
+            ...(details.whatsappOptIn ? { whatsappOptInAt: new Date(), whatsappOptOutAt: null } : {}),
+          },
+        });
+        return match.id;
+      }
+    }
+    if (email) return this.upsertByEmail({ ...details, email });
+    const row = await this.txHost.tx.customer.create({
+      data: {
+        storeId: this.actor.storeId,
+        email: null,
+        firstName: details.firstName ?? null,
+        lastName: details.lastName ?? null,
+        phone: details.phone ?? null,
+        ...(details.whatsappOptIn ? { whatsappOptInAt: new Date() } : {}),
+      },
+      select: { id: true },
+    });
+    return row.id;
   }
 
   async listWhatsAppRecipients(): Promise<WhatsAppRecipient[]> {

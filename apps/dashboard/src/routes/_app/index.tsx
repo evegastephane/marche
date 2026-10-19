@@ -48,7 +48,9 @@ function Accueil() {
         <AExpedier currency={store.data?.currency} total={overview.data?.ordersToFulfill} />
         <div className="flex flex-col gap-6 lg:gap-8">
           <Demarrage hasSite={Boolean(site.data)} siteOnline={site.data?.status === 'PUBLISHED'} />
-          <StockBas />
+          <StockBas
+            total={overview.data ? overview.data.lowStockCount + overview.data.outOfStockCount : undefined}
+          />
         </div>
       </motion.div>
     </div>
@@ -148,12 +150,28 @@ function AExpedier({ currency, total }: { currency: Currency | undefined; total:
   );
 }
 
-function StockBas() {
+/** Les premiers articles sous leur seuil ; le compteur est celui de l'afficheur (tous les articles concernés). */
+function StockBas({ total }: { total: number | undefined }) {
   const low = useLowStock(6);
   const items = low.data?.items ?? [];
   return (
     <Card className="overflow-hidden">
-      <CardHeader title="Stock bas" count={low.data ? items.length : undefined} />
+      <CardHeader
+        title="Stock bas"
+        count={total ?? (low.data ? items.length : undefined)}
+        actions={
+          items.length > 0 && (
+            <Link
+              to="/inventory"
+              search={{ filter: 'low' }}
+              className="group inline-flex items-center gap-1 text-[0.8125rem] font-[560] text-ink-2 no-underline hover:text-ink"
+            >
+              Tout le stock bas
+              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" strokeWidth={1.8} />
+            </Link>
+          )
+        }
+      />
       {low.isPending ? (
         <div className="flex flex-col gap-2 px-5 pb-5">
           <Skeleton className="h-10" />
@@ -215,7 +233,7 @@ function Demarrage({ hasSite, siteOnline }: { hasSite: boolean; siteOnline: bool
     {
       done: (products.data?.pages[0]?.items.length ?? 0) > 0,
       title: 'Ajouter un premier produit',
-      detail: 'Un titre, un prix, une quantité.',
+      detail: 'Une catégorie, un nom, un prix.',
       to: '/products/new' as const,
     },
     {

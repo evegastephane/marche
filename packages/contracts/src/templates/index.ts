@@ -11,6 +11,7 @@ import type { Palette, ThemeSettings } from './theme.js';
 import { vitrineTemplate } from './vitrine.js';
 
 export * from './theme.js';
+export * from './sections.js';
 export * from './color.js';
 export * from './define.js';
 export * from './default.js';

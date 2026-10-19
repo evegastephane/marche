@@ -1,18 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import {
+  canUseTemplate,
   DEFAULT_TEMPLATE_ID,
   getTemplate,
   type PreviewTokenDto,
   type SiteDto,
+  type StorePlan,
   type TemplateDefinition,
   type ThemeSettings,
+  welcomeTitle,
 } from '@marche/contracts';
 import { ActorContext } from '../../../shared/application/actor-context.port.js';
 import { Clock } from '../../../shared/application/clock.port.js';
 import { OutboxPort } from '../../../shared/application/outbox.port.js';
 import { PublicUrls } from '../../../shared/application/public-urls.port.js';
 import { UnitOfWork } from '../../../shared/application/unit-of-work.port.js';
-import { NotFoundError, ValidationError } from '../../../shared/domain/domain-error.js';
+import { ForbiddenError, NotFoundError, ValidationError } from '../../../shared/domain/domain-error.js';
 import { CatalogFacade } from '../../catalog/catalog.facade.js';
 import { StoresFacade } from '../../stores/stores.facade.js';
 import { Site } from '../domain/site.aggregate.js';
@@ -42,11 +45,18 @@ export function parseThemeSettings(template: TemplateDefinition, settings: unkno
   return result.data;
 }
 
-/** « Chez Awa » → « Bienvenue chez Awa » ; « Maison Lumière » → « Bienvenue chez Maison Lumière ». */
-export function welcomeTitle(storeName: string): string {
-  const name = storeName.trim();
-  const title = /^chez\s+/i.test(name) ? `Bienvenue ${name.replace(/^chez/i, 'chez')}` : `Bienvenue chez ${name}`;
-  return title.slice(0, 120);
+export { welcomeTitle };
+
+/** Un modèle Premium ne s'enregistre ni ne se publie sans la formule Premium (l'aperçu reste libre). */
+export function assertTemplateAllowed(plan: StorePlan, templateId: string): void {
+  const template = requireTemplate(templateId);
+  if (!canUseTemplate(plan, template.manifest)) {
+    throw new ForbiddenError(
+      'PLAN_REQUIRED',
+      `Le modèle « ${template.manifest.name} » est réservé à la formule Premium`,
+      { templateId, plan },
+    );
+  }
 }
 
 /**
@@ -116,6 +126,7 @@ export class GenerateSiteUseCase {
 
     const template = requireTemplate(templateId);
     const store = await this.stores.getSettings(this.actor.storeId);
+    assertTemplateAllowed(store.plan, template.manifest.id);
     const [firstCollection] = await this.catalog.listPublishedCollections();
     const settings = parseThemeSettings(
       template,
@@ -152,6 +163,8 @@ export class SiteUseCases {
     private readonly hostCache: SiteHostCache,
     private readonly previews: PreviewTokens,
     private readonly previewThemes: PreviewThemeStore,
+    private readonly stores: StoresFacade,
+    private readonly actor: ActorContext,
     private readonly urls: PublicUrls,
     private readonly uow: UnitOfWork,
     private readonly outbox: OutboxPort,
@@ -167,16 +180,26 @@ export class SiteUseCases {
    * UC-41 : le brouillon peut changer de template (galerie du dashboard) ; il est validé
    * par le schéma du template qu'il désigne (palette comprise).
    */
-  updateDraftTheme(settings: unknown): Promise<SiteDto> {
+  /**
+   * Le contrôle de formule ne porte que sur un changement de modèle : une boutique repassée en Gratuit
+   * garde le droit de modifier ses sections (son site public s'affiche alors en modèle natif).
+   */
+  async updateDraftTheme(settings: unknown): Promise<SiteDto> {
+    const plan = await this.plan();
     return this.mutate((site) => {
-      site.updateDraftTheme(parseThemeSettings(requireTemplate(templateOf(settings) ?? site.templateId), settings), this.clock.now());
+      const parsed = parseThemeSettings(requireTemplate(templateOf(settings) ?? site.templateId), settings);
+      if (parsed.template !== site.snapshot().draftThemeSettings.template) assertTemplateAllowed(plan, parsed.template);
+      site.updateDraftTheme(parsed, this.clock.now());
     });
   }
 
-  publishTheme(): Promise<SiteDto> {
-    return this.mutate((site) =>
-      site.publishTheme(this.clock.now(), (templateId) => requireTemplate(templateId).manifest.version),
-    );
+  async publishTheme(): Promise<SiteDto> {
+    const plan = await this.plan();
+    return this.mutate((site) => {
+      const { draftThemeSettings, themeSettings } = site.snapshot();
+      if (draftThemeSettings.template !== themeSettings.template) assertTemplateAllowed(plan, draftThemeSettings.template);
+      site.publishTheme(this.clock.now(), (templateId) => requireTemplate(templateId).manifest.version);
+    });
   }
 
   publish(): Promise<SiteDto> {
@@ -209,6 +232,10 @@ export class SiteUseCases {
     const site = await this.current();
     const parsed = parseThemeSettings(requireTemplate(templateOf(settings) ?? site.templateId), settings);
     await this.previewThemes.save(site.id, session, parsed);
+  }
+
+  private async plan(): Promise<StorePlan> {
+    return (await this.stores.getSettings(this.actor.storeId)).plan;
   }
 
   private async current(): Promise<Site> {

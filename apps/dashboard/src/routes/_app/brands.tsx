@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { CatalogTabs } from '@/features/products/catalog-tabs';
 import { useBrandList, useBrandMutation } from '@/features/brands/api';
 import { mediaSrc } from '@/features/media/api';
 import { SingleImage } from '@/features/media/media-gallery';
@@ -56,6 +57,7 @@ function Marques() {
 
   return (
     <div className="flex flex-col gap-6">
+      <CatalogTabs />
       <PageHeader
         title="Marques"
         subtitle="Regroupez vos produits par marque : elles s’affichent sur les fiches produit de votre site."

@@ -219,6 +219,10 @@ export class PrismaInventoryRepository extends InventoryRepository {
     return this.txHost.tx.stockUnit.findUnique({ where: { id: unitId }, select: unitSelect });
   }
 
+  async findUnitBySerial(serial: string): Promise<UnitRecord | null> {
+    return this.txHost.tx.stockUnit.findFirst({ where: { serial }, select: unitSelect });
+  }
+
   async moveUnit(input: { unit: UnitRecord; to: 'REMOVED' | 'IN_STOCK'; reason: string; actorUserId: string | null }): Promise<AdjustResult> {
     const { unit } = input;
     const row = await this.lockLevel(unit.variantId);

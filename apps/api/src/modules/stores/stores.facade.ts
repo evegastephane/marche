@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Currency, ShippingSettings, StoreType, VerticalSettings } from '@marche/contracts';
+import type { Currency, ShippingSettings, StorePlan, StoreType, VerticalSettings } from '@marche/contracts';
 import type { MemberRole } from '../../shared/application/actor-context.port.js';
 import { Clock } from '../../shared/application/clock.port.js';
 import { OutboxPort } from '../../shared/application/outbox.port.js';
@@ -22,6 +22,7 @@ export interface StoreSettings {
   lowStockDefault: number;
   type: StoreType;
   verticalSettings: VerticalSettings;
+  plan: StorePlan;
   archived: boolean;
 }
 
@@ -78,6 +79,7 @@ export class StoresFacade {
           lowStockDefault: s.lowStockDefault,
           type: s.type,
           verticalSettings: s.verticalSettings,
+          plan: s.plan,
           archived: store.isArchived,
         } satisfies StoreSettings;
       },

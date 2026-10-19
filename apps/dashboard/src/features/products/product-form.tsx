@@ -1,5 +1,6 @@
 import type { Currency, ProductDto, StoreType, VerticalSettings } from '@marche/contracts';
 import { Link, useNavigate } from '@tanstack/react-router';
+import { Plus } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -137,6 +138,14 @@ export function ProductForm({
   };
 
   const submitLabel = product ? 'Enregistrer' : 'Créer le produit';
+  // « Plus d'options » s'ouvre seul quand il contient déjà quelque chose ou une erreur à corriger.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreShown =
+    moreOpen ||
+    Boolean(draft.reference.trim()) ||
+    draft.accessories.length > 0 ||
+    (storeType === 'ELECTRONICS' && draft.warranty !== String(defaultWarranty ?? '')) ||
+    Boolean(errors.reference || errors.warrantyMonths || referenceTaken);
 
   return (
     <form
@@ -191,39 +200,6 @@ export function ProductForm({
                   />
                 )}
               </Field>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <Field
-                  label="Référence"
-                  hint={`Préfixe des SKU : ${draft.variants[0]?.sku || 'IP17P-256-NOI'}`}
-                  error={errors.reference ?? (referenceTaken ? 'Déjà utilisée par un autre produit.' : undefined)}
-                >
-                  {(props) => (
-                    <Input
-                      {...props}
-                      className="tabular uppercase"
-                      value={draft.reference}
-                      placeholder="IP17P"
-                      spellCheck={false}
-                      maxLength={32}
-                      onChange={(event) => state.setReference(event.target.value)}
-                    />
-                  )}
-                </Field>
-                <Field label="Garantie" hint="En mois ; vide si aucune." error={errors.warrantyMonths}>
-                  {(props) => (
-                    <div className="relative">
-                      <Input
-                        {...props}
-                        className="tabular pr-16"
-                        inputMode="numeric"
-                        value={draft.warranty}
-                        onChange={(event) => state.update({ warranty: event.target.value.replace(/\D/g, '') })}
-                      />
-                      <span className="legend pointer-events-none absolute top-1/2 right-3 -translate-y-1/2">mois</span>
-                    </div>
-                  )}
-                </Field>
-              </div>
               {(brands.data?.items.length ?? 0) > 0 && (
                 <Field label="Marque">
                   {(props) => (
@@ -390,13 +366,71 @@ export function ProductForm({
             </div>
           </Card>
 
-          <AccessoriesCard
-            productId={product?.id}
-            device={device}
-            model={model}
-            accessories={draft.accessories}
-            onChange={(accessories) => state.update({ accessories })}
-          />
+          {moreShown ? (
+            <>
+              <Card>
+                <CardHeader title="Plus d’options" />
+                <div className="grid gap-5 px-5 pb-6 sm:grid-cols-2">
+                  <Field
+                    label="Référence"
+                    hint={
+                      draft.reference.trim()
+                        ? `Préfixe des SKU : ${draft.variants[0]?.sku || draft.reference.trim().toUpperCase()}`
+                        : 'Facultative : sans elle, les SKU se créent tout seuls.'
+                    }
+                    error={errors.reference ?? (referenceTaken ? 'Déjà utilisée par un autre produit.' : undefined)}
+                  >
+                    {(props) => (
+                      <Input
+                        {...props}
+                        className="tabular uppercase"
+                        value={draft.reference}
+                        placeholder="IP17P"
+                        spellCheck={false}
+                        maxLength={32}
+                        onChange={(event) => state.setReference(event.target.value)}
+                      />
+                    )}
+                  </Field>
+                  {storeType === 'ELECTRONICS' && (
+                    <Field label="Garantie" hint="En mois ; vide si aucune." error={errors.warrantyMonths}>
+                      {(props) => (
+                        <div className="relative">
+                          <Input
+                            {...props}
+                            className="tabular pr-16"
+                            inputMode="numeric"
+                            value={draft.warranty}
+                            onChange={(event) => state.update({ warranty: event.target.value.replace(/\D/g, '') })}
+                          />
+                          <span className="legend pointer-events-none absolute top-1/2 right-3 -translate-y-1/2">mois</span>
+                        </div>
+                      )}
+                    </Field>
+                  )}
+                </div>
+              </Card>
+              <AccessoriesCard
+                productId={product?.id}
+                device={device}
+                model={model}
+                accessories={draft.accessories}
+                onChange={(accessories) => state.update({ accessories })}
+              />
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setMoreOpen(true)}
+              className="group flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-line-strong px-4 text-[0.9375rem] font-[600] text-ink-2 transition-colors duration-200 hover:border-ink-3 hover:bg-surface-2 hover:text-ink"
+            >
+              <Plus className="size-4 shrink-0" strokeWidth={1.8} aria-hidden />
+              Plus d’options
+              <span className="font-[500] text-ink-3">
+                · référence{storeType === 'ELECTRONICS' ? ', garantie' : ''}, {device ? 'accessoires' : 'articles à associer'}
+              </span>
+            </button>
+          )}
         </div>
 
         <aside className="flex flex-col gap-4 lg:sticky lg:top-10">

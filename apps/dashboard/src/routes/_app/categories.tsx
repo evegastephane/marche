@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 import { z } from 'zod';
+import { CatalogTabs } from '@/features/products/catalog-tabs';
 import { useCategories } from '@/features/categories/api';
 import { AttributesView } from '@/features/categories/attributes-view';
 import { CategoriesView } from '@/features/categories/categories-view';
@@ -32,6 +33,7 @@ function Categories() {
 
   return (
     <div className="flex flex-col gap-6">
+      <CatalogTabs />
       <PageHeader
         title="Catégories"
         subtitle="L’arbre du catalogue et les attributs de chaque rayon : ils décident de la fiche technique, des variantes et des filtres du site."

@@ -10,6 +10,7 @@ export const couvertureTemplateManifest: TemplateManifest = {
   id: 'couverture',
   name: 'La couverture de magazine',
   version: '1.0.0',
+  tier: 'premium',
   tagline: 'Votre boutique comme le numéro du mois : la une à votre nom, vos articles en titres de couverture, chaque fiche en page mode.',
   storeTypes: ['FASHION'],
   fontChoice: false,

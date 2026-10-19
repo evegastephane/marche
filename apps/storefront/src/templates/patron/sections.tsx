@@ -1,10 +1,22 @@
 import type { Section, SizeGuide, StorefrontStoreDto } from '@marche/contracts';
+import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { getBrands, getCollections, getProducts } from '@/lib/storefront-api';
+import { getBrands, getProducts } from '@/lib/storefront-api';
 import { Reveal } from '../default/components/motion';
 import { EnvelopeFront } from './envelope-front';
 import { ProductGrid } from './product-card';
+import { imageProps } from '../default/components/media';
+import { cn } from '@/lib/format';
+import {
+  contactLines,
+  faqItemsOf,
+  featuredSelection,
+  hasContact,
+  paragraphsOf,
+  SectionList,
+  sectionImage,
+} from '../shared/home-sections';
 
 interface SectionProps<T extends Section['type']> {
   site: string;
@@ -115,22 +127,18 @@ async function Hero({ site, store, section }: SectionProps<'hero'>) {
 }
 
 async function FeaturedCollection({ site, store, section }: SectionProps<'featured-collection'>) {
-  if (!section.collectionId) return null;
-  const collections = await getCollections(site, store.id);
-  const collection = collections.find((c) => c.id === section.collectionId);
-  if (!collection) return null;
-  const products = await getProducts(site, store.id, { collection: collection.slug, limit: section.limit });
-  if (products.items.length === 0) return null;
+  const selection = await featuredSelection(site, store, section);
+  if (!selection) return null;
   return (
     <Plate
-      title={section.title || collection.title}
+      title={selection.title}
       action={
-        <Link href={`/collections/${collection.slug}`} className={seeAll}>
+        <Link href={selection.href} className={seeAll}>
           Toute la planche →
         </Link>
       }
     >
-      <ProductGrid products={products.items} currency={store.currency} />
+      <ProductGrid products={selection.products} currency={store.currency} />
     </Plate>
   );
 }
@@ -189,23 +197,148 @@ function RichText({ section }: SectionProps<'rich-text'>) {
   );
 }
 
+/** La photo du modèle dans son tracé de coupe, les explications à côté. */
+function ImageText({ store, section }: SectionProps<'image-text'>) {
+  const image = sectionImage(store, section.imageMediaId);
+  const paragraphs = paragraphsOf(section.body);
+  if (!image && paragraphs.length === 0 && !section.title) return null;
+  return (
+    <Plate title={section.title}>
+      <Reveal className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+        {image && (
+          <div className={cn('border-2 border-dashed border-fg/50 p-3', section.imagePosition === 'right' && 'lg:order-2')}>
+            <div className="aspect-[4/5] overflow-hidden">
+              <img {...imageProps(image, '(min-width: 1024px) 45vw, 100vw')} alt={image.alt ?? ''} className="size-full object-cover" />
+            </div>
+          </div>
+        )}
+        <div className="flex flex-col items-start gap-5">
+          {paragraphs.map((p, i) => (
+            <p key={i} className="max-w-[56ch] text-lg leading-relaxed">
+              {p}
+            </p>
+          ))}
+          {section.ctaLabel && (
+            <Link
+              href={section.ctaHref ?? '/collections'}
+              className="mt-2 inline-flex min-h-12 items-center border-[1.5px] border-fg px-6 font-heading text-[0.9375rem] font-bold tracking-[0.06em] text-fg uppercase no-underline [font-stretch:78%] hover:bg-fg hover:text-bg"
+            >
+              {section.ctaLabel} →
+            </Link>
+          )}
+        </div>
+      </Reveal>
+    </Plate>
+  );
+}
+
+/** Questions fréquentes : les étapes de la notice, numérotées, la réponse sous chacune. */
+function Faq({ section }: SectionProps<'faq'>) {
+  const items = faqItemsOf(section);
+  if (items.length === 0) return null;
+  return (
+    <Plate title={section.title}>
+      <Reveal className="max-w-4xl border-t-[1.5px] border-fg">
+        {items.map((item, index) => (
+          <details key={item.id} className="group border-b border-fg/25">
+            <summary className="flex min-h-14 cursor-pointer list-none items-baseline gap-4 py-4 [&::-webkit-details-marker]:hidden">
+              <span className="tabular font-heading text-2xl font-black [font-stretch:120%]">{index + 1}.</span>
+              <span className="flex-1 font-heading text-xl font-black tracking-[-0.01em] uppercase [font-stretch:115%]">{item.question}</span>
+              <span aria-hidden className="font-heading text-xl font-black transition-transform duration-300 group-open:rotate-45">
+                <Plus className="size-[1em]" strokeWidth={2} />
+              </span>
+            </summary>
+            <div className="flex flex-col gap-3 pb-6 pl-10 text-lg leading-relaxed">
+              {paragraphsOf(item.answer).map((p, i) => (
+                <p key={i} className="max-w-[62ch]">
+                  {p}
+                </p>
+              ))}
+            </div>
+          </details>
+        ))}
+      </Reveal>
+    </Plate>
+  );
+}
+
+/** Contact : un tableau comme celui des mesures, une ligne par moyen de joindre la boutique. */
+function Contact({ store, section }: SectionProps<'contact'>) {
+  const lines = contactLines(store, section);
+  if (!hasContact(section, lines)) return null;
+  return (
+    <Plate title={section.title}>
+      <Reveal className="flex max-w-4xl flex-col gap-5">
+        {section.subtitle && <p className="max-w-[56ch] text-lg leading-relaxed">{section.subtitle}</p>}
+        <div className="overflow-x-auto border-y-[1.5px] border-fg">
+          <table className="w-full border-collapse text-left">
+            <tbody>
+              {lines.map((line) => (
+                <tr key={line.kind} className="border-b border-fg/15 last:border-0">
+                  <th scope="row" className="px-3 py-3 font-heading text-sm font-bold tracking-[0.08em] uppercase [font-stretch:80%]">
+                    {line.action}
+                  </th>
+                  <td className="px-3 py-3">
+                    <a
+                      href={line.href}
+                      target={line.kind === 'whatsapp' ? '_blank' : undefined}
+                      rel={line.kind === 'whatsapp' ? 'noreferrer' : undefined}
+                      className="tabular inline-flex min-h-11 items-center font-heading text-lg font-black break-all [font-stretch:110%] decoration-primary decoration-2 underline-offset-4 hover:underline"
+                    >
+                      {line.value}
+                    </a>
+                  </td>
+                </tr>
+              ))}
+              {section.address && (
+                <tr className="border-b border-fg/15 last:border-0">
+                  <th scope="row" className="px-3 py-3 font-heading text-sm font-bold tracking-[0.08em] uppercase [font-stretch:80%]">
+                    Adresse
+                  </th>
+                  <td className="px-3 py-3 text-lg">{section.address}</td>
+                </tr>
+              )}
+              {section.hours && (
+                <tr>
+                  <th scope="row" className="px-3 py-3 font-heading text-sm font-bold tracking-[0.08em] uppercase [font-stretch:80%]">
+                    Horaires
+                  </th>
+                  <td className="px-3 py-3 text-lg">{section.hours}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Reveal>
+    </Plate>
+  );
+}
+
 export function HomeSections({ site, store }: { site: string; store: StorefrontStoreDto }) {
-  return store.theme.sections
-    .filter((section) => section.enabled)
-    .map((section) => {
-      switch (section.type) {
-        case 'hero':
-          return <Hero key={section.id} site={site} store={store} section={section} />;
-        case 'featured-collection':
-          return <FeaturedCollection key={section.id} site={site} store={store} section={section} />;
-        case 'product-grid':
-          return <ProductGridSection key={section.id} site={site} store={store} section={section} />;
-        case 'brand-strip':
-          return <BrandStrip key={section.id} site={site} store={store} section={section} />;
-        case 'rich-text':
-          return <RichText key={section.id} site={site} store={store} section={section} />;
-        default:
-          return null;
-      }
-    });
+  return (
+    <SectionList store={store}>
+      {(section) => {
+        switch (section.type) {
+          case 'hero':
+            return <Hero site={site} store={store} section={section} />;
+          case 'featured-collection':
+            return <FeaturedCollection site={site} store={store} section={section} />;
+          case 'product-grid':
+            return <ProductGridSection site={site} store={store} section={section} />;
+          case 'brand-strip':
+            return <BrandStrip site={site} store={store} section={section} />;
+          case 'rich-text':
+            return <RichText site={site} store={store} section={section} />;
+          case 'image-text':
+            return <ImageText site={site} store={store} section={section} />;
+          case 'faq':
+            return <Faq site={site} store={store} section={section} />;
+          case 'contact':
+            return <Contact site={site} store={store} section={section} />;
+          default:
+            return null;
+        }
+      }}
+    </SectionList>
+  );
 }

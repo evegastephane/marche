@@ -1,0 +1,1204 @@
+/*
+ * Accueil Upsell : « Le chariot en pièces ». Scène noire où l'emblème démonté (panier, poignée-flèche, deux roues
+ * orange) change de place à chaque chapitre ; le vrai produit, en répliques claires et interactives, occupe la scène.
+ * L'orange n'existe que sur les roues, le fil et l'action principale. Scène fixe, indépendante du thème de l'appareil.
+ */
+@layer components {
+  html:has(.uh),
+  html:has(.uh) body {
+    background: #0e0f12;
+  }
+
+  .uh {
+    --uh-bg: #0e0f12;
+    --uh-raised: #16171b;
+    --uh-piece: #1c1d23;
+    --uh-ink: #f4f2ee;
+    --uh-ink-2: #aeb0b7;
+    --uh-ink-3: #868891;
+    --uh-line: rgb(244 242 238 / 0.1);
+    --uh-line-2: rgb(244 242 238 / 0.18);
+    --uh-orange: #f66b21;
+    --uh-orange-hot: #ff7d36;
+    --uh-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --uh-piece-w: clamp(240px, 46vw, 760px);
+
+    position: relative;
+    isolation: isolate;
+    min-height: 100dvh;
+    overflow-x: clip;
+    color-scheme: dark;
+    background: var(--uh-bg);
+    color: var(--uh-ink);
+    scrollbar-color: #34363d var(--uh-bg);
+  }
+  .uh :is(h1, h2, h3, h4) {
+    font-family: inherit;
+    letter-spacing: normal;
+  }
+  .uh ::selection {
+    background: var(--uh-orange);
+    color: #101115;
+  }
+  .uh :focus-visible {
+    outline: 2px solid var(--uh-orange);
+    outline-offset: 3px;
+  }
+
+  .uh-container {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 640px) {
+    .uh-container {
+      padding-inline: 1.5rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .uh-container {
+      padding-inline: 2.5rem;
+    }
+  }
+
+  /* Avant l'hydratation, ce qui entre en scène reste caché : pas de clignotement. */
+  html.uh-js .uh-kinetic,
+  html.uh-js [data-intro],
+  html.uh-js [data-screen-intro] {
+    visibility: hidden;
+  }
+
+  /* ——— Le décor ——— */
+  .uh-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .uh-piece {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--uh-piece-w);
+    aspect-ratio: 376 / 320;
+    margin-left: calc(var(--uh-piece-w) / -2);
+    margin-top: calc(var(--uh-piece-w) * -160 / 376);
+  }
+  .uh-piece-layer {
+    position: absolute;
+    inset: 0;
+  }
+  .uh-piece svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .uh main {
+    position: relative;
+    z-index: 1;
+  }
+  .uh-thread {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    overflow: visible;
+    pointer-events: none;
+  }
+  @media (max-width: 1023px) {
+    .uh-thread {
+      display: none;
+    }
+  }
+  /*
+   * Ordre de peinture dans <main> : fond des feuilles blanches (-1), fil orange (0), contenu des sections (1).
+   * Les sections ne créent pas de contexte d'empilement, pour que le fil passe sur le blanc et sous le produit.
+   */
+  .uh main > section {
+    position: relative;
+  }
+  .uh main > section > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Feuilles blanches : posées sur la scène, elles montrent le produit en pleine lumière. */
+  .uh-paper {
+    --uh-ink: #101115;
+    --uh-ink-2: #4a4c54;
+    --uh-ink-3: #686a72;
+    --uh-line: rgb(16 17 21 / 0.1);
+    --uh-line-2: rgb(16 17 21 / 0.18);
+    --uh-raised: #ffffff;
+    --uh-hole: #ffffff;
+    --uh-sheet-inset: 1.25vw;
+    --uh-sheet-radius: 28px;
+
+    color-scheme: light;
+    color: var(--uh-ink);
+  }
+  .uh-paper::before {
+    content: '';
+    position: absolute;
+    inset: 0 var(--uh-sheet-inset);
+    z-index: -1;
+    border-radius: var(--uh-sheet-radius);
+    background: #ffffff;
+    box-shadow: 0 40px 120px -40px rgb(0 0 0 / 0.7);
+  }
+  .uh-paper ::selection {
+    background: #101115;
+    color: #ffffff;
+  }
+  .uh-paper :focus-visible {
+    outline-color: #101115;
+  }
+  .uh-paper .uh-dash {
+    box-shadow:
+      0 1px 2px rgb(16 17 21 / 0.08),
+      0 28px 60px -30px rgb(16 17 21 / 0.32);
+  }
+  .uh-paper .uh-phone {
+    box-shadow:
+      inset 0 0 0 1.5px #2c2d32,
+      0 44px 80px -34px rgb(16 17 21 / 0.5);
+  }
+
+  /* ——— Typographie : une famille, cinq tailles ——— */
+  .uh-display-xl {
+    font-size: clamp(3rem, 8.6vw, 7.5rem);
+    font-weight: 820;
+    letter-spacing: -0.04em;
+    line-height: 0.92;
+  }
+  .uh-display-l {
+    font-size: clamp(3rem, 8vw, 6.75rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 0.92;
+  }
+  .uh-kinetic-line {
+    display: block;
+  }
+  .uh-wheel-slot {
+    position: relative;
+    z-index: 2;
+    display: inline-block;
+    width: 0.19em;
+    height: 0.19em;
+    margin-left: 0.045em;
+    vertical-align: baseline;
+  }
+  .uh-wheel {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .uh-lede {
+    font-size: clamp(1.0625rem, 1.25vw, 1.25rem);
+    line-height: 1.5;
+    color: var(--uh-ink-2);
+    text-wrap: pretty;
+  }
+
+  /* ——— Actions ——— */
+  .uh-cta {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 3.25rem;
+    padding: 0 1.5rem;
+    border-radius: 999px;
+    background: var(--uh-orange);
+    color: #101115;
+    font-size: 1.0625rem;
+    font-weight: 660;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    text-decoration: none;
+    box-shadow: 0 12px 32px -12px rgb(246 107 33 / 0.6);
+    transition:
+      background-color 0.2s,
+      box-shadow 0.3s var(--uh-ease),
+      transform 0.3s var(--uh-ease);
+  }
+  .uh-cta:hover {
+    background: var(--uh-orange-hot);
+    transform: translateY(-2px);
+    box-shadow: 0 18px 40px -14px rgb(246 107 33 / 0.75);
+  }
+  .uh-cta:active {
+    transform: translateY(0);
+  }
+  .uh-cta svg {
+    width: 1.1em;
+    height: 1.1em;
+    transition: transform 0.35s var(--uh-ease);
+  }
+  .uh-cta:hover svg {
+    transform: translateX(4px);
+  }
+  .uh-cta[data-size='sm'] {
+    height: 2.5rem;
+    padding: 0 1.05rem;
+    font-size: 0.9375rem;
+    box-shadow: none;
+  }
+  .uh-cta[data-size='sm']:hover {
+    transform: none;
+  }
+
+  .uh-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--uh-ink);
+    font-weight: 600;
+    text-decoration: none;
+    background: linear-gradient(currentColor, currentColor) 0 100% / 100% 1.5px
+      no-repeat;
+    padding-bottom: 2px;
+    transition:
+      background-size 0.45s var(--uh-ease),
+      color 0.2s;
+  }
+  .uh-link:hover {
+    background-size: 0 1.5px;
+    background-position: 100% 100%;
+    color: var(--uh-orange-hot);
+  }
+  .uh-link-dark {
+    color: var(--d-ink);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 4px;
+  }
+
+  .uh-nav {
+    display: inline-flex;
+    align-items: center;
+    height: 2.5rem;
+    padding: 0 0.875rem;
+    border-radius: 999px;
+    color: var(--uh-ink-2);
+    font-size: 0.9375rem;
+    font-weight: 560;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      color 0.2s,
+      background-color 0.2s;
+  }
+  .uh-nav:hover {
+    color: var(--uh-ink);
+    background: rgb(244 242 238 / 0.07);
+  }
+  .uh-header {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 50;
+    transition:
+      background-color 0.3s,
+      box-shadow 0.3s,
+      backdrop-filter 0.3s;
+  }
+  .uh-header[data-scrolled] {
+    background: rgb(14 15 18 / 0.8);
+    box-shadow: 0 1px 0 var(--uh-line);
+    backdrop-filter: blur(16px) saturate(1.4);
+  }
+  .uh-footer-link {
+    color: var(--uh-ink-2);
+    font-weight: 560;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .uh-footer-link:hover {
+    color: var(--uh-ink);
+  }
+
+  .uh-chip {
+    display: inline-flex;
+    align-items: center;
+    height: 2.75rem;
+    padding: 0 1.125rem;
+    border-radius: 999px;
+    background: var(--uh-raised);
+    color: var(--uh-ink);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--uh-line-2);
+    transition:
+      box-shadow 0.2s,
+      transform 0.2s var(--uh-ease);
+  }
+  .uh-chip:hover {
+    box-shadow: inset 0 0 0 1.5px var(--uh-orange);
+    transform: translateY(-2px);
+  }
+
+  /* ——— Chapitres ——— */
+  .uh-chapter {
+    padding-top: clamp(5rem, 10vw, 8.5rem);
+    scroll-margin-top: 1rem;
+  }
+  .uh-chapter.uh-paper {
+    margin-top: clamp(5rem, 10vw, 8.5rem);
+    padding-block: clamp(3.5rem, 7vw, 6rem);
+    scroll-margin-top: 0;
+  }
+  .uh-paper + .uh-chapter {
+    padding-top: clamp(4.5rem, 9vw, 7.5rem);
+  }
+  .uh-chapter-head {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: clamp(2.25rem, 4.5vw, 3.75rem);
+  }
+  @media (min-width: 1024px) {
+    .uh-chapter-head {
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: end;
+      gap: 3rem;
+    }
+    .uh-chapter-head .uh-lede {
+      justify-self: end;
+      max-width: 27rem;
+      padding-bottom: 0.6rem;
+    }
+  }
+
+  /* Bandes opaques : le fil et les pièces passent derrière, jamais sur le texte. */
+  .uh-marquee {
+    overflow: hidden;
+    background: var(--uh-bg);
+    mask-image: linear-gradient(
+      90deg,
+      transparent,
+      #000 7%,
+      #000 93%,
+      transparent
+    );
+  }
+  .uh-pill {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.75rem;
+    height: clamp(3.5rem, 6vw, 4.75rem);
+    padding: 0 clamp(1.25rem, 2.2vw, 2rem);
+    border-radius: 999px;
+    background: rgb(244 242 238 / 0.03);
+    box-shadow: inset 0 0 0 1px var(--uh-line);
+    font-size: clamp(1.0625rem, 1.9vw, 1.625rem);
+    font-weight: 640;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+  }
+
+  /* Avec le pied de page, la conclusion tient dans un écran : l'emblème s'y remonte quand on arrive en bas. */
+  .uh-closing {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100svh - 6.6rem);
+    padding-bottom: 4rem;
+  }
+  /* Place laissée à l'emblème qui se remonte (stage.tsx : centré à 27 % de la hauteur, 250 px de large au plus). */
+  .uh-closing-slot {
+    flex-shrink: 0;
+    height: calc(27svh + min(250px, 50vw) * 0.4255 + 2.5rem);
+  }
+  .uh-field {
+    display: flex;
+    width: 100%;
+    max-width: 34rem;
+    gap: 0.375rem;
+    padding: 0.375rem;
+    border-radius: 999px;
+    background: rgb(244 242 238 / 0.05);
+    box-shadow: inset 0 0 0 1px var(--uh-line-2);
+    transition: box-shadow 0.2s;
+  }
+  .uh-field:focus-within {
+    box-shadow: inset 0 0 0 1.5px var(--uh-orange);
+  }
+  .uh-field input {
+    min-width: 0;
+    flex: 1;
+    padding: 0 1.25rem;
+    background: transparent;
+    color: var(--uh-ink);
+    font-size: 1.0625rem;
+    outline: none;
+  }
+  .uh-field input::placeholder {
+    color: var(--uh-ink-3);
+  }
+  .uh-field .uh-cta {
+    height: 3rem;
+    box-shadow: none;
+  }
+  .uh-field .uh-cta:hover {
+    transform: none;
+  }
+  @media (max-width: 520px) {
+    .uh-field {
+      flex-direction: column;
+      border-radius: 1.5rem;
+    }
+    .uh-field input {
+      height: 3rem;
+    }
+  }
+
+  /* ——— Répliques du dashboard (monde « L'instrument », thème clair) ——— */
+  .uh-dash {
+    --d-canvas: #f2f2ef;
+    --d-surface: #ffffff;
+    --d-surface-2: #f4f4f1;
+    --d-surface-3: #e9e9e5;
+    --d-ink: #101115;
+    --d-ink-2: #4a4c54;
+    --d-ink-3: #6b6d75;
+    --d-line: #e4e4e0;
+    --d-line-strong: #cfcfca;
+    --d-key: #ffffff;
+    --d-key-pressed: #ebebe7;
+    --d-key-edge: rgb(16 17 21 / 0.16);
+    --d-display: #e8e9e3;
+    --d-display-dim: #5d5f66;
+    --d-display-line: rgb(16 17 21 / 0.1);
+    --d-accent: #f66b21;
+    --d-accent-strong: #ea5d12;
+    --d-danger: #d2281b;
+    --d-danger-ink: #a01b10;
+    --d-shadow-key:
+      0 1px 0 var(--d-key-edge), 0 2px 4px -1px rgb(18 19 22 / 0.08);
+
+    color-scheme: light;
+    background: var(--d-canvas);
+    color: var(--d-ink);
+    font-size: 0.9375rem;
+    text-align: left;
+    box-shadow: 0 50px 120px -40px rgb(0 0 0 / 0.85);
+  }
+  .uh-dash ::selection {
+    background: #101115;
+    color: #fff;
+  }
+  .uh-dash :focus-visible {
+    outline-color: var(--d-ink);
+  }
+  .uh-dash-hero {
+    height: 44rem;
+    overflow: hidden;
+    border-radius: 1rem;
+  }
+  @media (max-width: 639px) {
+    .uh-phone-chat {
+      height: 540px;
+    }
+  }
+  @media (max-width: 767px) {
+    .uh-dash-hero {
+      height: 42rem;
+    }
+  }
+
+  .d-display {
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.04;
+  }
+  .d-legend {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--d-ink-3);
+  }
+  .d-display-window .d-legend {
+    color: var(--d-display-dim);
+  }
+  .d-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--d-ink);
+  }
+  .d-readout {
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .d-panel {
+    background: var(--d-surface);
+    border-radius: 1rem;
+    box-shadow: 0 0 0 1px var(--d-line);
+  }
+  .d-display-window {
+    background: var(--d-display);
+    color: var(--d-ink);
+    box-shadow:
+      inset 0 2px 3px rgb(16 17 21 / 0.08),
+      inset 0 0 0 1px rgb(16 17 21 / 0.12);
+  }
+  .d-well {
+    background: var(--d-surface-2);
+    box-shadow:
+      inset 0 1px 2px rgb(18 19 22 / 0.07),
+      inset 0 0 0 1px var(--d-line);
+  }
+
+  .d-key,
+  .d-key-primary,
+  .d-key-ghost {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    white-space: nowrap;
+    user-select: none;
+    transition:
+      background-color 0.2s,
+      box-shadow 0.2s,
+      color 0.2s,
+      transform 0.15s;
+  }
+  .d-key {
+    background: var(--d-key);
+    color: var(--d-ink);
+    box-shadow:
+      0 0 0 1px var(--d-line-strong),
+      var(--d-shadow-key);
+  }
+  .d-key:hover {
+    background: var(--d-surface-2);
+  }
+  .d-key:active {
+    background: var(--d-key-pressed);
+    box-shadow:
+      0 0 0 1px var(--d-line-strong),
+      inset 0 1px 2px rgb(18 19 22 / 0.14);
+  }
+  .d-key-primary {
+    background: var(--d-accent);
+    color: #101115;
+    box-shadow: var(--d-shadow-key);
+  }
+  .d-key-primary:hover {
+    background: var(--d-accent-strong);
+  }
+  .d-key-primary:active {
+    transform: translateY(1px);
+  }
+  .d-key-ghost {
+    color: var(--d-ink-2);
+  }
+  .d-key-ghost:hover {
+    background: var(--d-surface-2);
+    color: var(--d-ink);
+  }
+  :is(.d-key, .d-key-primary, .d-key-ghost):disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+  .d-key-sm {
+    height: 2rem;
+    padding: 0 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+  }
+  .d-key-md {
+    height: 2.5rem;
+    padding: 0 1rem;
+    border-radius: 0.7rem;
+    font-size: 0.9375rem;
+  }
+  .d-key-lg {
+    height: 3rem;
+    padding: 0 1.25rem;
+    border-radius: 0.8rem;
+    font-size: 1rem;
+  }
+
+  .d-led {
+    display: block;
+    transition:
+      background-color 0.3s,
+      box-shadow 0.3s;
+  }
+  .d-led[data-tone='attention'] {
+    background: var(--d-accent, #f66b21);
+  }
+  .d-led[data-tone='on'] {
+    background: var(--d-ink, var(--uh-ink));
+  }
+  .d-led[data-tone='off'] {
+    box-shadow: inset 0 0 0 1.5px var(--d-ink-3, var(--uh-ink-3));
+  }
+  .d-led[data-tone='danger'] {
+    background: var(--d-danger, #ff5b4f);
+  }
+  .d-badge {
+    position: relative;
+    display: inline-flex;
+    height: 1.5rem;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.5rem;
+    overflow: hidden;
+    color: var(--d-ink-2);
+    font-size: 0.8125rem;
+    font-weight: 560;
+    white-space: nowrap;
+  }
+  .d-badge[data-tone='attention'] {
+    color: var(--d-ink);
+  }
+  .d-badge[data-tone='danger'] {
+    color: var(--d-danger-ink);
+  }
+
+  .d-rolling {
+    display: inline-flex;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .d-digit {
+    display: inline-block;
+    height: 1em;
+    overflow: hidden;
+    line-height: 1;
+  }
+  .d-digit-strip {
+    display: flex;
+    flex-direction: column;
+    transition: transform 1s var(--uh-ease);
+  }
+  .d-digit-strip > span {
+    height: 1em;
+    line-height: 1;
+  }
+
+  .d-segmented {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 0.6rem;
+    background: var(--d-surface-2);
+    box-shadow: inset 0 0 0 1px var(--d-line);
+  }
+  .d-segmented-display {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--d-display-line);
+  }
+  .d-segment {
+    position: relative;
+    height: 1.75rem;
+    padding: 0 0.625rem;
+    border-radius: 0.45rem;
+    color: var(--d-ink-3);
+    font-size: 0.75rem;
+    font-weight: 560;
+    white-space: nowrap;
+    transition: color 0.2s;
+  }
+  .d-segment:hover,
+  .d-segment[data-active='true'] {
+    color: var(--d-ink);
+  }
+  .d-segment-knob {
+    position: absolute;
+    inset: 0;
+    border-radius: 0.45rem;
+    background: var(--d-key);
+    box-shadow:
+      0 0 0 1px var(--d-line-strong),
+      var(--d-shadow-key);
+  }
+
+  .d-nav {
+    position: relative;
+    display: flex;
+    height: 2.375rem;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 0.75rem;
+    border-radius: 0.7rem;
+    color: var(--d-ink-2);
+    font-size: 0.875rem;
+    font-weight: 560;
+    transition: color 0.2s;
+  }
+  .d-nav svg {
+    color: var(--d-ink-3);
+    transition: color 0.2s;
+  }
+  .d-nav:hover,
+  .d-nav[data-active='true'],
+  .d-nav:hover svg,
+  .d-nav[data-active='true'] svg {
+    color: var(--d-ink);
+  }
+  .d-nav-knob {
+    position: absolute;
+    inset: 0;
+    border-radius: 0.7rem;
+    background: var(--d-key);
+    box-shadow:
+      0 0 0 1px var(--d-line-strong),
+      var(--d-shadow-key);
+  }
+
+  .d-input {
+    height: 2.75rem;
+    padding: 0 0.875rem;
+    border-radius: 0.7rem;
+    background: var(--d-surface-2);
+    color: var(--d-ink);
+    font-size: 1rem;
+    outline: none;
+    box-shadow:
+      inset 0 1px 2px rgb(18 19 22 / 0.07),
+      inset 0 0 0 1px var(--d-line);
+    transition: box-shadow 0.2s;
+  }
+  .d-input::placeholder {
+    color: var(--d-ink-3);
+  }
+  .d-input:focus {
+    box-shadow:
+      inset 0 1px 2px rgb(18 19 22 / 0.07),
+      inset 0 0 0 2px var(--d-ink);
+  }
+
+  .d-template {
+    position: relative;
+    display: flex;
+    height: 3.25rem;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0 0.5rem;
+    border-radius: 0.8rem;
+    background: var(--d-surface);
+    box-shadow: 0 0 0 1px var(--d-line);
+    transition: box-shadow 0.2s;
+  }
+  .d-template:hover {
+    box-shadow: 0 0 0 1px var(--d-line-strong);
+  }
+  .d-template-knob {
+    position: absolute;
+    inset: 0;
+    border-radius: 0.8rem;
+    box-shadow: 0 0 0 2px var(--d-ink);
+  }
+  .d-tile {
+    border-radius: 0.9rem;
+    background: var(--d-surface);
+    box-shadow: 0 0 0 1px var(--d-line);
+    transition:
+      box-shadow 0.2s,
+      transform 0.15s;
+  }
+  .d-tile:hover {
+    box-shadow:
+      0 0 0 1px var(--d-line-strong),
+      0 8px 18px -10px rgb(18 19 22 / 0.25);
+  }
+  .d-tile:active {
+    transform: scale(0.98);
+  }
+
+  /* ——— Téléphone ——— */
+  .uh-phone {
+    flex-shrink: 0;
+    width: 300px;
+    height: 620px;
+    padding: 10px;
+    border-radius: 48px;
+    background: #17181c;
+    box-shadow:
+      inset 0 0 0 1.5px #2c2d32,
+      0 50px 110px -35px rgb(0 0 0 / 0.85),
+      0 0 0 1px rgb(255 255 255 / 0.05);
+  }
+  .uh-phone-screen {
+    position: relative;
+    isolation: isolate;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 38px;
+    background: #fff;
+  }
+  .uh-phone-island {
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    z-index: 30;
+    width: 86px;
+    height: 24px;
+    border-radius: 999px;
+    background: #050506;
+    transform: translateX(-50%);
+  }
+
+  /* Le site d'exemple, habillé par le modèle choisi (palettes des vrais modèles). */
+  .uh-site {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--s-bg);
+    color: var(--s-fg);
+    font-family: var(--s-body);
+    transition:
+      background-color 0.6s,
+      color 0.6s;
+  }
+  .uh-site-url {
+    display: flex;
+    height: 28px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 6px 12px 0;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--s-fg) 7%, var(--s-bg));
+    color: color-mix(in oklab, var(--s-fg) 72%, var(--s-bg));
+    font-size: 10.5px;
+    transition: background-color 0.6s;
+  }
+  .uh-site-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px 9px;
+  }
+  .uh-site-name {
+    min-width: 0;
+    overflow: hidden;
+    font-family: var(--s-heading);
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .uh-site-hero {
+    position: relative;
+    display: flex;
+    height: 116px;
+    flex-shrink: 0;
+    margin: 0 12px;
+    overflow: hidden;
+    border-radius: 16px;
+    background: var(--s-primary);
+    color: var(--s-bg);
+  }
+  .uh-site-hero-art {
+    position: absolute;
+    top: 0;
+    right: -14px;
+    bottom: 0;
+    width: 44%;
+  }
+  .uh-site-hero-text {
+    position: relative;
+    display: flex;
+    max-width: 62%;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 14px 16px;
+  }
+  .uh-site-hero-title {
+    font-family: var(--s-heading);
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.05;
+  }
+  .uh-site-hero-cta {
+    display: inline-flex;
+    height: 24px;
+    align-items: center;
+    align-self: flex-start;
+    margin-top: 6px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: var(--s-bg);
+    color: var(--s-primary);
+    font-size: 10.5px;
+    font-weight: 700;
+  }
+  .uh-site-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 10px;
+    padding: 14px 12px 12px;
+  }
+  .uh-site-card {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .uh-site-photo {
+    display: block;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 12px;
+    background: var(--s-surface);
+    transition: filter 0.4s;
+  }
+  .uh-site-card[data-out='true'] .uh-site-photo {
+    filter: grayscale(1) opacity(0.5);
+  }
+  .uh-site-card-text {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    line-height: 1.25;
+  }
+  .uh-site-card-name {
+    overflow: hidden;
+    font-size: 11px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .uh-site-card-price {
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .uh-site-card-note {
+    color: var(--s-accent);
+    font-size: 10px;
+    font-weight: 650;
+  }
+
+  /* Le cahier du tailleur : papier ligné, photos collées, prix au stylo. */
+  .uh-site[data-template='atelier'] {
+    background-image: repeating-linear-gradient(
+      transparent 0 23px,
+      var(--s-line) 23px 24px
+    );
+  }
+  .uh-site[data-template='atelier'] .uh-site-name {
+    color: var(--s-accent);
+    font-family: var(--s-hand);
+    font-size: 23px;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+  .uh-site[data-template='atelier'] .uh-site-hero {
+    background: var(--s-surface);
+    color: var(--s-fg);
+    box-shadow: inset 0 0 0 1.5px
+      color-mix(in oklab, var(--s-fg) 30%, transparent);
+    border-radius: 6px;
+  }
+  .uh-site[data-template='atelier'] .uh-site-hero-cta {
+    background: var(--s-primary);
+    color: #fff;
+  }
+  .uh-site[data-template='atelier'] .uh-site-photo {
+    border: 4px solid #fff;
+    border-radius: 2px;
+    box-shadow: 0 3px 8px -3px rgb(0 0 0 / 0.35);
+    rotate: -2deg;
+  }
+  .uh-site[data-template='atelier']
+    .uh-site-card:nth-child(even)
+    .uh-site-photo {
+    rotate: 1.8deg;
+  }
+  .uh-site[data-template='atelier'] .uh-site-card-price {
+    color: var(--s-primary);
+    font-family: var(--s-hand);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  /* La couverture de magazine : la une à votre nom, un article en couverture. */
+  .uh-site[data-template='couverture'] .uh-site-head {
+    justify-content: center;
+    padding-top: 8px;
+  }
+  .uh-site[data-template='couverture'] .uh-site-head > span:last-child {
+    display: none;
+  }
+  .uh-site[data-template='couverture'] .uh-site-name {
+    color: var(--s-primary);
+    font-size: 38px;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    line-height: 0.9;
+    text-transform: uppercase;
+  }
+  .uh-site[data-template='couverture'] .uh-site-hero {
+    background: var(--s-surface);
+    color: var(--s-fg);
+    border-radius: 0;
+    margin: 0;
+  }
+  .uh-site[data-template='couverture'] .uh-site-hero-title {
+    font-size: 22px;
+    text-transform: uppercase;
+  }
+  .uh-site[data-template='couverture'] .uh-site-hero-cta {
+    background: var(--s-primary);
+    color: #fff;
+  }
+  .uh-site[data-template='couverture'] .uh-site-card:first-child {
+    grid-column: span 2;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+  .uh-site[data-template='couverture']
+    .uh-site-card:first-child
+    .uh-site-photo {
+    width: 52%;
+    flex-shrink: 0;
+  }
+  .uh-site[data-template='couverture'] .uh-site-photo {
+    border-radius: 0;
+  }
+  .uh-site[data-template='couverture'] .uh-site-card-name {
+    font-family: var(--s-heading);
+    font-size: 14px;
+    font-weight: 800;
+    text-transform: uppercase;
+    white-space: normal;
+  }
+
+  /* La devanture peinte : le nom en grandes lettres, des panneaux francs. */
+  .uh-site[data-template='devanture'] .uh-site-url {
+    background: rgb(255 255 255 / 0.14);
+    color: var(--s-fg);
+  }
+  .uh-site[data-template='devanture'] .uh-site-name {
+    color: var(--s-primary);
+    font-size: 24px;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    text-shadow: 2px 2px 0 #141414;
+  }
+  .uh-site[data-template='devanture'] .uh-site-hero {
+    background: var(--s-accent);
+    color: var(--s-fg);
+    border-radius: 6px;
+    box-shadow: inset 0 0 0 3px #141414;
+  }
+  .uh-site[data-template='devanture'] .uh-site-hero-title {
+    font-weight: 400;
+  }
+  .uh-site[data-template='devanture'] .uh-site-hero-cta {
+    background: var(--s-primary);
+    color: #141414;
+  }
+  .uh-site[data-template='devanture'] .uh-site-photo {
+    border: 3px solid #141414;
+    border-radius: 6px;
+  }
+  .uh-site[data-template='devanture'] .uh-site-card-text {
+    padding: 5px 7px;
+    border-radius: 4px;
+    background: var(--s-surface);
+    color: #141414;
+  }
+  .uh-site[data-template='devanture'] .uh-site-card-note {
+    color: #b3122a;
+  }
+
+  /* ——— Caisse ——— */
+  .uh-printer {
+    border-radius: 1.25rem;
+    background: #1c1d22;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.07),
+      0 30px 70px -28px rgb(0 0 0 / 0.85);
+  }
+  .uh-printer-slot {
+    height: 10px;
+    margin: 0 18px 16px;
+    border-radius: 999px;
+    background: #060607;
+    box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.9);
+  }
+  .uh-ticket {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px 18px 30px;
+    background: #fbfaf6;
+    color: #1b1a17;
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 1.45;
+    mask: conic-gradient(
+        from -45deg at bottom,
+        #0000,
+        #000 1deg 89deg,
+        #0000 90deg
+      )
+      50% / 12px 100%;
+  }
+  .uh-ticket hr {
+    border: 0;
+    border-top: 1px dashed rgb(27 26 23 / 0.35);
+  }
+  .uh-ticket-code {
+    display: block;
+    height: 34px;
+    margin-top: 4px;
+    background: repeating-linear-gradient(
+      90deg,
+      #1b1a17 0 2px,
+      transparent 2px 4px,
+      #1b1a17 4px 5px,
+      transparent 5px 8px,
+      #1b1a17 8px 11px,
+      transparent 11px 12px
+    );
+  }
+  .uh-invoice {
+    aspect-ratio: 210 / 297;
+    border-radius: 4px;
+    background: #ffffff;
+    color: #101115;
+    box-shadow: 0 34px 70px -24px rgb(0 0 0 / 0.75);
+    rotate: 6deg;
+  }
+  .uh-soon {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 1;
+    display: inline-flex;
+    height: 1.625rem;
+    align-items: center;
+    padding: 0 0.7rem;
+    border-radius: 999px;
+    background: #101115;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 650;
+  }
+}

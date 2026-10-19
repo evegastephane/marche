@@ -18,21 +18,25 @@ import { Route as AppCategoriesRouteImport } from './routes/_app/categories'
 import { Route as AppInventoryRouteImport } from './routes/_app/inventory'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSiteRouteImport } from './routes/_app/site'
+import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
 import { Route as SignInSplatRouteImport } from './routes/sign-in.$'
 import { Route as SignUpSplatRouteImport } from './routes/sign-up.$'
 import { Route as AppCollectionsIndexRouteImport } from './routes/_app/collections/index'
-import { Route as AppCollectionsCollectionIdRouteImport } from './routes/_app/collections/$collectionId'
+import { Route as AppCollectionsSplatRouteImport } from './routes/_app/collections/$'
 import { Route as AppCustomersIndexRouteImport } from './routes/_app/customers/index'
 import { Route as AppCustomersCustomerIdRouteImport } from './routes/_app/customers/$customerId'
 import { Route as AppOrdersIndexRouteImport } from './routes/_app/orders/index'
 import { Route as AppOrdersOrderIdRouteImport } from './routes/_app/orders/$orderId'
 import { Route as AppOrdersNewRouteImport } from './routes/_app/orders/new'
+import { Route as AppPosIndexRouteImport } from './routes/_app/pos/index'
 import { Route as AppProductsIndexRouteImport } from './routes/_app/products/index'
 import { Route as AppProductsProductIdRouteImport } from './routes/_app/products/$productId'
 import { Route as AppProductsImportRouteImport } from './routes/_app/products/import'
 import { Route as AppProductsNewRouteImport } from './routes/_app/products/new'
 import { Route as AppRequestsIndexRouteImport } from './routes/_app/requests/index'
 import { Route as AppRequestsRequestIdRouteImport } from './routes/_app/requests/$requestId'
+import { Route as AppPosSessionsIndexRouteImport } from './routes/_app/pos/sessions/index'
+import { Route as AppPosSessionsSessionIdRouteImport } from './routes/_app/pos/sessions/$sessionId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -78,6 +82,11 @@ const AppSiteRoute = AppSiteRouteImport.update({
   path: '/site',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTemplatesRoute = AppTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => AppRoute,
+} as any)
 const SignInSplatRoute = SignInSplatRouteImport.update({
   id: '/sign-in/$',
   path: '/sign-in/$',
@@ -93,12 +102,11 @@ const AppCollectionsIndexRoute = AppCollectionsIndexRouteImport.update({
   path: '/collections/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppCollectionsCollectionIdRoute =
-  AppCollectionsCollectionIdRouteImport.update({
-    id: '/collections/$collectionId',
-    path: '/collections/$collectionId',
-    getParentRoute: () => AppRoute,
-  } as any)
+const AppCollectionsSplatRoute = AppCollectionsSplatRouteImport.update({
+  id: '/collections/$',
+  path: '/collections/$',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCustomersIndexRoute = AppCustomersIndexRouteImport.update({
   id: '/customers/',
   path: '/customers/',
@@ -122,6 +130,11 @@ const AppOrdersOrderIdRoute = AppOrdersOrderIdRouteImport.update({
 const AppOrdersNewRoute = AppOrdersNewRouteImport.update({
   id: '/orders/new',
   path: '/orders/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPosIndexRoute = AppPosIndexRouteImport.update({
+  id: '/pos/',
+  path: '/pos/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProductsIndexRoute = AppProductsIndexRouteImport.update({
@@ -154,6 +167,16 @@ const AppRequestsRequestIdRoute = AppRequestsRequestIdRouteImport.update({
   path: '/requests/$requestId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPosSessionsIndexRoute = AppPosSessionsIndexRouteImport.update({
+  id: '/pos/sessions/',
+  path: '/pos/sessions/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPosSessionsSessionIdRoute = AppPosSessionsSessionIdRouteImport.update({
+  id: '/pos/sessions/$sessionId',
+  path: '/pos/sessions/$sessionId',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -164,9 +187,10 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof AppInventoryRoute
   '/settings': typeof AppSettingsRoute
   '/site': typeof AppSiteRoute
+  '/templates': typeof AppTemplatesRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
-  '/collections/$collectionId': typeof AppCollectionsCollectionIdRoute
+  '/collections/$': typeof AppCollectionsSplatRoute
   '/customers/$customerId': typeof AppCustomersCustomerIdRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/orders/new': typeof AppOrdersNewRoute
@@ -177,8 +201,11 @@ export interface FileRoutesByFullPath {
   '/collections/': typeof AppCollectionsIndexRoute
   '/customers/': typeof AppCustomersIndexRoute
   '/orders/': typeof AppOrdersIndexRoute
+  '/pos/': typeof AppPosIndexRoute
   '/products/': typeof AppProductsIndexRoute
   '/requests/': typeof AppRequestsIndexRoute
+  '/pos/sessions/$sessionId': typeof AppPosSessionsSessionIdRoute
+  '/pos/sessions/': typeof AppPosSessionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
@@ -188,10 +215,11 @@ export interface FileRoutesByTo {
   '/inventory': typeof AppInventoryRoute
   '/settings': typeof AppSettingsRoute
   '/site': typeof AppSiteRoute
+  '/templates': typeof AppTemplatesRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
   '/': typeof AppIndexRoute
-  '/collections/$collectionId': typeof AppCollectionsCollectionIdRoute
+  '/collections/$': typeof AppCollectionsSplatRoute
   '/customers/$customerId': typeof AppCustomersCustomerIdRoute
   '/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/orders/new': typeof AppOrdersNewRoute
@@ -202,8 +230,11 @@ export interface FileRoutesByTo {
   '/collections': typeof AppCollectionsIndexRoute
   '/customers': typeof AppCustomersIndexRoute
   '/orders': typeof AppOrdersIndexRoute
+  '/pos': typeof AppPosIndexRoute
   '/products': typeof AppProductsIndexRoute
   '/requests': typeof AppRequestsIndexRoute
+  '/pos/sessions/$sessionId': typeof AppPosSessionsSessionIdRoute
+  '/pos/sessions': typeof AppPosSessionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -215,10 +246,11 @@ export interface FileRoutesById {
   '/_app/inventory': typeof AppInventoryRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/site': typeof AppSiteRoute
+  '/_app/templates': typeof AppTemplatesRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
   '/_app/': typeof AppIndexRoute
-  '/_app/collections/$collectionId': typeof AppCollectionsCollectionIdRoute
+  '/_app/collections/$': typeof AppCollectionsSplatRoute
   '/_app/customers/$customerId': typeof AppCustomersCustomerIdRoute
   '/_app/orders/$orderId': typeof AppOrdersOrderIdRoute
   '/_app/orders/new': typeof AppOrdersNewRoute
@@ -229,8 +261,11 @@ export interface FileRoutesById {
   '/_app/collections/': typeof AppCollectionsIndexRoute
   '/_app/customers/': typeof AppCustomersIndexRoute
   '/_app/orders/': typeof AppOrdersIndexRoute
+  '/_app/pos/': typeof AppPosIndexRoute
   '/_app/products/': typeof AppProductsIndexRoute
   '/_app/requests/': typeof AppRequestsIndexRoute
+  '/_app/pos/sessions/$sessionId': typeof AppPosSessionsSessionIdRoute
+  '/_app/pos/sessions/': typeof AppPosSessionsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -243,9 +278,10 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/settings'
     | '/site'
+    | '/templates'
     | '/sign-in/$'
     | '/sign-up/$'
-    | '/collections/$collectionId'
+    | '/collections/$'
     | '/customers/$customerId'
     | '/orders/$orderId'
     | '/orders/new'
@@ -256,8 +292,11 @@ export interface FileRouteTypes {
     | '/collections/'
     | '/customers/'
     | '/orders/'
+    | '/pos/'
     | '/products/'
     | '/requests/'
+    | '/pos/sessions/$sessionId'
+    | '/pos/sessions/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/onboarding'
@@ -267,10 +306,11 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/settings'
     | '/site'
+    | '/templates'
     | '/sign-in/$'
     | '/sign-up/$'
     | '/'
-    | '/collections/$collectionId'
+    | '/collections/$'
     | '/customers/$customerId'
     | '/orders/$orderId'
     | '/orders/new'
@@ -281,8 +321,11 @@ export interface FileRouteTypes {
     | '/collections'
     | '/customers'
     | '/orders'
+    | '/pos'
     | '/products'
     | '/requests'
+    | '/pos/sessions/$sessionId'
+    | '/pos/sessions'
   id:
     | '__root__'
     | '/_app'
@@ -293,10 +336,11 @@ export interface FileRouteTypes {
     | '/_app/inventory'
     | '/_app/settings'
     | '/_app/site'
+    | '/_app/templates'
     | '/sign-in/$'
     | '/sign-up/$'
     | '/_app/'
-    | '/_app/collections/$collectionId'
+    | '/_app/collections/$'
     | '/_app/customers/$customerId'
     | '/_app/orders/$orderId'
     | '/_app/orders/new'
@@ -307,8 +351,11 @@ export interface FileRouteTypes {
     | '/_app/collections/'
     | '/_app/customers/'
     | '/_app/orders/'
+    | '/_app/pos/'
     | '/_app/products/'
     | '/_app/requests/'
+    | '/_app/pos/sessions/$sessionId'
+    | '/_app/pos/sessions/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -383,6 +430,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSiteRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/templates': {
+      id: '/_app/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof AppTemplatesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/sign-in/$': {
       id: '/sign-in/$'
       path: '/sign-in/$'
@@ -404,11 +458,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCollectionsIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/collections/$collectionId': {
-      id: '/_app/collections/$collectionId'
-      path: '/collections/$collectionId'
-      fullPath: '/collections/$collectionId'
-      preLoaderRoute: typeof AppCollectionsCollectionIdRouteImport
+    '/_app/collections/$': {
+      id: '/_app/collections/$'
+      path: '/collections/$'
+      fullPath: '/collections/$'
+      preLoaderRoute: typeof AppCollectionsSplatRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/customers/': {
@@ -444,6 +498,13 @@ declare module '@tanstack/react-router' {
       path: '/orders/new'
       fullPath: '/orders/new'
       preLoaderRoute: typeof AppOrdersNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pos/': {
+      id: '/_app/pos/'
+      path: '/pos'
+      fullPath: '/pos/'
+      preLoaderRoute: typeof AppPosIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/products/': {
@@ -488,6 +549,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRequestsRequestIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/pos/sessions/': {
+      id: '/_app/pos/sessions/'
+      path: '/pos/sessions'
+      fullPath: '/pos/sessions/'
+      preLoaderRoute: typeof AppPosSessionsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pos/sessions/$sessionId': {
+      id: '/_app/pos/sessions/$sessionId'
+      path: '/pos/sessions/$sessionId'
+      fullPath: '/pos/sessions/$sessionId'
+      preLoaderRoute: typeof AppPosSessionsSessionIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -498,8 +573,9 @@ interface AppRouteChildren {
   AppInventoryRoute: typeof AppInventoryRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSiteRoute: typeof AppSiteRoute
+  AppTemplatesRoute: typeof AppTemplatesRoute
   AppIndexRoute: typeof AppIndexRoute
-  AppCollectionsCollectionIdRoute: typeof AppCollectionsCollectionIdRoute
+  AppCollectionsSplatRoute: typeof AppCollectionsSplatRoute
   AppCustomersCustomerIdRoute: typeof AppCustomersCustomerIdRoute
   AppOrdersOrderIdRoute: typeof AppOrdersOrderIdRoute
   AppOrdersNewRoute: typeof AppOrdersNewRoute
@@ -510,8 +586,11 @@ interface AppRouteChildren {
   AppCollectionsIndexRoute: typeof AppCollectionsIndexRoute
   AppCustomersIndexRoute: typeof AppCustomersIndexRoute
   AppOrdersIndexRoute: typeof AppOrdersIndexRoute
+  AppPosIndexRoute: typeof AppPosIndexRoute
   AppProductsIndexRoute: typeof AppProductsIndexRoute
   AppRequestsIndexRoute: typeof AppRequestsIndexRoute
+  AppPosSessionsSessionIdRoute: typeof AppPosSessionsSessionIdRoute
+  AppPosSessionsIndexRoute: typeof AppPosSessionsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -521,8 +600,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppInventoryRoute: AppInventoryRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSiteRoute: AppSiteRoute,
+  AppTemplatesRoute: AppTemplatesRoute,
   AppIndexRoute: AppIndexRoute,
-  AppCollectionsCollectionIdRoute: AppCollectionsCollectionIdRoute,
+  AppCollectionsSplatRoute: AppCollectionsSplatRoute,
   AppCustomersCustomerIdRoute: AppCustomersCustomerIdRoute,
   AppOrdersOrderIdRoute: AppOrdersOrderIdRoute,
   AppOrdersNewRoute: AppOrdersNewRoute,
@@ -533,8 +613,11 @@ const AppRouteChildren: AppRouteChildren = {
   AppCollectionsIndexRoute: AppCollectionsIndexRoute,
   AppCustomersIndexRoute: AppCustomersIndexRoute,
   AppOrdersIndexRoute: AppOrdersIndexRoute,
+  AppPosIndexRoute: AppPosIndexRoute,
   AppProductsIndexRoute: AppProductsIndexRoute,
   AppRequestsIndexRoute: AppRequestsIndexRoute,
+  AppPosSessionsSessionIdRoute: AppPosSessionsSessionIdRoute,
+  AppPosSessionsIndexRoute: AppPosSessionsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

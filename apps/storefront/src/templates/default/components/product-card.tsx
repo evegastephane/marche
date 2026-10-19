@@ -27,20 +27,20 @@ export function ProductCard({ product, currency }: { product: StorefrontProductC
           </span>
         )}
       </div>
+      {/* Taille fixe : ligne marque gardée même vide, titre sur deux lignes réservées, prix sur une ligne. */}
       <div className="flex flex-col gap-1">
-        {product.brand && (
-          <span className="text-xs font-medium tracking-wide text-muted uppercase">{product.brand.name}</span>
-        )}
-        <span className="leading-snug font-medium decoration-1 underline-offset-4 group-hover:underline">
+        <span className="truncate text-xs font-medium tracking-wide text-muted uppercase">{product.brand?.name ?? ' '}</span>
+        <span className="line-clamp-2 min-h-[2lh] leading-snug font-medium decoration-1 underline-offset-4 group-hover:underline">
           {product.title}
         </span>
-        <Price
-          amount={product.priceMinAmount}
-          maxAmount={product.priceMaxAmount}
-          compareAt={product.compareAtAmount}
-          currency={currency}
-          className="text-sm"
-        />
+        <span className="block h-[1lh] overflow-y-clip text-sm whitespace-nowrap">
+          <Price
+            amount={product.priceMinAmount}
+            maxAmount={product.priceMaxAmount}
+            compareAt={product.compareAtAmount}
+            currency={currency}
+          />
+        </span>
       </div>
     </Link>
   );

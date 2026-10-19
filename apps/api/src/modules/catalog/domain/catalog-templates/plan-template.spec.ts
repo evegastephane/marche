@@ -20,6 +20,19 @@ describe('planTemplate (catalogue de départ)', () => {
     expect(() => planTemplate(template, empty, newId)).not.toThrow();
   });
 
+  it('décrit un smartphone jusqu’au bout : stockage, couleur, état, SIM, taille d’écran ; RAM facultative', () => {
+    const template = CATALOG_TEMPLATES.ELECTRONICS;
+    const smartphones = flattenTemplate(template.categories).find((entry) => entry.category.slug === 'smartphones')!.category;
+    const attribute = (slug: string) => template.attributes.find((a) => a.slug === slug)!;
+    const links = smartphones.attributes ?? [];
+    const axes = links.filter((link) => attribute(link.slug).isVariantAxis).map((link) => link.slug);
+    expect(axes).toEqual(['stockage', 'couleur', 'etat', 'sim', 'taille-ecran', 'ram']);
+    expect(links.find((link) => link.slug === 'ram')?.required).toBeFalsy();
+    expect(attribute('sim').values?.map((v) => v.value)).toEqual(['Nano-SIM', 'Double SIM', 'eSIM']);
+    expect(attribute('etat').values?.map((v) => v.value).slice(0, 2)).toEqual(['Neuf', 'Open box']);
+    expect(attribute('taille-ecran').values?.map((v) => v.value)).toEqual(expect.arrayContaining(['6,3 pouces', '6,7 pouces']));
+  });
+
   it('pose tout le gabarit Électronique dans une boutique vide, parents avant enfants', () => {
     const plan = planTemplate(CATALOG_TEMPLATES.ELECTRONICS, empty, newId);
     const smartphones = plan.categories.find((c) => c.slug === 'smartphones');

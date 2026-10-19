@@ -4,6 +4,7 @@ import type { Job, Queue } from 'bullmq';
 import type { SerializedDomainEvent } from '../../domain/domain-event.js';
 import { TenantContext } from '../cls/tenant-context.js';
 import { OutboxRelay } from '../outbox/outbox-relay.js';
+import { reportRedisError } from '../redis/connection-errors.js';
 import { DomainEventHandlerRegistry } from './domain-event-handler.registry.js';
 import type { EventQueueName } from './queues.js';
 
@@ -12,7 +13,7 @@ import type { EventQueueName } from './queues.js';
  * trouve l'abonné du job, ouvre le contexte de la boutique, exécute, journalise.
  */
 @Injectable()
-export abstract class DomainEventProcessor extends WorkerHost {
+export abstract class DomainEventProcessor extends WorkerHost implements OnApplicationBootstrap {
   protected abstract readonly queueName: EventQueueName;
   private readonly logger = new Logger(this.constructor.name);
 
@@ -21,6 +22,11 @@ export abstract class DomainEventProcessor extends WorkerHost {
     private readonly tenant: TenantContext,
   ) {
     super();
+  }
+
+  /** Coupure de Redis : une ligne claire au lieu de la pile brute que BullMQ écrit sans écouteur. */
+  onApplicationBootstrap(): void {
+    this.worker.on('error', (error) => reportRedisError(`worker ${this.queueName}`, error));
   }
 
   async process(job: Job<SerializedDomainEvent>): Promise<unknown> {
@@ -87,6 +93,7 @@ export class OutboxRelayProcessor extends WorkerHost implements OnApplicationBoo
   }
 
   async onApplicationBootstrap(): Promise<void> {
+    this.worker.on('error', (error) => reportRedisError('worker outbox-relay', error));
     await this.queue.upsertJobScheduler(
       'outbox-relay',
       { every: 1_000 },

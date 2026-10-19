@@ -89,7 +89,7 @@ async function call<T>(site: string, path: string, options: CallOptions = {}): P
 }
 
 /** 404 de l'API → page introuvable de Next. */
-async function orNotFound<T>(promise: Promise<T>): Promise<T> {
+export async function orNotFound<T>(promise: Promise<T>): Promise<T> {
   try {
     return await promise;
   } catch (error) {
@@ -106,6 +106,8 @@ export const getStore = cache((site: string) => orNotFound(call<StorefrontStoreD
 /** Filtres du catalogue du site (paramètres de l'API storefront). */
 export type ProductQuery = {
   collection?: string;
+  /** Slug d'une catégorie (sous-catégories comprises). */
+  category?: string;
   brand?: string;
   sort?: StorefrontSort;
   limit?: number;

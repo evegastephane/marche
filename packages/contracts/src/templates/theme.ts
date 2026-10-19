@@ -77,10 +77,15 @@ export const heroSectionSchema = z.object({
   imageMediaId: z.uuid().nullable().default(null),
 });
 
+/**
+ * Sélection mise en avant : les produits d'une catégorie (sous-catégories comprises).
+ * `collectionId` reste lu pour les sites créés quand les catalogues existaient encore dans le dashboard.
+ */
 export const featuredCollectionSectionSchema = z.object({
   ...sectionBase,
   type: z.literal('featured-collection'),
   title: z.string().trim().max(120).optional(),
+  categoryId: z.uuid().nullable().default(null),
   collectionId: z.uuid().nullable().default(null),
   limit: z.number().int().min(1).max(24).default(8),
 });
@@ -107,11 +112,62 @@ export const richTextSectionSchema = z.object({
   body: z.string().max(5000),
 });
 
+/** Gardée pour les anciens réglages ; l'éditeur ne la propose plus (aucun envoi derrière). */
 export const newsletterSectionSchema = z.object({
   ...sectionBase,
   type: z.literal('newsletter'),
   title: z.string().trim().max(120).optional(),
   subtitle: z.string().trim().max(300).optional(),
+});
+
+/** Une photo à côté d'un titre et d'un texte (histoire, savoir-faire, atelier). */
+export const imageTextSectionSchema = z.object({
+  ...sectionBase,
+  type: z.literal('image-text'),
+  title: z.string().trim().max(120).optional(),
+  /** Texte simple ; les sauts de ligne séparent les paragraphes. */
+  body: z.string().trim().max(1500).default(''),
+  imageMediaId: z.uuid().nullable().default(null),
+  imagePosition: z.enum(['left', 'right']).default('left'),
+  ctaLabel: z.string().trim().max(40).optional(),
+  ctaHref: linkSchema.optional(),
+});
+
+/** Une question tant que sa réponse est vide reste hors du site (brouillon du marchand). */
+export const faqItemSchema = z.object({
+  id: z.string().trim().min(1).max(40),
+  question: z.string().trim().max(160),
+  answer: z.string().trim().max(1000).default(''),
+});
+export type FaqItem = z.infer<typeof faqItemSchema>;
+
+export const faqSectionSchema = z.object({
+  ...sectionBase,
+  type: z.literal('faq'),
+  title: z.string().trim().max(120).optional(),
+  items: z
+    .array(faqItemSchema)
+    .max(12)
+    .default([])
+    .refine((items) => new Set(items.map((item) => item.id)).size === items.length, {
+      error: 'Chaque question doit avoir un identifiant unique',
+    }),
+});
+
+/**
+ * Contact de la boutique. Le téléphone (appel et WhatsApp) et l'e-mail viennent des Paramètres :
+ * la section dit seulement lesquels montrer, plus une adresse et des horaires en clair.
+ */
+export const contactSectionSchema = z.object({
+  ...sectionBase,
+  type: z.literal('contact'),
+  title: z.string().trim().max(120).optional(),
+  subtitle: z.string().trim().max(300).optional(),
+  address: z.string().trim().max(160).optional(),
+  hours: z.string().trim().max(160).optional(),
+  showPhone: z.boolean().default(true),
+  showWhatsapp: z.boolean().default(true),
+  showEmail: z.boolean().default(true),
 });
 
 export const sectionSchema = z.discriminatedUnion('type', [
@@ -121,9 +177,18 @@ export const sectionSchema = z.discriminatedUnion('type', [
   brandStripSectionSchema,
   richTextSectionSchema,
   newsletterSectionSchema,
+  imageTextSectionSchema,
+  faqSectionSchema,
+  contactSectionSchema,
 ]);
 export type Section = z.infer<typeof sectionSchema>;
 export type SectionType = Section['type'];
+
+/** Sections d'une page d'accueil, au plus. */
+export const MAX_SECTIONS = 20;
+
+/** Sections qu'une page d'accueil ne porte qu'une fois. */
+export const SECTION_LIMITS: Partial<Record<SectionType, number>> = { hero: 1, contact: 1 };
 
 export const themeSettingsBaseSchema = z.object({
   /** Template du site (natif, cahier du tailleur…) ; en brouillon, il change avant d'être publié. */
@@ -139,9 +204,16 @@ export const themeSettingsBaseSchema = z.object({
   }),
   sections: z
     .array(sectionSchema)
-    .max(20)
+    .max(MAX_SECTIONS)
     .refine((sections) => new Set(sections.map((s) => s.id)).size === sections.length, {
       error: 'Chaque section doit avoir un identifiant unique',
-    }),
+    })
+    .refine(
+      (sections) =>
+        Object.entries(SECTION_LIMITS).every(
+          ([type, limit]) => sections.filter((s) => s.type === type).length <= (limit ?? Infinity),
+        ),
+      { error: 'Une seule bannière d’accueil et une seule section contact par page' },
+    ),
 });
 export type ThemeSettings = z.infer<typeof themeSettingsBaseSchema>;

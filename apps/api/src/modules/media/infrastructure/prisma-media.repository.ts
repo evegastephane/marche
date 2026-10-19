@@ -16,6 +16,7 @@ function toDomain(row: MediaRow): Media {
     alt: row.alt,
     status: row.status,
     renditions: (row.renditions ?? {}) as Record<string, string>,
+    sourceUrl: row.sourceUrl,
     createdAt: row.createdAt,
   });
 }
@@ -36,6 +37,14 @@ export class PrismaMediaRepository extends MediaRepository {
     return rows.map(toDomain);
   }
 
+  async findBySourceUrl(url: string): Promise<Media | null> {
+    const row = await this.txHost.tx.media.findFirst({
+      where: { sourceUrl: url, status: { not: 'FAILED' } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return row ? toDomain(row) : null;
+  }
+
   async insert(media: Media): Promise<void> {
     const m = media.snapshot();
     await this.txHost.tx.media.create({
@@ -50,6 +59,7 @@ export class PrismaMediaRepository extends MediaRepository {
         alt: m.alt,
         status: m.status,
         renditions: m.renditions as Prisma.InputJsonValue,
+        sourceUrl: m.sourceUrl,
         createdAt: m.createdAt,
       },
     });

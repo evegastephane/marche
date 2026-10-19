@@ -16,6 +16,7 @@ import {
   type StorefrontProductDto,
   type StorefrontProductListQuery,
   type StorefrontStoreDto,
+  toWhatsAppNumber,
 } from '@marche/contracts';
 import { ActorContext } from '../../../shared/application/actor-context.port.js';
 import { NotFoundError } from '../../../shared/domain/domain-error.js';
@@ -55,14 +56,18 @@ export class StorefrontQueries {
   /** Boutique, thème (brouillon en aperçu), navigation et médias du thème. */
   async store(preview: boolean, previewSession?: string): Promise<StorefrontStoreDto> {
     const settings = await this.stores.getSettings(this.actor.storeId);
-    const site = await this.sites.currentTheme(preview, previewSession);
+    const site = await this.sites.currentTheme(preview, previewSession, settings.plan);
     if (!site) throw new NotFoundError('Boutique');
-    const [collections, hasProducts] = await Promise.all([
+    const featuredCategories = site.theme.sections.flatMap((section) =>
+      section.type === 'featured-collection' && section.categoryId ? [section.categoryId] : [],
+    );
+    const [collections, hasProducts, categories] = await Promise.all([
       this.catalog.listPublishedCollections(),
       this.catalog.hasActiveProducts(),
+      this.catalog.categoriesById(featuredCategories),
     ]);
-    const heroImages = site.theme.sections.flatMap((section) =>
-      section.type === 'hero' && section.imageMediaId ? [section.imageMediaId] : [],
+    const sectionImages = site.theme.sections.flatMap((section) =>
+      (section.type === 'hero' || section.type === 'image-text') && section.imageMediaId ? [section.imageMediaId] : [],
     );
     const departments =
       settings.type === 'FASHION' && settings.verticalSettings.departments?.enabled
@@ -72,7 +77,7 @@ export class StorefrontQueries {
             ?.values.map((v) => v.value.normalize('NFD').replace(/\p{M}/gu, '').toUpperCase()) ?? [])
         : [];
     const logoId = site.theme.logoMediaId ?? settings.logoMediaId;
-    const media = await this.media.getMany([...heroImages, ...(logoId ? [logoId] : [])]);
+    const media = await this.media.getMany([...sectionImages, ...(logoId ? [logoId] : [])]);
     return {
       id: this.actor.storeId,
       name: settings.name,
@@ -80,6 +85,7 @@ export class StorefrontQueries {
       currency: settings.currency,
       contactEmail: settings.contactEmail,
       phone: settings.phone,
+      whatsapp: settings.phone ? toWhatsAppNumber(settings.phone, settings.country) : null,
       logo: (logoId && media.get(logoId)) || null,
       type: settings.type,
       sizeGuide:
@@ -90,6 +96,7 @@ export class StorefrontQueries {
       templateVersion: site.templateVersion,
       theme: site.theme,
       themeMedia: Object.fromEntries(media),
+      themeCategories: Object.fromEntries(categories),
       navigation: { collections: collections.map((c) => ({ title: c.title, slug: c.slug })) },
       hasProducts,
       preview,
@@ -103,6 +110,7 @@ export class StorefrontQueries {
     const attributes = [...groupPairs(query.a)].map(([key, values]) => ({ key, values }));
     const page = await this.catalog.listProductCards({
       collectionSlug: query.collection,
+      categorySlug: query.category,
       brandSlug: query.brand,
       kind: query.kind,
       options,

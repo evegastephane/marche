@@ -18,6 +18,8 @@ export interface MediaProps {
   status: MediaStatus;
   /** Clés des déclinaisons webp, indexées par largeur. */
   renditions: Record<string, string>;
+  /** Lien d'origine d'une photo importée ; null pour un téléversement. */
+  sourceUrl: string | null;
   createdAt: Date;
 }
 
@@ -44,7 +46,7 @@ export class Media extends AggregateRoot {
   }
 
   static requestUpload(
-    input: { storeId: string; contentType: string; sizeBytes: number; alt?: string | null },
+    input: { storeId: string; contentType: string; sizeBytes: number; alt?: string | null; sourceUrl?: string | null },
     now: Date,
   ): Media {
     if (!(ALLOWED_IMAGE_TYPES as readonly string[]).includes(input.contentType)) {
@@ -65,6 +67,7 @@ export class Media extends AggregateRoot {
       alt: input.alt ?? null,
       status: 'PENDING',
       renditions: {},
+      sourceUrl: input.sourceUrl ?? null,
       createdAt: now,
     });
   }

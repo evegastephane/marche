@@ -5,35 +5,40 @@ import { imageProps } from '../default/components/media';
 import { StaggerItem, StaggerList } from '../default/components/motion';
 import { PriceTag } from './tag';
 
-/** Un appareil posé sur la tablette de verre, son étiquette pendue au bord. */
+/**
+ * Un appareil posé sur la tablette de verre, son étiquette pendue au bord. Taille fixe : la photo est posée
+ * hors du flux, le titre tient sur deux lignes réservées, la ligne du bas garde sa hauteur même vide.
+ */
 export function ProductCard({ product, currency }: { product: StorefrontProductCardDto; currency: Currency }) {
   const onSale = product.compareAtAmount != null && product.compareAtAmount > product.priceMinAmount;
   return (
     <Link href={`/products/${product.slug}`} className="group flex flex-col gap-5 text-fg no-underline">
-      <div className="glass-shelf relative flex aspect-square items-end justify-center px-4 pb-3">
+      <div className="glass-shelf relative aspect-square">
         <span aria-hidden className="stand-shadow absolute bottom-2 left-1/2 h-4 w-3/5 -translate-x-1/2" />
-        {product.image ? (
-          <img
-            {...imageProps(product.image, '(min-width: 1024px) 25vw, 50vw')}
-            alt={product.image.alt ?? product.title}
-            loading="lazy"
-            className="relative max-h-full w-auto max-w-full object-contain transition-transform duration-500 ease-out-soft group-hover:-translate-y-2"
-          />
-        ) : (
-          <div className="relative flex size-full items-center justify-center text-center font-heading text-2xl text-muted uppercase">
-            {product.title}
-          </div>
-        )}
+        <div className="absolute inset-x-4 top-0 bottom-3 flex items-end justify-center">
+          {product.image ? (
+            <img
+              {...imageProps(product.image, '(min-width: 1024px) 25vw, 50vw')}
+              alt={product.image.alt ?? product.title}
+              loading="lazy"
+              className="relative max-h-full w-auto max-w-full object-contain transition-transform duration-500 ease-out-soft group-hover:-translate-y-2"
+            />
+          ) : (
+            <div className="relative flex size-full items-center justify-center text-center font-heading text-2xl text-muted uppercase">
+              {product.title}
+            </div>
+          )}
+        </div>
       </div>
       <div className="flex flex-col items-start gap-3">
         <PriceTag size="sm" className="-mt-1 -rotate-3 transition-transform duration-300 ease-out-soft group-hover:rotate-2">
           {product.priceMinAmount !== product.priceMaxAmount && <span className="mr-1 text-xs font-bold normal-case">dès</span>}
           {formatMoney(product.priceMinAmount, currency)}
         </PriceTag>
-        <span className="font-heading text-lg leading-tight font-bold tracking-wide uppercase decoration-primary decoration-2 underline-offset-4 group-hover:underline">
+        <span className="line-clamp-2 min-h-[2lh] font-heading text-lg leading-tight font-bold tracking-wide uppercase decoration-primary decoration-2 underline-offset-4 group-hover:underline">
           {product.title}
         </span>
-        <span className="flex items-center gap-3 text-sm text-muted">
+        <span className="flex h-5 items-center gap-3 overflow-hidden text-sm whitespace-nowrap text-muted">
           {product.brand && <span>{product.brand.name}</span>}
           {onSale && (
             <s className="tabular">

@@ -332,7 +332,7 @@ La densité est celle d'un outil de travail, pas d'une vitrine : une linéale un
 
 Le mouvement fait partie de l'instrument : un ressort sec pour les touches, un ressort de glissement pour les curseurs, la lumière orange et les mises en page, des entrées courtes (0,36 s, 8 px) décalées de 40 ms. Rien ne dure plus de 0,4 s, sauf le roulement des chiffres, l'allumage de l'emblème et les signaux en boucle (témoin qui respire, reflet de chargement). Tout se réduit avec `prefers-reduced-motion`. Le monde refuse la grille de cartes du back-office générique et les graphiques décoratifs : les chiffres qui comptent vivent dans l'afficheur.
 
-Portée : le dashboard (`apps/dashboard`). La page plateforme du storefront (`apps/storefront/src/app/page.tsx`, `confidentialite/page.tsx`) reprend ce monde ; les sites des boutiques sont habillés par le thème de chaque marchand et sortent de ce système.
+Portée : le dashboard (`apps/dashboard`). Les pages de la plateforme du storefront (groupe `apps/storefront/src/app/(platform)/` : accueil, portail Développeurs, confidentialité ; jetons `--up-*` dans `platform.css`) reprennent ce monde ; les sites des boutiques sont habillés par le thème de chaque marchand et sortent de ce système.
 
 **Key Characteristics:**
 - Boîtier blanc cassé ou noir selon l'appareil, faces planes au filet fin, champs et rails en creux.
@@ -487,6 +487,7 @@ Pas de pastilles de couleur : les états sont des **témoins lumineux** suivis d
 - **Sélecteur de boutique :** ligne à plat de 44 px (pastille carrée, nom en 600, chevrons) ; son menu sort d'elle à sa largeur, boutique active cochée.
 - **Compte :** pastille ronde ; avec nom et e-mail dans le panneau, seule (40 px) dans l'en-tête mobile.
 - **Retour :** lien « ← Commandes » en encre seconde, flèche qui recule au survol.
+- **Menu (depuis le 2026-10-18) :** dix touches. Catalogue = Produits et Stock ; Catégories et Marques sont des onglets en tête de Produits (rail en creux, la page ouverte porte la face de touche) et la touche Produits reste allumée sur eux. Boutique = Site, Modèles, Paramètres. Sous 760 px de haut, le panneau se resserre (touches de 36 px, thème et compte sur une ligne) pour que Paramètres reste visible.
 
 ### Sélecteurs à glissière et interrupteurs
 - **Sélecteur (filtres, stratégie de livraison, type de mouvement) :** rail en creux (rayon 0.75rem, 4 px de marge) ; positions de 32 px (40 px sous 768 px) en 0.8125rem ; la position choisie porte un curseur blanc à arête qui glisse. Un filtre qui contient du travail porte un témoin orange et son compteur. Au téléphone, le rail défile horizontalement.
@@ -518,6 +519,18 @@ La fenêtre des chiffres qui comptent : verre LCD, rayon 1rem, légendes en segm
 - **Chargement :** blocs à la forme du contenu attendu, traversés d'un reflet (1.4 s, arrêté avec mouvement réduit).
 - **Erreur de chargement :** bandeau en voile rouge, rayon 0.75rem, encre rouge, « Réessayer » souligné.
 - **Démarrage et suivi :** une jauge de trois cases en creux qui se remplissent d'encre ; une chronologie de témoins reliés par un filet qui se remplit d'encre jusqu'à l'étape franchie, l'étape attendue en orange.
+
+### Éditeur de sections (page Site)
+- **Pile de sections :** une face « Votre page d'accueil » (compteur, lien « Modèle : … · Changer »), une rangée fixe « En-tête et bandeau », puis une rangée par section : poignée (glisser ou flèches haut/bas), pictogramme en creux de 40 px, nom du type, résumé en encre seconde, interrupteur « Visible ». La rangée s'ouvre sur place (une seule à la fois, hauteur qui se déplie en 0.32 s) : ses champs, puis Monter, Descendre, Retirer en touches fantômes ; le retrait s'annule depuis le toast.
+- **Ajouter :** un emplacement en pointillé en bas de la pile, et une petite touche ronde « + » posée sur le filet entre deux rangées (au survol à la souris, toujours visible au doigt). Elle ouvre « Ajouter une section » : dialogue large (44rem) ou feuille au téléphone, une tuile par type avec son croquis au trait (aplats en filet appuyé, traits en encre tierce, la seule touche orange du croquis = l'action de la section), son nom et sa phrase ; un type au plafond reste visible, éteint, avec la raison.
+- **À compléter :** témoin pointillé et « À compléter » à la place du résumé ; dans la section ouverte, la phrase qui dit quoi faire (et le lien vers les Paramètres quand c'est là que ça se règle).
+- **Aperçu :** ouvrir ou ajouter une section fait défiler l'aperçu jusqu'à elle. La barre Enregistrer / Publier suit l'aperçu ; au téléphone elle reste collée au-dessus de la rangée de touches.
+
+### Modèles et formule Premium (page Modèles)
+- **Formule :** une face en tête : témoin plein « Formule Premium » ou anneau « Formule Gratuite », phrase, et « Passer à Premium » en touche blanche (l'orange reste à l'action de l'aperçu).
+- **Galerie :** les vignettes des modèles ; un modèle hors formule porte un cadenas sur sa vignette, celui du site la légende « Le vôtre ». Toucher une vignette l'essaie dans l'aperçu, avec les vraies sections du marchand.
+- **Barre d'essai :** à la place de la barre de publication tant qu'on essaie un autre modèle : témoin orange « Essai de … », « Revenir au mien » en fantôme, et la touche orange « Utiliser ce modèle » (ou « Passer à Premium » si le modèle est réservé).
+- **Quitter avec des réglages non enregistrés :** dialogue « Enregistrer avant de quitter ? » (Enregistrer et continuer en orange, Quitter sans enregistrer en fantôme), sur Site comme sur Modèles.
 
 ### Emblème et wordmark
 Le chariot suit la couleur du texte (encre en clair, blanc en sombre) ; ses deux roues restent orange dans tous les thèmes. À l'arrivée, il s'allume : le panier se trace (0.62 s), la flèche jaillit, puis les roues s'allument l'une après l'autre comme des témoins. Le wordmark est un masque qui suit la couleur du texte ; la taille du logo suit la taille de police.

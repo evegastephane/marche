@@ -20,6 +20,7 @@ import { AccountMenu } from '@/features/shell/account-menu';
 import { StoreTypePicker } from '@/features/verticals/store-type-picker';
 import { ApiError } from '@/shared/api/client';
 import { useApi } from '@/shared/api/use-api';
+import { forgetStoreName, pendingStoreName } from '@/features/onboarding/pending-store-name';
 import { currencyLabel, slugify } from '@/shared/lib/format';
 import { UpsellLogo, UpsellMark } from '@/shared/ui/brand';
 import { Button } from '@/shared/ui/button';
@@ -67,11 +68,12 @@ function StoreForm() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [slugTouched, setSlugTouched] = useState(false);
+  const [initialName] = useState(pendingStoreName);
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<z.input<typeof createStoreSchema>, unknown, CreateStoreInput>({
     resolver: zodResolver(createStoreSchema),
-    defaultValues: { name: '', slug: '', country: 'SN', currency: 'XOF', type: 'FASHION' },
+    defaultValues: { name: initialName, slug: slugify(initialName), country: 'SN', currency: 'XOF', type: 'FASHION' },
   });
   const { register, handleSubmit, setValue, setError, control, formState } = form;
   const [name, slug, currency, country, type] = useWatch({
@@ -89,6 +91,7 @@ function StoreForm() {
         body: { ...values, timezone },
       });
       await setActive({ organization: store.clerkOrgId });
+      forgetStoreName();
       queryClient.clear();
       await navigate({ to: '/' });
     } catch (error) {

@@ -35,9 +35,11 @@ Les données de l'ERP **sont** le site : « Générer mon site » publie immédi
 
 ## Capabilities and Constraints
 
-- MVP : inscription et création de boutique, marques, produits et variantes, images, catalogues ordonnés, stock (ajustements, historique, alertes de stock bas), commandes (brouillon, passage, paiement manuel, expédition, annulation), clients créés à la commande, génération et personnalisation du site, tableau de bord (CA, commandes, ruptures).
+- MVP : inscription et création de boutique, marques, produits et variantes, images, catalogues ordonnés (masqués du dashboard depuis le 2026-10-18 : les produits se rangent par catégorie), stock (ajustements, historique, alertes de stock bas), commandes (brouillon, passage, paiement manuel, expédition, annulation), clients créés à la commande, génération et personnalisation du site, tableau de bord (CA, commandes, ruptures).
 - API existante et testée : `/api/v1` (admin, jeton Clerk) et `/storefront/v1` (sites). Les contrats Zod partagés sont dans `packages/contracts`.
-- Hors MVP (V2) : paiement en ligne, domaines personnalisés, plusieurs templates, import CSV, promotions, comptes acheteurs.
+- Site composé de sections que le marchand ajoute, réordonne et masque (bannière, nouveautés, produits d'une catégorie, marques, texte, image et texte, questions fréquentes, contact et WhatsApp) ; chaque modèle les habille dans son style.
+- Formule par boutique (2026-10-18) : Gratuite (modèle Natif) ou Premium (tous les modèles). Tant que le paiement en ligne n'existe pas, la plateforme l'active avec `npm run store:plan -w @marche/api -- <slug> premium|free`.
+- Hors MVP (V2) : paiement en ligne (dont celui de Premium), domaines personnalisés, import CSV, promotions, comptes acheteurs.
 - Non décidé : nom de domaine de la plateforme, tutoiement ou vouvoiement dans l'interface.
 
 ## Brand Commitments

@@ -18,6 +18,7 @@ export function toStoreDto(store: Store): StoreDto {
     lowStockDefault: s.lowStockDefault,
     type: s.type,
     verticalSettings: s.verticalSettings,
+    plan: s.plan,
     createdAt: s.createdAt.toISOString(),
   };
 }

@@ -313,3 +313,28 @@
     }
   }
 }
+
+/*
+ * Impression d'un document seul (ticket de caisse, récapitulatif) : PrintJob pose le document dans
+ * #upsell-print et ajoute « printing » au body ; tout le reste est masqué sur papier.
+ */
+#upsell-print {
+  display: none;
+}
+
+@media print {
+  body.printing > :not(#upsell-print) {
+    display: none !important;
+  }
+
+  body.printing {
+    background: #fff !important;
+  }
+
+  body.printing #upsell-print {
+    display: block;
+    color: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

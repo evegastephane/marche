@@ -10,13 +10,14 @@ import { WorkerModule } from '../../src/worker.module.js';
 import { StorefrontRevalidator } from '../../src/modules/sites/application/sites.ports.js';
 import { WhatsAppSender } from '../../src/modules/campaigns/application/campaigns.ports.js';
 import { UserDirectory } from '../../src/modules/identity/application/identity.ports.js';
-import { ObjectStorage } from '../../src/modules/media/application/media.ports.js';
+import { ObjectStorage, RemoteImageFetcher } from '../../src/modules/media/application/media.ports.js';
 import { EmailSender } from '../../src/modules/notifications/application/email.port.js';
 import { OrganizationDirectory } from '../../src/modules/stores/application/organization-directory.port.js';
 import { type AppConfig, loadConfig } from '../../src/shared/infrastructure/config/app-config.js';
 import { configureHttpApp } from '../../src/shared/infrastructure/http/http-setup.js';
 import {
   FakeOrganizationDirectory,
+  FakeRemoteImageFetcher,
   FakeUserDirectory,
   FakeWhatsAppSender,
   InMemoryEmailSender,
@@ -73,6 +74,8 @@ export interface TestApp {
   storage: InMemoryObjectStorage;
   emails: InMemoryEmailSender;
   whatsapp: FakeWhatsAppSender;
+  /** Liens de photos servis à l'import Excel. */
+  remoteImages: FakeRemoteImageFetcher;
   /** Jeton de session Clerk signé avec la clé de test. */
   token(claims: { sub: string; orgId?: string; orgRole?: 'admin' | 'member' }): Promise<string>;
   http(): ReturnType<typeof request>;
@@ -86,6 +89,7 @@ export async function createTestApp(envOverrides: Record<string, string> = {}): 
   const storage = new InMemoryObjectStorage();
   const emails = new InMemoryEmailSender();
   const whatsapp = new FakeWhatsAppSender();
+  const remoteImages = new FakeRemoteImageFetcher();
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule.forRoot(config)] })
     .overrideProvider(OrganizationDirectory)
@@ -98,6 +102,8 @@ export async function createTestApp(envOverrides: Record<string, string> = {}): 
     .useValue(emails)
     .overrideProvider(WhatsAppSender)
     .useValue(whatsapp)
+    .overrideProvider(RemoteImageFetcher)
+    .useValue(remoteImages)
     .compile();
 
   const app = moduleRef.createNestApplication<NestExpressApplication>({
@@ -116,6 +122,7 @@ export async function createTestApp(envOverrides: Record<string, string> = {}): 
     storage,
     emails,
     whatsapp,
+    remoteImages,
     token: ({ sub, orgId, orgRole }) => {
       const now = Math.floor(Date.now() / 1000);
       return new SignJWT({

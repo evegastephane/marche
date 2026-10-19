@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { MediaDto } from '@marche/contracts';
 import { ValidationError } from '../../shared/domain/domain-error.js';
 import { MediaRepository, ObjectStorage } from './application/media.ports.js';
-import { toMediaDto } from './application/media.use-cases.js';
+import { ImportRemoteMediaUseCase, toMediaDto } from './application/media.use-cases.js';
 
 /** API publique du module media. */
 @Injectable()
@@ -10,7 +10,13 @@ export class MediaFacade {
   constructor(
     private readonly media: MediaRepository,
     private readonly storage: ObjectStorage,
+    private readonly importRemote: ImportRemoteMediaUseCase,
   ) {}
+
+  /** Photo d'un lien https public, téléchargée ou retrouvée si déjà importée ; renvoie l'id du média. */
+  importFromUrl(url: string, alt: string | null = null): Promise<string> {
+    return this.importRemote.execute(url, alt);
+  }
 
   /** Médias de la boutique courante, indexés par id (les ids inconnus sont ignorés). */
   async getMany(ids: readonly string[]): Promise<Map<string, MediaDto>> {

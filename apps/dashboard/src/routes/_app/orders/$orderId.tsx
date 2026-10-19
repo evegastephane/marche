@@ -20,6 +20,7 @@ import {
   usePlaceOrder,
 } from '@/features/orders/api';
 import { SerialsDialog } from '@/features/orders/serials-dialog';
+import { paymentLabel } from '@/features/pos/format';
 import { ORDER_STATUS, PAYMENT_STATUS } from '@/features/orders/status';
 import { useCurrentStore } from '@/features/shell/use-current-store';
 import { ApiError, errorMessage } from '@/shared/api/client';
@@ -148,7 +149,9 @@ function Detail({ order }: { order: OrderDto }) {
               {' · '}
               {order.source === 'STOREFRONT'
                 ? 'depuis le site'
-                : 'saisie dans Upsell'}
+                : order.source === 'POS'
+                  ? 'à la caisse'
+                  : 'saisie dans Upsell'}
             </span>
           </div>
         </div>
@@ -304,17 +307,30 @@ function Detail({ order }: { order: OrderDto }) {
               <dt>Sous-total</dt>
               <dd>{formatMoney(order.subtotalAmount, order.currency)}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt>
-                Livraison
-                {order.shippingMethod ? ` (${order.shippingMethod})` : ''}
-              </dt>
-              <dd>
-                {order.shippingAmount === 0
-                  ? 'Offerte'
-                  : formatMoney(order.shippingAmount, order.currency)}
-              </dd>
-            </div>
+            {order.discounts.map((discount) => (
+              <div key={`${discount.bundleId}-${discount.title}`} className="flex justify-between">
+                <dt>{discount.title}</dt>
+                <dd>−{formatMoney(discount.amount, order.currency)}</dd>
+              </div>
+            ))}
+            {order.shippingMethod === 'IN_STORE' ? (
+              <div className="flex justify-between">
+                <dt>Remise au comptoir</dt>
+                <dd>—</dd>
+              </div>
+            ) : (
+              <div className="flex justify-between">
+                <dt>
+                  Livraison
+                  {order.shippingMethod ? ` (${order.shippingMethod})` : ''}
+                </dt>
+                <dd>
+                  {order.shippingAmount === 0
+                    ? 'Offerte'
+                    : formatMoney(order.shippingAmount, order.currency)}
+                </dd>
+              </div>
+            )}
           </dl>
           <div className="display-window mx-3 mb-3 flex items-end justify-between gap-4 rounded-xl px-4 py-3.5">
             <span className="legend pb-1 text-display-dim">Total</span>
@@ -333,6 +349,7 @@ function Detail({ order }: { order: OrderDto }) {
 
         <div className="flex flex-col gap-6 lg:gap-8">
           <Client order={order} />
+          {(order.payments.length > 0 || order.returns.length > 0) && <Paiements order={order} />}
           <Suivi order={order} />
         </div>
       </motion.div>
@@ -366,6 +383,50 @@ function Detail({ order }: { order: OrderDto }) {
         }
       />
     </>
+  );
+}
+
+/** Encaissements (caisse) et retours : moyen, référence, monnaie rendue, remboursements. */
+function Paiements({ order }: { order: OrderDto }) {
+  const money = (amount: number) => formatMoney(amount, order.currency);
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader title="Paiements" />
+      <ul className="tabular border-t border-line">
+        {order.payments.map((payment) => (
+          <li key={payment.id} className="flex items-start justify-between gap-3 border-b border-line px-5 py-3 text-[0.9375rem] last:border-b-0">
+            <span className="flex min-w-0 flex-col">
+              <span className="font-[560]">
+                {payment.kind === 'REFUND' ? 'Remboursement · ' : ''}
+                {paymentLabel(payment.method, payment.provider)}
+              </span>
+              <span className="text-[0.8125rem] text-ink-2">
+                {formatDateTime(payment.createdAt)}
+                {payment.reference ? ` · réf. ${payment.reference}` : ''}
+                {payment.changeAmount > 0 ? ` · reçu ${money(payment.tenderedAmount ?? payment.amount)}, rendu ${money(payment.changeAmount)}` : ''}
+              </span>
+            </span>
+            <span className={cn('shrink-0 font-[600]', payment.kind === 'REFUND' && 'text-ink-2')}>
+              {payment.kind === 'REFUND' ? '−' : ''}
+              {money(payment.amount)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {order.returns.length > 0 && (
+        <div className="flex flex-col gap-2 border-t border-line px-5 py-3 text-[0.875rem]">
+          <span className="legend">Retours</span>
+          {order.returns.map((orderReturn) => (
+            <p key={orderReturn.id} className="text-ink-2">
+              {formatDateTime(orderReturn.createdAt)} · {orderReturn.reason} ·{' '}
+              {orderReturn.lines.reduce((sum, line) => sum + line.quantity, 0)} article(s),{' '}
+              {orderReturn.refundMethod === 'EXCHANGE' ? `avoir de ${money(orderReturn.refundAmount)}` : `${money(orderReturn.refundAmount)} rendus`}
+              {orderReturn.restocked ? ', remis en rayon' : ', hors stock'}
+            </p>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 

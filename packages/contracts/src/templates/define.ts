@@ -1,11 +1,16 @@
 import type { z } from 'zod';
+import type { StorePlan } from '../stores.js';
 import type { StoreType } from '../verticals.js';
 import { type Palette, type Section, type ThemeSettings, themeSettingsBaseSchema } from './theme.js';
+
+/** Gratuit pour toutes les boutiques, ou réservé à la formule Premium. */
+export type TemplateTier = 'free' | 'premium';
 
 export interface TemplateManifest {
   id: string;
   name: string;
   version: string;
+  tier: TemplateTier;
   /** Une phrase qui dit l'idée du template, affichée dans la galerie du dashboard. */
   tagline: string;
   /** Types de boutique pour lesquels il est pensé (les autres le voient aussi, plus bas). */
@@ -21,6 +26,11 @@ export interface TemplateDefinition {
   manifest: TemplateManifest;
   settingsSchema: z.ZodType<ThemeSettings, unknown>;
   defaultSettings: ThemeSettings;
+}
+
+/** Une boutique peut-elle publier ce modèle ? Les modèles Premium demandent la formule Premium. */
+export function canUseTemplate(plan: StorePlan, manifest: Pick<TemplateManifest, 'tier'>): boolean {
+  return manifest.tier === 'free' || plan === 'PREMIUM';
 }
 
 /** Réglages d'un template : le template doit être le sien, la palette l'une des siennes. */
@@ -56,7 +66,15 @@ export function starterSections(copy: {
       ctaHref: '/collections',
       imageMediaId: null,
     },
-    { id: 'featured', type: 'featured-collection', enabled: true, title: copy.featuredTitle, collectionId: null, limit: 8 },
+    {
+      id: 'featured',
+      type: 'featured-collection',
+      enabled: true,
+      title: copy.featuredTitle,
+      categoryId: null,
+      collectionId: null,
+      limit: 8,
+    },
     { id: 'grid', type: 'product-grid', enabled: true, title: copy.gridTitle, limit: 12, sort: 'newest' },
     { id: 'brands', type: 'brand-strip', enabled: false, title: 'Nos marques' },
     { id: 'about', type: 'rich-text', enabled: true, title: copy.aboutTitle, body: copy.aboutBody },

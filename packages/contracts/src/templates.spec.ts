@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canUseTemplate,
   contrastRatio,
   readableOn,
   resolvePalette,
@@ -99,6 +100,14 @@ describe('Templates et palettes', () => {
   it('propose d’abord les templates du type de boutique', () => {
     expect(templatesFor('FASHION').recommended.map((t) => t.manifest.id)).toEqual(['default', 'atelier', 'patron', 'couverture', 'devanture']);
     expect(templatesFor('ELECTRONICS').recommended.map((t) => t.manifest.id)).toEqual(['default', 'vitrine', 'boite', 'enseigne', 'devanture']);
+  });
+
+  it('ne laisse que le modèle natif gratuit', () => {
+    expect(TEMPLATE_LIST.filter((t) => t.manifest.tier === 'free').map((t) => t.manifest.id)).toEqual(['default']);
+    const enseigne = TEMPLATE_LIST.find((t) => t.manifest.id === 'enseigne')!;
+    expect(canUseTemplate('FREE', enseigne.manifest)).toBe(false);
+    expect(canUseTemplate('PREMIUM', enseigne.manifest)).toBe(true);
+    expect(canUseTemplate('FREE', TEMPLATE_LIST[0]!.manifest)).toBe(true);
   });
 
   it('retombe sur la première palette si la palette est inconnue ou vide', () => {

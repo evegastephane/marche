@@ -1,6 +1,47 @@
-# Infrastructure locale de Marché (docs/PLAN-CODE.md §4.2)
-# Démarrage : npm run infra:up · Arrêt : npm run infra:down
-name: marche
+# Upsell en local, tout en conteneurs (docs/PLAN-CODE.md §4.2).
+#
+#   Démarrer / reconstruire : npm run upsell:up     (docker compose up -d --build)
+#   Arrêter                 : npm run upsell:down   (les données restent dans les volumes)
+#   Infra seule, pour `npm run dev` sur le poste : npm run infra:up
+#
+#   Dashboard       http://localhost:7000
+#   Boutiques       http://localhost:7001 et http://{slug}.localhost:7001
+#   API             http://localhost:7002 (Swagger sur /docs, files sur /admin/queues)
+#   Mailpit         http://localhost:7025 (SMTP sur 7125)
+#   Stockage S3     http://localhost:7090 (console RustFS sur 7091, rustfsadmin / rustfsadmin)
+#   PostgreSQL      localhost:7432 · Redis localhost:7379
+#
+# Tout est dans le bloc 7000 : 3000, 5173 et 5434 servent déjà à d'autres projets sur le poste.
+# Les secrets restent dans apps/api/.env et apps/*/.env.local ; ce fichier ne remplace que les adresses.
+name: upsell
+
+# Image commune à l'API, aux migrations et à la préparation du bucket (cible « local » du Dockerfile).
+x-api-image: &api-image
+  image: upsell-api
+  build:
+    context: .
+    dockerfile: apps/api/Dockerfile
+    target: local
+  env_file: apps/api/.env
+
+# Adresses vues depuis le réseau des conteneurs (et, pour le navigateur, les ports publiés ci-dessous).
+x-api-environment: &api-environment
+  # development : e-mails par Mailpit (la production exige Resend) et worker dans le processus de l'API.
+  NODE_ENV: development
+  WORKER_IN_API: 'true'
+  DATABASE_URL: postgresql://marche:marche@postgres:5432/marche
+  REDIS_URL: redis://redis:6379
+  S3_ENDPOINT: http://s3:9000
+  S3_PUBLIC_ENDPOINT: http://localhost:7090
+  MEDIA_PUBLIC_BASE_URL: http://localhost:7090/marche-media
+  EMAIL_PROVIDER: smtp
+  SMTP_URL: smtp://mailpit:1025
+  CORS_ORIGINS: http://localhost:7000,http://localhost:7001
+  CLERK_AUTHORIZED_PARTIES: http://localhost:7000,http://localhost:7001
+  STOREFRONT_INTERNAL_URL: http://storefront:3001
+  PLATFORM_ROOT_DOMAIN: localhost:7001
+  DASHBOARD_URL: http://localhost:7000
+  SITE_URL_SCHEME: http
 
 services:
   postgres:
@@ -10,47 +51,146 @@ services:
       POSTGRES_PASSWORD: marche
       POSTGRES_DB: marche
     ports:
-      # 5434 côté hôte : 5432 et 5433 sont déjà pris sur le poste de dev
-      - "5434:5432"
+      - '7432:5432'
     volumes:
       # PostgreSQL 18 : le point de montage est /var/lib/postgresql
       - pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U marche -d marche"]
+      test: ['CMD-SHELL', 'pg_isready -U marche -d marche']
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
 
   redis:
     image: redis:8-alpine
     # noeviction est obligatoire pour BullMQ ; appendonly pour survivre aux redémarrages
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'noeviction']
     ports:
-      - "6379:6379"
+      - '7379:6379'
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
 
   s3:
     # Stockage compatible S3 (remplace MinIO, plus publié sur Docker Hub).
     # Identifiants par défaut : rustfsadmin / rustfsadmin
     image: rustfs/rustfs:1.0.0
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - '7090:9000'
+      - '7091:9001'
     volumes:
       - s3data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:9000/health']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
 
   mailpit:
-    # Boîte mail de développement : UI http://localhost:8025, SMTP localhost:1025
+    # Boîte mail de développement
     image: axllent/mailpit:v1.31
     ports:
-      - "8025:8025"
-      - "1025:1025"
+      - '7025:8025'
+      - '7125:1025'
+    restart: unless-stopped
+
+  # Migrations Prisma, à chaque démarrage (sans effet si la base est à jour).
+  migrate:
+    <<: *api-image
+    environment: *api-environment
+    command: ['npx', 'prisma', 'migrate', 'deploy']
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Bucket des images : création, lecture publique et CORS pour les envois du dashboard (idempotent).
+  media-init:
+    <<: *api-image
+    environment: *api-environment
+    command: ['npx', 'tsx', 'scripts/init-media-bucket.ts']
+    depends_on:
+      s3:
+        condition: service_healthy
+
+  api:
+    <<: *api-image
+    environment: *api-environment
+    ports:
+      - '7002:3000'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      media-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
+    restart: unless-stopped
+
+  dashboard:
+    image: upsell-dashboard
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:7002
+        VITE_PLATFORM_ROOT_DOMAIN: localhost:7001
+        VITE_SITE_URL_SCHEME: http
+      secrets:
+        - dashboard_env
+    ports:
+      - '7000:80'
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  storefront:
+    image: upsell-storefront
+    build:
+      context: .
+      dockerfile: apps/storefront/Dockerfile
+      args:
+        NEXT_PUBLIC_ROOT_DOMAIN: localhost:7001
+        NEXT_PUBLIC_DASHBOARD_URL: http://localhost:7000
+        NEXT_PUBLIC_API_URL: http://localhost:7002
+      secrets:
+        - storefront_env
+    env_file: apps/storefront/.env.local
+    environment:
+      API_INTERNAL_URL: http://api:3000
+      NEXT_PUBLIC_ROOT_DOMAIN: localhost:7001
+      NEXT_PUBLIC_DASHBOARD_URL: http://localhost:7000
+      NEXT_PUBLIC_API_URL: http://localhost:7002
+    ports:
+      - '7001:3001'
+    depends_on:
+      - api
+    restart: unless-stopped
+
+# Variables publiques des fronts (clé Clerk, PostHog…), lues au build sans entrer dans les images.
+secrets:
+  dashboard_env:
+    file: apps/dashboard/.env.local
+  storefront_env:
+    file: apps/storefront/.env.local
 
 volumes:
   pgdata: {}

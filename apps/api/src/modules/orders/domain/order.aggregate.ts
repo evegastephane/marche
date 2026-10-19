@@ -53,6 +53,10 @@ export interface OrderData {
   shippingMethod: string | null;
   note: string | null;
   cancelReason: string | null;
+  /** Session de caisse de la vente (source POS). */
+  posSessionId: string | null;
+  /** Total remboursé par les retours (caisse). */
+  refundedAmount: number;
   placedAt: Date | null;
   paidAt: Date | null;
   fulfilledAt: Date | null;
@@ -105,6 +109,7 @@ export class Order extends AggregateRoot {
       email?: string | null;
       shippingAddress?: Address | null;
       note?: string | null;
+      posSessionId?: string | null;
     },
     now: Date,
   ): Order {
@@ -128,6 +133,8 @@ export class Order extends AggregateRoot {
       shippingMethod: null,
       note: input.note ?? null,
       cancelReason: null,
+      posSessionId: input.posSessionId ?? null,
+      refundedAmount: 0,
       placedAt: null,
       paidAt: null,
       fulfilledAt: null,
@@ -285,8 +292,38 @@ export class Order extends AggregateRoot {
     const lines = this.data.lines.map((line) => (byLine.has(line.id) ? { ...line, serialNumbers: byLine.get(line.id) } : line));
     this.data = { ...this.data, lines, status: this.state.status, fulfilledAt: now, updatedAt: now };
     this.record(
-      createEvent('orders.order.fulfilled', this.data.storeId, this.id, { number: this.data.number, email: this.data.email }, now),
+      createEvent(
+        'orders.order.fulfilled',
+        this.data.storeId,
+        this.id,
+        { number: this.data.number, email: this.data.email, source: this.data.source },
+        now,
+      ),
     );
+  }
+
+  /**
+   * Remboursement d'un retour : le cumul ne dépasse jamais le total payé ; entièrement remboursée,
+   * la commande passe REFUNDED.
+   */
+  recordRefund(amount: number, now: Date): void {
+    if (!Number.isSafeInteger(amount) || amount < 0) throw new ValidationError('VALIDATION_FAILED', 'Montant remboursé invalide');
+    if (this.data.paymentStatus === 'UNPAID') throw new InvalidOrderTransitionError(this.status, 'rembourser');
+    const refundedAmount = this.data.refundedAmount + amount;
+    if (refundedAmount > this.data.totalAmount) {
+      throw new ValidationError('VALIDATION_FAILED', 'Le remboursement dépasse le montant payé');
+    }
+    this.data = {
+      ...this.data,
+      refundedAmount,
+      paymentStatus: refundedAmount === this.data.totalAmount && this.data.totalAmount > 0 ? 'REFUNDED' : this.data.paymentStatus,
+      updatedAt: now,
+    };
+    if (amount > 0) {
+      this.record(
+        createEvent('orders.order.refunded', this.data.storeId, this.id, { number: this.data.number, amount, refundedAmount }, now),
+      );
+    }
   }
 
   /** UC-34 : DRAFT/PLACED → CANCELLED. Retourne l'état précédent (PLACED ⇒ libérer le stock). */

@@ -1,32 +1,24 @@
-import {
-  FONT_CHOICES,
-  getTemplate,
-  resolvePalette,
-  type SiteDto,
-  type StoreDto,
-  type ThemeSettings,
-} from '@marche/contracts';
+import type { SiteDto, StoreDto } from '@marche/contracts';
 import { createFileRoute } from '@tanstack/react-router';
-import { ExternalLink, Globe, PowerOff, Rocket } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { ExternalLink, Eye, Globe, PowerOff, Rocket } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useCurrentStore } from '@/features/shell/use-current-store';
-import { useCollections, useSite, useSiteAction } from '@/features/site/api';
+import { useSite, useSiteAction } from '@/features/site/api';
 import { LivePreview } from '@/features/site/live-preview';
-import { PalettePicker, TemplateGallery } from '@/features/site/theme-picker';
-import { switchTemplate } from '@/features/site/theme-switch';
+import { PublishBar } from '@/features/site/publish-bar';
+import { SectionEditor } from '@/features/site/section-editor';
+import { UnsavedGuard } from '@/features/site/unsaved-guard';
+import { useThemeDraft } from '@/features/site/use-theme-draft';
 import { errorMessage } from '@/shared/api/client';
 import { formatDateTime } from '@/shared/lib/format';
-import { Badge, Led } from '@/shared/ui/badge';
+import { Badge } from '@/shared/ui/badge';
 import { UpsellMark } from '@/shared/ui/brand';
 import { Button, buttonClasses } from '@/shared/ui/button';
-import { Card, CardHeader } from '@/shared/ui/card';
 import { LoadError, PageHeader, Skeleton } from '@/shared/ui/feedback';
-import { Field, Input, Select } from '@/shared/ui/field';
-import { EASE_OUT, riseIn } from '@/shared/ui/motion';
+import { riseIn } from '@/shared/ui/motion';
 import { SiteAddress, siteHost } from '@/shared/ui/site-address';
-import { Switch } from '@/shared/ui/switch';
 
 export const Route = createFileRoute('/_app/site')({ component: SitePage });
 
@@ -116,75 +108,12 @@ function SansSite({ store }: { store: StoreDto }) {
 
 function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
   const action = useSiteAction();
-  const collections = useCollections();
-  const [settings, setSettings] = useState<ThemeSettings>(() =>
-    structuredClone(site.draftThemeSettings),
-  );
-  const [dirty, setDirty] = useState(false);
-  // Le bouton qui a lancé l'action porte le chargement (Publier enchaîne enregistrement puis publication).
-  const [busy, setBusy] = useState<'save' | 'publish' | null>(null);
+  const draft = useThemeDraft(site);
+  const [focus, setFocus] = useState<{ id: string; nonce: number } | null>(null);
   const online = site.status === 'PUBLISHED';
   const host = new URL(site.url).host;
   const pending = action.isPending ? action.variables?.type : undefined;
 
-  const edit = (next: ThemeSettings) => {
-    setSettings(next);
-    setDirty(true);
-  };
-  const template = getTemplate(settings.template) ?? getTemplate('default')!;
-  const palette = resolvePalette(settings);
-  const setSection = <T extends ThemeSettings['sections'][number]['type']>(
-    type: T,
-    patch: Partial<Extract<ThemeSettings['sections'][number], { type: T }>>,
-  ) =>
-    edit({
-      ...settings,
-      sections: settings.sections.map((s) =>
-        s.type === type ? ({ ...s, ...patch } as typeof s) : s,
-      ),
-    });
-  const hero = settings.sections.find((s) => s.type === 'hero');
-  const featured = settings.sections.find(
-    (s) => s.type === 'featured-collection',
-  );
-
-  const fail = (error: unknown) => {
-    setBusy(null);
-    toast.error(errorMessage(error));
-  };
-  const publishTheme = () => {
-    setBusy('publish');
-    action.mutate(
-      { type: 'publish-theme' },
-      {
-        onSuccess: () => {
-          setBusy(null);
-          toast('Modifications publiées sur votre site');
-        },
-        onError: fail,
-      },
-    );
-  };
-  const saveDraft = (thenPublish = false) => {
-    setBusy(thenPublish ? 'publish' : 'save');
-    action.mutate(
-      { type: 'save-theme', settings },
-      {
-        onSuccess: () => {
-          setDirty(false);
-          if (thenPublish) {
-            publishTheme();
-            return;
-          }
-          setBusy(null);
-          toast('Brouillon enregistré', {
-            description: 'Publiez pour l’afficher sur le site.',
-          });
-        },
-        onError: fail,
-      },
-    );
-  };
   const togglePublished = () =>
     action.mutate(
       { type: online ? 'unpublish' : 'publish' },
@@ -195,13 +124,11 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
       },
     );
 
-  const hasChanges = dirty || site.hasUnpublishedChanges;
-
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
       <PageHeader
         title="Site"
-        subtitle="Votre vitrine : elle se met à jour toute seule avec vos produits et votre stock."
+        subtitle="Composez votre page d’accueil section par section ; vos produits et votre stock se mettent à jour tout seuls."
       />
 
       <motion.section
@@ -258,207 +185,20 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
         </div>
       </motion.section>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-8">
-        <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader title="Modèle du site" />
-            <div className="px-3 pb-4 sm:px-5 sm:pb-6">
-              <TemplateGallery
-                storeType={store.type}
-                value={settings.template}
-                onChange={(id) => edit(switchTemplate(settings, id))}
-                content={{ storeName: store.name }}
-              />
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title="Couleurs" />
-            <div className="flex flex-col gap-3 px-3 pb-4 sm:px-5 sm:pb-6">
-              <p className="px-1 text-[0.875rem] text-ink-2">
-                Palettes préparées pour « {template.manifest.name} » : textes et
-                boutons restent lisibles dans chacune.
-              </p>
-              <PalettePicker
-                palettes={template.manifest.palettes}
-                value={palette.id}
-                onChange={(id) => edit({ ...settings, palette: id })}
-              />
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader
-              title={
-                template.manifest.fontChoice ? 'Textes et polices' : 'Textes'
-              }
-            />
-            <div className="flex flex-col gap-5 px-5 pb-6">
-              {template.manifest.fontChoice && (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Police des titres">
-                    {(props) => (
-                      <Select
-                        {...props}
-                        value={settings.fonts.heading}
-                        onChange={(e) =>
-                          edit({
-                            ...settings,
-                            fonts: {
-                              ...settings.fonts,
-                              heading: e.target
-                                .value as typeof settings.fonts.heading,
-                            },
-                          })
-                        }
-                      >
-                        {FONT_CHOICES.map((f) => (
-                          <option key={f}>{f}</option>
-                        ))}
-                      </Select>
-                    )}
-                  </Field>
-                  <Field label="Police du texte">
-                    {(props) => (
-                      <Select
-                        {...props}
-                        value={settings.fonts.body}
-                        onChange={(e) =>
-                          edit({
-                            ...settings,
-                            fonts: {
-                              ...settings.fonts,
-                              body: e.target
-                                .value as typeof settings.fonts.body,
-                            },
-                          })
-                        }
-                      >
-                        {FONT_CHOICES.map((f) => (
-                          <option key={f}>{f}</option>
-                        ))}
-                      </Select>
-                    )}
-                  </Field>
-                </div>
-              )}
-              {hero?.type === 'hero' && (
-                <>
-                  <Field label="Titre d’accueil">
-                    {(props) => (
-                      <Input
-                        {...props}
-                        value={hero.title}
-                        maxLength={120}
-                        onChange={(e) =>
-                          setSection('hero', { title: e.target.value })
-                        }
-                      />
-                    )}
-                  </Field>
-                  <Field label="Sous-titre">
-                    {(props) => (
-                      <Input
-                        {...props}
-                        value={hero.subtitle ?? ''}
-                        maxLength={300}
-                        onChange={(e) =>
-                          setSection('hero', { subtitle: e.target.value })
-                        }
-                      />
-                    )}
-                  </Field>
-                  <Field label="Texte du bouton">
-                    {(props) => (
-                      <Input
-                        {...props}
-                        value={hero.ctaLabel ?? ''}
-                        maxLength={40}
-                        onChange={(e) =>
-                          setSection('hero', { ctaLabel: e.target.value })
-                        }
-                      />
-                    )}
-                  </Field>
-                </>
-              )}
-              {featured?.type === 'featured-collection' &&
-                (collections.data?.items.length ?? 0) > 0 && (
-                  <Field label="Catalogue mis en avant">
-                    {(props) => (
-                      <Select
-                        {...props}
-                        value={featured.collectionId ?? ''}
-                        onChange={(e) => {
-                          const collection = collections.data?.items.find(
-                            (c) => c.id === e.target.value,
-                          );
-                          setSection('featured-collection', {
-                            collectionId: collection?.id ?? null,
-                            title: collection?.title ?? featured.title,
-                          });
-                        }}
-                      >
-                        <option value="">Aucun</option>
-                        {collections.data?.items.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.title}
-                          </option>
-                        ))}
-                      </Select>
-                    )}
-                  </Field>
-                )}
-              <label className="well flex cursor-pointer items-start gap-3 rounded-xl px-4 py-3">
-                <Switch
-                  checked={settings.announcement.enabled}
-                  onChange={(enabled) =>
-                    edit({
-                      ...settings,
-                      announcement: { ...settings.announcement, enabled },
-                    })
-                  }
-                />
-                <span className="flex flex-col">
-                  <span className="font-[600]">Bandeau d’annonce</span>
-                  <span className="text-[0.875rem] text-ink-2">
-                    Une ligne en haut de chaque page : livraison, horaires…
-                  </span>
-                </span>
-              </label>
-              <AnimatePresence initial={false}>
-                {settings.announcement.enabled && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3, ease: EASE_OUT }}
-                    className="overflow-hidden"
-                  >
-                    <Field label="Texte du bandeau">
-                      {(props) => (
-                        <Input
-                          {...props}
-                          value={settings.announcement.text}
-                          maxLength={160}
-                          placeholder="Livraison offerte dès 50 000 FCFA"
-                          onChange={(e) =>
-                            edit({
-                              ...settings,
-                              announcement: {
-                                ...settings.announcement,
-                                text: e.target.value,
-                              },
-                            })
-                          }
-                        />
-                      )}
-                    </Field>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </Card>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-8">
+        <div className="flex flex-col gap-4">
+          <SectionEditor
+            settings={draft.settings}
+            edit={draft.edit}
+            store={store}
+            onFocus={(id) => setFocus((current) => ({ id, nonce: (current?.nonce ?? 0) + 1 }))}
+          />
+          <a
+            href="#apercu"
+            className={buttonClasses('secondary', 'md', 'self-start lg:hidden')}
+          >
+            <Eye strokeWidth={1.8} /> Voir l’aperçu
+          </a>
         </div>
 
         <motion.div
@@ -466,68 +206,15 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
           variants={riseIn}
           className="flex scroll-mt-6 flex-col gap-4 lg:sticky lg:top-10"
         >
-          <LivePreview settings={settings} host={host} />
-          <div className="panel flex flex-wrap items-center justify-between gap-3 p-4">
-            <span className="flex items-center gap-2 text-[0.875rem] text-ink-2">
-              <motion.span
-                aria-hidden
-                className="inline-flex"
-                animate={{ scale: dirty ? [1, 1.4, 1] : 1 }}
-                transition={{ duration: 0.3 }}
-              >
-                <Led
-                  tone={
-                    dirty
-                      ? 'attention'
-                      : site.hasUnpublishedChanges
-                        ? 'draft'
-                        : 'on'
-                  }
-                />
-              </motion.span>
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.span
-                  key={
-                    dirty
-                      ? 'dirty'
-                      : site.hasUnpublishedChanges
-                        ? 'draft'
-                        : 'ok'
-                  }
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.18 }}
-                >
-                  {dirty
-                    ? 'Modifications non enregistrées'
-                    : site.hasUnpublishedChanges
-                      ? 'Brouillon prêt à publier'
-                      : 'Le site est à jour'}
-                </motion.span>
-              </AnimatePresence>
-            </span>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="secondary"
-                disabled={!dirty || busy !== null}
-                loading={busy === 'save'}
-                onClick={() => saveDraft()}
-              >
-                Enregistrer
-              </Button>
-              <Button
-                variant={online && hasChanges ? 'primary' : 'secondary'}
-                disabled={!hasChanges || busy !== null}
-                loading={busy === 'publish'}
-                onClick={() => (dirty ? saveDraft(true) : publishTheme())}
-              >
-                Publier
-              </Button>
-            </div>
-          </div>
+          <LivePreview settings={draft.settings} host={host} focus={focus} />
+          <PublishBar
+            site={site}
+            draft={draft}
+            className="max-lg:sticky max-lg:bottom-[calc(4.75rem+env(safe-area-inset-bottom))] max-lg:z-20 max-lg:shadow-float"
+          />
         </motion.div>
       </div>
+      <UnsavedGuard draft={draft} />
     </div>
   );
 }

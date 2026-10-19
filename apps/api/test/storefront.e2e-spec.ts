@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { StoreCache } from '../src/modules/stores/infrastructure/store-cache.js';
+import { type AppPrismaClient, PRISMA } from '../src/shared/infrastructure/prisma/prisma.client.js';
 import {
   createPublishedProduct,
   createStoreFor,
@@ -31,6 +33,13 @@ describe('Génération du site et parcours acheteur (e2e)', () => {
     const added = await t.http().post(`/storefront/v1/carts/${cart.body.id}/lines`).set(shop()).send({ variantId, quantity });
     expect(added.status, JSON.stringify(added.body)).toBe(201);
     return cart.body.id as string;
+  }
+
+  /** La formule change par la plateforme (commande store:plan) : base, puis cache des réglages. */
+  async function setPlan(plan: 'FREE' | 'PREMIUM'): Promise<void> {
+    const db = t.moduleRef.get<AppPrismaClient>(PRISMA, { strict: false });
+    const store = await db.store.update({ where: { slug }, data: { plan } });
+    await t.moduleRef.get(StoreCache, { strict: false }).invalidate(store.id);
   }
 
   const checkout = (cartId: string) =>
@@ -213,17 +222,41 @@ describe('Génération du site et parcours acheteur (e2e)', () => {
       .set(admin())
       .send({ settings: { ...published.body.draftThemeSettings, template: 'atelier', palette: 'nuit' } });
     expect(wrongPalette.status).toBe(422);
-    const switched = await t
-      .http()
-      .put('/api/v1/site/theme')
-      .set(admin())
-      .send({ settings: { ...published.body.draftThemeSettings, template: 'atelier', palette: 'kraft' } });
+    const atelierSettings = { ...published.body.draftThemeSettings, template: 'atelier', palette: 'kraft' };
+
+    // L'Atelier est un modèle Premium : refusé en formule Gratuite.
+    const refused = await t.http().put('/api/v1/site/theme').set(admin()).send({ settings: atelierSettings });
+    expect(refused.status).toBe(403);
+    expect(refused.body.code).toBe('PLAN_REQUIRED');
+
+    await setPlan('PREMIUM');
+    const switched = await t.http().put('/api/v1/site/theme').set(admin()).send({ settings: atelierSettings });
     expect(switched.status).toBe(200);
     expect(switched.body.templateId).toBe('default');
     const republished = await t.http().post('/api/v1/site/theme/publish').set(admin());
     expect(republished.body.templateId).toBe('atelier');
     const atelier = await t.http().get('/storefront/v1/store').set(shop());
     expect(atelier.body).toMatchObject({ templateId: 'atelier', theme: { template: 'atelier', palette: 'kraft' } });
+
+    // Repassée en Gratuit, la boutique s'affiche en modèle natif, avec les mêmes sections.
+    await setPlan('FREE');
+    const downgraded = await t.http().get('/storefront/v1/store').set(shop());
+    expect(downgraded.body).toMatchObject({ templateId: 'default', theme: { template: 'default', palette: '' } });
+    expect(downgraded.body.theme.sections).toEqual(atelier.body.theme.sections);
+    // Elle garde le droit de modifier ses sections ; changer pour un autre modèle Premium lui est refusé.
+    const kept = await t
+      .http()
+      .put('/api/v1/site/theme')
+      .set(admin())
+      .send({ settings: { ...atelierSettings, announcement: { enabled: true, text: 'Soldes' } } });
+    expect(kept.status).toBe(200);
+    const other = await t
+      .http()
+      .put('/api/v1/site/theme')
+      .set(admin())
+      .send({ settings: { ...atelierSettings, template: 'patron', palette: '' } });
+    expect(other.status).toBe(403);
+    await setPlan('PREMIUM');
   });
 
   it('aperçu en direct : les réglages en cours s’affichent dans la session, sans toucher au brouillon', async () => {

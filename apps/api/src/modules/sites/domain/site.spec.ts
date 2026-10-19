@@ -1,6 +1,11 @@
 import { defaultTemplateSettings, getTemplate } from '@marche/contracts';
 import { describe, expect, it } from 'vitest';
-import { parseThemeSettings, prefillSettings, welcomeTitle } from '../application/site.use-cases.js';
+import {
+  assertTemplateAllowed,
+  parseThemeSettings,
+  prefillSettings,
+  welcomeTitle,
+} from '../application/site.use-cases.js';
 import { Site } from './site.aggregate.js';
 
 const now = new Date('2026-09-27T10:00:00Z');
@@ -27,6 +32,12 @@ describe('prefillSettings (Prototype + préremplissage)', () => {
   it('désactive la section « à la une » sans catalogue publié', () => {
     const settings = prefillSettings(defaultTemplateSettings, { name: 'X', logoMediaId: null }, null);
     expect(settings.sections.find((s) => s.type === 'featured-collection')?.enabled).toBe(false);
+  });
+
+  it('réserve les modèles Premium à la formule Premium', () => {
+    expect(() => assertTemplateAllowed('FREE', 'default')).not.toThrow();
+    expect(() => assertTemplateAllowed('FREE', 'enseigne')).toThrow(/réservé à la formule Premium/);
+    expect(() => assertTemplateAllowed('PREMIUM', 'enseigne')).not.toThrow();
   });
 
   it('valide des réglages avec le schéma du template', () => {

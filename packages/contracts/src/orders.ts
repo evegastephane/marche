@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { type Address, addressSchema, amountSchema, type Currency, paginationQuerySchema } from './common.js';
 import { serialSchema } from './inventory.js';
+import type { OrderPaymentDto, OrderReturnDto } from './pos.js';
 
 export const ORDER_STATUSES = ['DRAFT', 'PLACED', 'FULFILLED', 'CANCELLED'] as const;
 export const orderStatusSchema = z.enum(ORDER_STATUSES);
@@ -10,7 +11,8 @@ export const PAYMENT_STATUSES = ['UNPAID', 'PAID', 'REFUNDED'] as const;
 export const paymentStatusSchema = z.enum(PAYMENT_STATUSES);
 export type PaymentStatus = z.infer<typeof paymentStatusSchema>;
 
-export const ORDER_SOURCES = ['ADMIN', 'STOREFRONT'] as const;
+/** POS : vente au comptoir, encaissée à la caisse. */
+export const ORDER_SOURCES = ['ADMIN', 'STOREFRONT', 'POS'] as const;
 export type OrderSource = (typeof ORDER_SOURCES)[number];
 
 export const MAX_ORDER_LINES = 100;
@@ -126,7 +128,8 @@ export interface OrderDiscount {
 
 export interface OrderCustomerDto {
   id: string;
-  email: string;
+  /** Absent pour un client du comptoir connu par son seul téléphone. */
+  email: string | null;
   firstName: string | null;
   lastName: string | null;
   phone: string | null;
@@ -153,6 +156,13 @@ export interface OrderDto {
   note: string | null;
   cancelReason: string | null;
   publicToken: string;
+  /** Encaissements et remboursements (caisse), du plus ancien au plus récent. */
+  payments: OrderPaymentDto[];
+  /** Retours d'articles (caisse). */
+  returns: OrderReturnDto[];
+  refundedAmount: number;
+  /** Session de caisse de la vente (source POS). */
+  posSessionId: string | null;
   placedAt: string | null;
   paidAt: string | null;
   fulfilledAt: string | null;
@@ -179,7 +189,7 @@ export interface OrderListItemDto {
 
 export interface CustomerDto {
   id: string;
-  email: string;
+  email: string | null;
   firstName: string | null;
   lastName: string | null;
   phone: string | null;

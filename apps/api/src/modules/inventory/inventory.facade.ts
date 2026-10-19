@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type { AdjustStockInput, InventoryLevelDto, InventorySummaryDto, ReceiveUnitsInput } from '@marche/contracts';
-import type { InitialStock } from './application/inventory.ports.js';
+import type { InitialStock, UnitRecord } from './application/inventory.ports.js';
 import { InventoryService, type ShippedLine, type StockLine } from './application/inventory.service.js';
 import { availableOf } from './domain/stock-policy.js';
 
-export type { InitialStock } from './application/inventory.ports.js';
+export type { InitialStock, UnitRecord } from './application/inventory.ports.js';
 export type { ShippedLine } from './application/inventory.service.js';
 
 /** API publique du module inventory (utilisée par catalog, orders, checkout, storefront). */
@@ -66,6 +66,21 @@ export class InventoryFacade {
   /** Numéros (IMEI) déjà enregistrés dans la boutique : numéro → variante. */
   knownSerials(serials: readonly string[]): Promise<Map<string, string>> {
     return this.inventory.knownSerials(serials);
+  }
+
+  /** Unité portant ce numéro (IMEI lu en caisse). */
+  findUnitBySerial(serial: string): Promise<UnitRecord | null> {
+    return this.inventory.findUnitBySerial(serial);
+  }
+
+  /** Retour en caisse d'appareils vendus : ils repassent en stock (mouvement RETURN). */
+  returnSoldUnits(variantId: string, serials: readonly string[], reason: string): Promise<void> {
+    return this.inventory.returnSoldUnits(variantId, serials, reason);
+  }
+
+  /** Retour en caisse d'articles comptés : le stock remonte (mouvement RETURN). */
+  async returnToStock(variantId: string, quantity: number, reason: string): Promise<void> {
+    await this.inventory.adjust(variantId, { type: 'RETURN', quantity, reason });
   }
 
   /** Réception d'unités (IMEI) sur une variante suivie à l'unité. */

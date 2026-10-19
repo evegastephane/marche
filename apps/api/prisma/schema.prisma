@@ -53,6 +53,33 @@ enum PaymentStatus {
 enum OrderSource {
   ADMIN
   STOREFRONT
+  /// Vente au comptoir, encaissée à la caisse (payée et remise au client sur-le-champ).
+  POS
+}
+
+/// Moyen de paiement d'un encaissement ou d'un remboursement. EXCHANGE : avoir d'un retour, utilisé dans un échange.
+enum PaymentMethod {
+  CASH
+  MOBILE_MONEY
+  CARD
+  BANK_TRANSFER
+  EXCHANGE
+  OTHER
+}
+
+enum PaymentKind {
+  PAYMENT
+  REFUND
+}
+
+enum PosSessionStatus {
+  OPEN
+  CLOSED
+}
+
+enum CashMovementType {
+  IN
+  OUT
 }
 
 enum SiteStatus {
@@ -63,16 +90,18 @@ enum SiteStatus {
 
 // ───────────── identity / stores ─────────────
 model User {
-  id          String        @id @default(uuid(7)) @db.Uuid
-  clerkUserId String        @unique @map("clerk_user_id")
-  email       String
-  firstName   String?       @map("first_name")
-  lastName    String?       @map("last_name")
-  imageUrl    String?       @map("image_url")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-  deletedAt   DateTime?     @map("deleted_at")
-  memberships StoreMember[]
+  id                String        @id @default(uuid(7)) @db.Uuid
+  clerkUserId       String        @unique @map("clerk_user_id")
+  email             String
+  firstName         String?       @map("first_name")
+  lastName          String?       @map("last_name")
+  imageUrl          String?       @map("image_url")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  deletedAt         DateTime?     @map("deleted_at")
+  memberships       StoreMember[]
+  posSessionsOpened PosSession[]  @relation("PosSessionOpenedBy")
+  posSessionsClosed PosSession[]  @relation("PosSessionClosedBy")
 
   @@map("users")
 }
@@ -94,6 +123,8 @@ model Store {
   type             StoreType @default(FASHION)
   /// Réglages propres au type (guides des tailles…), validés par verticalSettingsSchema.
   verticalSettings Json      @default("{}") @map("vertical_settings")
+  /// Formule : Premium débloque les modèles de site payants (activée par la plateforme).
+  plan             StorePlan @default(FREE)
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   archivedAt       DateTime? @map("archived_at")
@@ -107,6 +138,8 @@ model Store {
   collections     Collection[]
   customers       Customer[]
   orders          Order[]
+  posSessions     PosSession[]
+  posSettings     PosSettings?
   campaigns       Campaign[]
   bundles         Bundle[]
   specialRequests SpecialRequest[]
@@ -249,12 +282,15 @@ model Media {
   alt        String?
   status     MediaStatus      @default(PENDING)
   renditions Json             @default("{}") // { "400": "…webp", "800": "…", "1600": "…" }
+  /// Lien d'origine d'une photo importée (colonne « images » de l'import) : réimporter ne la télécharge pas deux fois.
+  sourceUrl  String?          @map("source_url")
   createdAt  DateTime         @default(now()) @map("created_at")
   store      Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
   products   ProductMedia[]
   variants   ProductVariant[]
 
   @@index([storeId, createdAt(sort: Desc)])
+  @@index([storeId, sourceUrl])
   @@map("media")
 }
 
@@ -484,7 +520,8 @@ model StockUnit {
 model Customer {
   id               String            @id @default(uuid(7)) @db.Uuid
   storeId          String            @map("store_id") @db.Uuid
-  email            String // normalisé en minuscules
+  /// Normalisé en minuscules ; absent pour un client du comptoir connu par son seul téléphone.
+  email            String?
   firstName        String?           @map("first_name")
   lastName         String?           @map("last_name")
   phone            String?
@@ -500,6 +537,7 @@ model Customer {
 
   @@unique([storeId, email])
   @@index([storeId, lastName])
+  @@index([storeId, phone])
   @@map("customers")
 }
 
@@ -528,6 +566,10 @@ model Order {
   paidAt          DateTime?       @map("paid_at")
   fulfilledAt     DateTime?       @map("fulfilled_at")
   cancelledAt     DateTime?       @map("cancelled_at")
+  /// Session de caisse de la vente (source POS).
+  posSessionId    String?         @map("pos_session_id") @db.Uuid
+  /// Total remboursé par les retours.
+  refundedAmount  Int             @default(0) @map("refunded_amount")
   version         Int             @default(0)
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
@@ -535,11 +577,142 @@ model Order {
   customer        Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
   lines           OrderLine[]
   specialRequest  SpecialRequest?
+  posSession      PosSession?     @relation(fields: [posSessionId], references: [id], onDelete: SetNull)
+  payments        OrderPayment[]
+  returns         OrderReturn[]
 
   @@unique([storeId, number])
   @@index([storeId, status, createdAt(sort: Desc)])
   @@index([storeId, customerId])
+  @@index([posSessionId])
   @@map("orders")
+}
+
+// ───────────── caisse (point de vente) ─────────────
+
+/**
+ * Session de caisse : un vendeur ouvre la caisse avec un fond, encaisse, puis la ferme en comptant
+ * les espèces. Un seul OPEN par vendeur (index partiel posé dans la migration SQL).
+ */
+model PosSession {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  storeId        String           @map("store_id") @db.Uuid
+  label          String?
+  status         PosSessionStatus @default(OPEN)
+  openedByUserId String           @map("opened_by_user_id") @db.Uuid
+  openingFloat   Int              @map("opening_float")
+  openedAt       DateTime         @default(now()) @map("opened_at")
+  closedByUserId String?          @map("closed_by_user_id") @db.Uuid
+  closedAt       DateTime?        @map("closed_at")
+  /// Espèces attendues et comptées à la fermeture.
+  expectedCash   Int?             @map("expected_cash")
+  countedCash    Int?             @map("counted_cash")
+  closingNote    String?          @map("closing_note")
+  version        Int              @default(0)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  store          Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  openedBy       User             @relation("PosSessionOpenedBy", fields: [openedByUserId], references: [id])
+  closedBy       User?            @relation("PosSessionClosedBy", fields: [closedByUserId], references: [id])
+  orders         Order[]
+  payments       OrderPayment[]
+  movements      CashMovement[]
+  returns        OrderReturn[]
+
+  @@index([storeId, openedAt(sort: Desc)])
+  @@index([storeId, status])
+  @@map("pos_sessions")
+}
+
+/// Entrée ou sortie d'espèces hors vente (achat de fournitures, apport de monnaie).
+model CashMovement {
+  id        String           @id @default(uuid(7)) @db.Uuid
+  storeId   String           @map("store_id") @db.Uuid
+  sessionId String           @map("session_id") @db.Uuid
+  type      CashMovementType
+  amount    Int
+  reason    String
+  userId    String?          @map("user_id") @db.Uuid
+  createdAt DateTime         @default(now()) @map("created_at")
+  session   PosSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@map("cash_movements")
+}
+
+/**
+ * Encaissement (PAYMENT) ou remboursement (REFUND) d'une commande. amount = montant retenu ;
+ * tenderedAmount = espèces remises par le client (la monnaie rendue en découle).
+ */
+model OrderPayment {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  storeId        String        @map("store_id") @db.Uuid
+  orderId        String        @map("order_id") @db.Uuid
+  sessionId      String?       @map("session_id") @db.Uuid
+  kind           PaymentKind
+  method         PaymentMethod
+  amount         Int
+  tenderedAmount Int?          @map("tendered_amount")
+  provider       String?
+  reference      String?
+  /// Retour lié : celui qui est remboursé (REFUND), ou dont l'avoir paie la vente (EXCHANGE).
+  returnId       String?       @map("return_id") @db.Uuid
+  userId         String?       @map("user_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at")
+  order          Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  session        PosSession?   @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([sessionId])
+  @@map("order_payments")
+}
+
+/// Retour d'articles d'une commande remise au client : remboursement, avoir (échange), remise en stock.
+model OrderReturn {
+  id              String            @id @default(uuid(7)) @db.Uuid
+  storeId         String            @map("store_id") @db.Uuid
+  orderId         String            @map("order_id") @db.Uuid
+  sessionId       String?           @map("session_id") @db.Uuid
+  reason          String
+  restocked       Boolean
+  refundAmount    Int               @map("refund_amount")
+  refundMethod    PaymentMethod     @map("refund_method")
+  /// Avoir restant (remboursement EXCHANGE) : consommé par la vente de l'échange.
+  creditRemaining Int               @default(0) @map("credit_remaining")
+  userId          String?           @map("user_id") @db.Uuid
+  createdAt       DateTime          @default(now()) @map("created_at")
+  order           Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  session         PosSession?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  lines           OrderReturnLine[]
+
+  @@index([orderId])
+  @@index([sessionId])
+  @@map("order_returns")
+}
+
+/// Ligne d'un retour. orderLineId sans clé étrangère : les lignes d'une commande sont réécrites à chaque mise à jour.
+model OrderReturnLine {
+  id          String      @id @default(uuid(7)) @db.Uuid
+  storeId     String      @map("store_id") @db.Uuid
+  returnId    String      @map("return_id") @db.Uuid
+  orderLineId String      @map("order_line_id") @db.Uuid
+  quantity    Int
+  amount      Int
+  serials     String[]    @default([])
+  orderReturn OrderReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+
+  @@index([returnId])
+  @@map("order_return_lines")
+}
+
+/// Réglages de la caisse d'une boutique (remise permise aux vendeurs, moyens de paiement, ticket).
+model PosSettings {
+  storeId   String   @id @map("store_id") @db.Uuid
+  settings  Json     @default("{}")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("pos_settings")
 }
 
 model OrderLine {
@@ -660,6 +833,11 @@ model CampaignMessage {
 enum StoreType {
   FASHION
   ELECTRONICS
+}
+
+enum StorePlan {
+  FREE
+  PREMIUM
 }
 
 enum ProductRelationType {

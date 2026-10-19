@@ -111,12 +111,14 @@ function Detail({ customer }: { customer: CustomerDetailDto }) {
         <Card className="overflow-hidden">
           <CardHeader title="Coordonnées" />
           <ul className="flex flex-col gap-2.5 px-5 pb-5 text-[0.9375rem]">
-            <li className="flex items-center gap-2.5">
-              <Mail className="size-4 shrink-0 text-ink-3" strokeWidth={1.8} aria-hidden />
-              <a href={`mailto:${customer.email}`} className="truncate text-ink">
-                {customer.email}
-              </a>
-            </li>
+            {customer.email && (
+              <li className="flex items-center gap-2.5">
+                <Mail className="size-4 shrink-0 text-ink-3" strokeWidth={1.8} aria-hidden />
+                <a href={`mailto:${customer.email}`} className="truncate text-ink">
+                  {customer.email}
+                </a>
+              </li>
+            )}
             {customer.phone && (
               <li className="flex items-center gap-2.5">
                 <Phone className="size-4 shrink-0 text-ink-3" strokeWidth={1.8} aria-hidden />

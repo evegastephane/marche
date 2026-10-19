@@ -3,6 +3,8 @@ import type { StorefrontSort } from '@marche/contracts';
 /** Filtres d'une page de catalogue, lus dans l'URL (partageable, sans JavaScript). */
 export interface CatalogParams {
   kind?: string;
+  /** Slug de catégorie (« Voir tout » d'une sélection de l'accueil), dans l'URL en « categorie ». */
+  category?: string;
   /** Options : « size:M », « color:Bleu »… */
   o: string[];
   /** Attributs : « audience:FEMME », « accessoryType:CHARGER »… */
@@ -30,6 +32,7 @@ export function parseCatalogParams(params: SearchParams): CatalogParams {
   const sort = one(params.sort) as StorefrontSort | undefined;
   return {
     kind: one(params.kind),
+    category: one(params.categorie)?.slice(0, 100),
     o: list(params.o),
     a: list(params.a),
     brand: one(params.brand),
@@ -44,6 +47,7 @@ export function parseCatalogParams(params: SearchParams): CatalogParams {
 export function catalogHref(base: string, params: CatalogParams, change: Partial<CatalogParams>): string {
   const next: CatalogParams = { ...params, cursor: undefined, ...change };
   const search = new URLSearchParams();
+  if (next.category) search.set('categorie', next.category);
   if (next.kind) search.set('kind', next.kind);
   for (const v of next.o) search.append('o', v);
   for (const v of next.a) search.append('a', v);
@@ -65,6 +69,7 @@ export function activeFilterCount(params: CatalogParams): number {
     params.o.length +
     params.a.length +
     (params.kind ? 1 : 0) +
+    (params.category ? 1 : 0) +
     (params.brand ? 1 : 0) +
     (params.priceMin !== undefined || params.priceMax !== undefined ? 1 : 0)
   );
@@ -75,6 +80,7 @@ export function toProductQuery(params: CatalogParams, exponent: number) {
   const scale = 10 ** exponent;
   return {
     kind: params.kind,
+    category: params.category,
     o: params.o,
     a: params.a,
     brand: params.brand,

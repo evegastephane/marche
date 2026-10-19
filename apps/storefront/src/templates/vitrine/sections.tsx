@@ -1,12 +1,22 @@
 import type { Section, StorefrontStoreDto } from '@marche/contracts';
+import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { formatMoney } from '@/lib/format';
-import { getBrands, getCollections, getProducts } from '@/lib/storefront-api';
+import { cn, formatMoney } from '@/lib/format';
+import { getBrands, getProducts } from '@/lib/storefront-api';
 import { imageProps } from '../default/components/media';
 import { Reveal } from '../default/components/motion';
 import { ProductGrid } from './product-card';
 import { PriceTag } from './tag';
+import {
+  contactLines,
+  faqItemsOf,
+  featuredSelection,
+  hasContact,
+  paragraphsOf,
+  SectionList,
+  sectionImage,
+} from '../shared/home-sections';
 
 interface SectionProps<T extends Section['type']> {
   site: string;
@@ -84,22 +94,18 @@ async function Hero({ site, store, section }: SectionProps<'hero'>) {
 }
 
 async function FeaturedCollection({ site, store, section }: SectionProps<'featured-collection'>) {
-  if (!section.collectionId) return null;
-  const collections = await getCollections(site, store.id);
-  const collection = collections.find((c) => c.id === section.collectionId);
-  if (!collection) return null;
-  const products = await getProducts(site, store.id, { collection: collection.slug, limit: section.limit });
-  if (products.items.length === 0) return null;
+  const selection = await featuredSelection(site, store, section);
+  if (!selection) return null;
   return (
     <Shelf
-      title={section.title || collection.title}
+      title={selection.title}
       action={
-        <Link href={`/collections/${collection.slug}`} className={seeAll}>
+        <Link href={selection.href} className={seeAll}>
           Tout voir →
         </Link>
       }
     >
-      <ProductGrid products={products.items} currency={store.currency} />
+      <ProductGrid products={selection.products} currency={store.currency} />
     </Shelf>
   );
 }
@@ -156,23 +162,132 @@ function RichText({ section }: SectionProps<'rich-text'>) {
   );
 }
 
+/** La photo derrière la vitre, le texte à côté et l'étiquette qui mène à la vitrine. */
+function ImageText({ store, section }: SectionProps<'image-text'>) {
+  const image = sectionImage(store, section.imageMediaId);
+  const paragraphs = paragraphsOf(section.body);
+  if (!image && paragraphs.length === 0 && !section.title) return null;
+  return (
+    <Shelf title={section.title}>
+      <Reveal className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+        {image && (
+          <div className={cn('aspect-[4/3] overflow-hidden rounded-md border border-line', section.imagePosition === 'right' && 'lg:order-2')}>
+            <img {...imageProps(image, '(min-width: 1024px) 45vw, 100vw')} alt={image.alt ?? ''} className="size-full object-cover" />
+          </div>
+        )}
+        <div className="flex flex-col items-start gap-5">
+          {paragraphs.map((p, i) => (
+            <p key={i} className="max-w-[56ch] text-lg leading-relaxed text-fg/85">
+              {p}
+            </p>
+          ))}
+          {section.ctaLabel && (
+            <Link href={section.ctaHref ?? '/collections'} className="mt-2 no-underline">
+              <PriceTag size="lg" className="transition-transform duration-300 ease-out-soft hover:-rotate-2">
+                {section.ctaLabel} →
+              </PriceTag>
+            </Link>
+          )}
+        </div>
+      </Reveal>
+    </Shelf>
+  );
+}
+
+/** Questions fréquentes : des plaques de verre, une question gravée sur chacune. */
+function Faq({ section }: SectionProps<'faq'>) {
+  const items = faqItemsOf(section);
+  if (items.length === 0) return null;
+  return (
+    <Shelf title={section.title}>
+      <Reveal className="flex max-w-4xl flex-col gap-3">
+        {items.map((item) => (
+          <details key={item.id} className="group rounded-md border border-line bg-surface text-on-surface">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-6 px-5 py-4 font-heading text-lg font-bold tracking-wide uppercase [&::-webkit-details-marker]:hidden">
+              {item.question}
+              <span aria-hidden className="text-2xl leading-none text-primary transition-transform duration-300 ease-out-soft group-open:rotate-45">
+                <Plus className="size-[1em]" strokeWidth={2} />
+              </span>
+            </summary>
+            <div className="flex flex-col gap-3 px-5 pb-5 text-lg leading-relaxed opacity-85">
+              {paragraphsOf(item.answer).map((p, i) => (
+                <p key={i} className="max-w-[62ch]">
+                  {p}
+                </p>
+              ))}
+            </div>
+          </details>
+        ))}
+      </Reveal>
+    </Shelf>
+  );
+}
+
+/** Contact : l'étiquette de WhatsApp accrochée en grand, les autres moyens sur leurs plaques. */
+function Contact({ store, section }: SectionProps<'contact'>) {
+  const lines = contactLines(store, section);
+  if (!hasContact(section, lines)) return null;
+  const [first, ...others] = lines;
+  return (
+    <Shelf title={section.title}>
+      <Reveal className="grid items-start gap-10 lg:grid-cols-[1fr_1.1fr]">
+        <div className="flex flex-col gap-4">
+          {section.subtitle && <p className="max-w-[44ch] text-lg text-muted">{section.subtitle}</p>}
+          {section.address && <p className="font-heading text-lg font-bold tracking-wide uppercase">{section.address}</p>}
+          {section.hours && <p className="text-muted">{section.hours}</p>}
+        </div>
+        {first && (
+          <div className="flex flex-col items-start gap-4">
+            <a href={first.href} target={first.kind === 'whatsapp' ? '_blank' : undefined} rel={first.kind === 'whatsapp' ? 'noreferrer' : undefined} className="no-underline">
+              <PriceTag size="lg" className="-rotate-2 transition-transform duration-300 ease-out-soft hover:rotate-0">
+                {first.action} →
+              </PriceTag>
+            </a>
+            <ul className="flex w-full flex-col gap-3">
+              {others.map((line) => (
+                <li key={line.kind}>
+                  <a
+                    href={line.href}
+                    className="flex min-h-14 items-center justify-between gap-4 rounded-md border border-line bg-surface px-5 py-3 text-on-surface no-underline hover:border-primary"
+                  >
+                    <span className="font-heading font-bold tracking-wide uppercase">{line.action}</span>
+                    <span className="tabular truncate text-sm opacity-80">{line.value}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </Reveal>
+    </Shelf>
+  );
+}
+
 export function HomeSections({ site, store }: { site: string; store: StorefrontStoreDto }) {
-  return store.theme.sections
-    .filter((section) => section.enabled)
-    .map((section) => {
-      switch (section.type) {
-        case 'hero':
-          return <Hero key={section.id} site={site} store={store} section={section} />;
-        case 'featured-collection':
-          return <FeaturedCollection key={section.id} site={site} store={store} section={section} />;
-        case 'product-grid':
-          return <ProductGridSection key={section.id} site={site} store={store} section={section} />;
-        case 'brand-strip':
-          return <BrandStrip key={section.id} site={site} store={store} section={section} />;
-        case 'rich-text':
-          return <RichText key={section.id} site={site} store={store} section={section} />;
-        default:
-          return null;
-      }
-    });
+  return (
+    <SectionList store={store}>
+      {(section) => {
+        switch (section.type) {
+          case 'hero':
+            return <Hero site={site} store={store} section={section} />;
+          case 'featured-collection':
+            return <FeaturedCollection site={site} store={store} section={section} />;
+          case 'product-grid':
+            return <ProductGridSection site={site} store={store} section={section} />;
+          case 'brand-strip':
+            return <BrandStrip site={site} store={store} section={section} />;
+          case 'rich-text':
+            return <RichText site={site} store={store} section={section} />;
+          case 'image-text':
+            return <ImageText site={site} store={store} section={section} />;
+          case 'faq':
+            return <Faq site={site} store={store} section={section} />;
+          case 'contact':
+            return <Contact site={site} store={store} section={section} />;
+          default:
+            return null;
+        }
+      }}
+    </SectionList>
+  );
 }

@@ -5,7 +5,7 @@ import {
   type TemplateDefinition,
   templatesFor,
 } from '@marche/contracts';
-import { Check } from 'lucide-react';
+import { Check, Lock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { type CSSProperties, type KeyboardEvent, useId, useRef, useState } from 'react';
 import { cn } from '@/shared/lib/cn';
@@ -54,18 +54,24 @@ function fitLabel(template: TemplateDefinition): string {
  * Galerie des modèles de site : une seule grille de vignettes compactes (le croquis et le nom),
  * ceux pensés pour ce type de boutique d'abord. Sous la grille, l'afficheur décrit le modèle
  * survolé, ou à défaut le modèle choisi ; le choisi porte la face de touche et s'affiche en vrai
- * dans l'aperçu.
+ * dans l'aperçu. Un modèle Premium hors formule porte un cadenas (on l'essaie quand même) ;
+ * celui du site est marqué « Le vôtre ».
  */
 export function TemplateGallery({
   storeType,
   value,
   onChange,
   content,
+  currentId,
+  locked = () => false,
 }: {
   storeType: StoreType;
   value: string;
   onChange: (templateId: string) => void;
   content: SketchContent;
+  /** Modèle du site, quand on en essaie un autre. */
+  currentId?: string;
+  locked?: (template: TemplateDefinition) => boolean;
 }) {
   const group = useId();
   const { recommended, others } = templatesFor(storeType);
@@ -95,7 +101,7 @@ export function TemplateGallery({
               type="button"
               role="radio"
               aria-checked={active}
-              aria-description={`${template.manifest.tagline} ${fitLabel(template)}.`}
+              aria-description={`${template.manifest.tagline} ${fitLabel(template)}.${locked(template) ? ' Réservé à Premium.' : ''}${id === currentId ? ' Modèle de votre site.' : ''}`}
               tabIndex={active ? 0 : -1}
               onClick={() => onChange(id)}
               onMouseEnter={() => setInspected(id)}
@@ -122,10 +128,20 @@ export function TemplateGallery({
                   size="thumb"
                   className="aspect-[16/11] transition-transform duration-500 ease-out group-hover:scale-[1.03]"
                 />
+                {locked(template) && (
+                  <span className="absolute top-1.5 right-1.5 inline-flex size-6 items-center justify-center rounded-md bg-key text-ink shadow-[0_0_0_1px_var(--color-line-strong),var(--shadow-key)]">
+                    <Lock className="size-3" strokeWidth={2.2} aria-hidden />
+                  </span>
+                )}
               </span>
               <span className="relative flex items-start justify-between gap-1.5 px-1">
-                <span className="line-clamp-2 min-w-0 text-[0.8125rem] leading-tight font-[650]">
-                  {name}
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="line-clamp-2 text-[0.8125rem] leading-tight font-[650]">
+                    {name}
+                  </span>
+                  {id === currentId && (
+                    <span className="legend text-ink-3">Le vôtre</span>
+                  )}
                 </span>
                 {active && (
                   <Check
@@ -144,7 +160,8 @@ export function TemplateGallery({
         <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
           <span className="font-[650]">{shown.manifest.name}</span>
           <span className="legend text-display-dim">
-            {shownIsActive ? 'Modèle choisi' : 'Cliquez pour l’essayer'}
+            {locked(shown) ? 'Premium · ' : ''}
+            {shownIsActive ? 'Modèle affiché' : 'Cliquez pour l’essayer'}
           </span>
         </p>
         <p className="text-[0.875rem] leading-snug">{shown.manifest.tagline}</p>

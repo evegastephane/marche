@@ -17,11 +17,11 @@ import {
   type ProductListQuery,
 } from '@marche/contracts';
 import type { Prisma } from '../../../generated/prisma/client.js';
-import { decodeCursor, toPage } from '../../../shared/application/pagination.js';
+import { decodeCursor, encodeCursor, toPage } from '../../../shared/application/pagination.js';
 import type { PrismaAdapter } from '../../../shared/infrastructure/prisma/transaction.js';
 import { InventoryFacade } from '../../inventory/inventory.facade.js';
 import { MediaFacade } from '../../media/media.facade.js';
-import { CatalogReadModel } from '../application/catalog.read-model.js';
+import { CatalogReadModel, type SellableVariant } from '../application/catalog.read-model.js';
 import { parseSpecs, parseVariantOptions } from './prisma-catalog.repositories.js';
 
 const listItemInclude = {
@@ -334,6 +334,57 @@ export class PrismaCatalogReadModel extends CatalogReadModel {
     return row ? ((await this.toBundleDtos([row]))[0] ?? null) : null;
   }
 
+  async searchSellableVariants(query: { q?: string; cursor?: string; limit: number }): Promise<Paginated<SellableVariant>> {
+    // Curseur d'emplacement : la liste suit l'ordre alphabétique des produits, puis l'ordre des variantes.
+    const offset = query.cursor ? Number(decodeCursor(query.cursor, 1)[0]) : 0;
+    const q = query.q?.trim();
+    const rows = await this.txHost.tx.productVariant.findMany({
+      where: {
+        ...sellableVariantWhere,
+        ...(q
+          ? {
+              OR: [
+                { product: { title: { contains: q, mode: 'insensitive' } } },
+                { product: { brand: { name: { contains: q, mode: 'insensitive' } } } },
+                { product: { reference: { equals: q, mode: 'insensitive' } } },
+                { title: { contains: q, mode: 'insensitive' } },
+                { sku: { contains: q, mode: 'insensitive' } },
+                { barcode: q },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ product: { title: 'asc' } }, { productId: 'asc' }, { position: 'asc' }, { id: 'asc' }],
+      skip: Number.isSafeInteger(offset) && offset > 0 ? offset : 0,
+      take: query.limit + 1,
+      select: sellableVariantSelect,
+    });
+    const hasMore = rows.length > query.limit;
+    const items = (hasMore ? rows.slice(0, query.limit) : rows).map(toSellableVariant);
+    return { items, nextCursor: hasMore ? encodeCursor([offset + query.limit]) : null };
+  }
+
+  async findSellableVariantByCode(code: string): Promise<SellableVariant | null> {
+    const value = code.trim();
+    if (!value) return null;
+    const row =
+      (await this.txHost.tx.productVariant.findFirst({ where: { ...sellableVariantWhere, barcode: value }, select: sellableVariantSelect })) ??
+      (await this.txHost.tx.productVariant.findFirst({
+        where: { ...sellableVariantWhere, sku: { equals: value, mode: 'insensitive' } },
+        select: sellableVariantSelect,
+      }));
+    return row ? toSellableVariant(row) : null;
+  }
+
+  async findSellableVariants(variantIds: readonly string[]): Promise<Map<string, SellableVariant>> {
+    if (variantIds.length === 0) return new Map();
+    const rows = await this.txHost.tx.productVariant.findMany({
+      where: { ...sellableVariantWhere, id: { in: [...new Set(variantIds)] } },
+      select: sellableVariantSelect,
+    });
+    return new Map(rows.map((row) => [row.id, toSellableVariant(row)]));
+  }
+
   /** Arbre des catégories de la boutique (quelques centaines de lignes au plus). */
   private categoryTree() {
     return this.txHost.tx.category.findMany({
@@ -392,4 +443,43 @@ export class PrismaCatalogReadModel extends CatalogReadModel {
       updatedAt: row.updatedAt.toISOString(),
     };
   }
+}
+
+/** Variante vendable au comptoir : ni archivée, ni d'un produit archivé (un brouillon se vend en boutique). */
+const sellableVariantWhere = {
+  archivedAt: null,
+  product: { archivedAt: null, status: { not: 'ARCHIVED' } },
+} satisfies Prisma.ProductVariantWhereInput;
+
+const sellableVariantSelect = {
+  id: true,
+  title: true,
+  sku: true,
+  barcode: true,
+  priceAmount: true,
+  trackInventory: true,
+  imageMediaId: true,
+  product: {
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      media: { orderBy: { position: 'asc' }, take: 1, select: { mediaId: true } },
+    },
+  },
+} satisfies Prisma.ProductVariantSelect;
+
+function toSellableVariant(row: Prisma.ProductVariantGetPayload<{ select: typeof sellableVariantSelect }>): SellableVariant {
+  return {
+    variantId: row.id,
+    productId: row.product.id,
+    productTitle: row.product.title,
+    variantTitle: row.title,
+    sku: row.sku,
+    barcode: row.barcode,
+    priceAmount: row.priceAmount,
+    trackInventory: row.trackInventory,
+    imageMediaId: row.imageMediaId ?? row.product.media[0]?.mediaId ?? null,
+    productActive: row.product.status === 'ACTIVE',
+  };
 }

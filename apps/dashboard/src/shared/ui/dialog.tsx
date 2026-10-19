@@ -20,12 +20,15 @@ export function Dialog({
   onOpenChange,
   title,
   description,
+  wide = false,
   children,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: ReactNode;
+  /** Plus large à l'ordinateur (choix parmi des tuiles) ; au téléphone, toujours une feuille. */
+  wide?: boolean;
   children: ReactNode;
 }) {
   const phone = useSyncExternalStore(subscribePhone, () => phoneQuery?.matches ?? false);
@@ -45,7 +48,9 @@ export function Dialog({
             </D.Overlay>
             <D.Content asChild forceMount>
               <motion.div
-                className="fixed inset-x-2 bottom-2 z-50 flex max-h-[88dvh] flex-col gap-5 overflow-y-auto rounded-2xl bg-surface p-6 shadow-float ring-1 ring-line sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-[min(30rem,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2"
+                className={`fixed inset-x-2 bottom-2 z-50 flex max-h-[88dvh] flex-col gap-5 overflow-y-auto rounded-2xl bg-surface p-6 shadow-float ring-1 ring-line sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 ${
+                  wide ? 'sm:w-[min(44rem,calc(100vw-2rem))]' : 'sm:w-[min(30rem,calc(100vw-2rem))]'
+                }`}
                 initial={phone ? { y: '100%' } : { opacity: 0, scale: 0.97, y: 6 }}
                 animate={phone ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
                 exit={phone ? { y: '100%' } : { opacity: 0, scale: 0.96, y: 4 }}

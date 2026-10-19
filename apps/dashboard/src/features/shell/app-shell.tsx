@@ -1,24 +1,22 @@
 import { Link, Outlet, useRouterState } from '@tanstack/react-router';
 import {
   Boxes,
-  FolderTree,
   House,
   Inbox,
-  Layers,
+  LayoutTemplate,
   type LucideIcon,
   Megaphone,
   Menu,
   Package,
   ReceiptText,
   Settings,
+  Wallet,
   Store,
-  Tag,
   Users,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 import { useOverview } from '@/features/home/api';
-import { useRequestSummary } from '@/features/requests/api';
 import { cn } from '@/shared/lib/cn';
 import { Led } from '@/shared/ui/badge';
 import { UpsellLogo, UpsellMark } from '@/shared/ui/brand';
@@ -26,26 +24,30 @@ import { Dialog } from '@/shared/ui/dialog';
 import { EASE_OUT, glide, staggerParent } from '@/shared/ui/motion';
 import { ThemeSwitch, ThemeToggle } from '@/shared/ui/theme';
 import { AccountMenu } from './account-menu';
+import { ComingSoon, soonFeatureAt } from './coming-soon';
 import { StoreSwitcher } from './store-switcher';
 
 type NavTo =
   | '/'
+  | '/pos'
   | '/orders'
   | '/requests'
   | '/customers'
   | '/campaigns'
   | '/products'
   | '/inventory'
-  | '/categories'
-  | '/collections'
-  | '/brands'
   | '/site'
+  | '/templates'
   | '/settings';
 
 interface NavItem {
   to: NavTo;
   label: string;
   icon: LucideIcon;
+  /** Pages rangées sous cette touche (onglets de la page) : la touche reste allumée sur elles. */
+  also?: string[];
+  /** Rubrique en préparation : touche éteinte, « Bientôt », sans lien. */
+  soon?: boolean;
 }
 
 interface NavGroup {
@@ -59,25 +61,26 @@ const NAV: NavGroup[] = [
     label: 'Vendre',
     items: [
       { to: '/orders', label: 'Commandes', icon: ReceiptText },
-      { to: '/requests', label: 'Demandes', icon: Inbox },
       { to: '/customers', label: 'Clients', icon: Users },
-      { to: '/campaigns', label: 'Campagnes', icon: Megaphone },
+      // En préparation (voir SOON_FEATURES) : visibles mais éteintes, en fin de groupe.
+      { to: '/pos', label: 'Caisse', icon: Wallet, soon: true },
+      { to: '/requests', label: 'Demandes', icon: Inbox, soon: true },
+      { to: '/campaigns', label: 'Campagnes', icon: Megaphone, soon: true },
     ],
   },
   {
     label: 'Catalogue',
     items: [
-      { to: '/products', label: 'Produits', icon: Package },
+      // Catégories et marques sont des onglets de Produits.
+      { to: '/products', label: 'Produits', icon: Package, also: ['/categories', '/brands'] },
       { to: '/inventory', label: 'Stock', icon: Boxes },
-      { to: '/categories', label: 'Catégories', icon: FolderTree },
-      { to: '/collections', label: 'Catalogues', icon: Layers },
-      { to: '/brands', label: 'Marques', icon: Tag },
     ],
   },
   {
     label: 'Boutique',
     items: [
       { to: '/site', label: 'Site', icon: Store },
+      { to: '/templates', label: 'Modèles', icon: LayoutTemplate },
       { to: '/settings', label: 'Paramètres', icon: Settings },
     ],
   },
@@ -87,20 +90,15 @@ const NAV: NavGroup[] = [
 const PHONE_KEYS: NavItem[] = [
   { to: '/', label: 'Accueil', icon: House },
   { to: '/orders', label: 'Commandes', icon: ReceiptText },
-  { to: '/products', label: 'Produits', icon: Package },
+  { to: '/products', label: 'Produits', icon: Package, also: ['/categories', '/brands'] },
   { to: '/site', label: 'Site', icon: Store },
 ];
 
 /** Témoin orange sur « Commandes » tant qu'il reste des commandes à expédier. */
 function useAttention(): Partial<Record<NavTo, number>> {
   const overview = useOverview('30d');
-  const requests = useRequestSummary();
   const toShip = overview.data?.ordersToFulfill ?? 0;
-  const toAnswer = requests.data?.newCount ?? 0;
-  return {
-    ...(toShip > 0 ? { '/orders': toShip } : {}),
-    ...(toAnswer > 0 ? { '/requests': toAnswer } : {}),
-  };
+  return toShip > 0 ? { '/orders': toShip } : {};
 }
 
 export function AppShell() {
@@ -122,6 +120,8 @@ export function AppShell() {
  */
 function PageTransition() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // Rubrique en préparation (lien gardé, ancien favori) : sa page l'annonce au lieu de s'ouvrir.
+  const soon = soonFeatureAt(pathname);
   return (
     <motion.div
       key={pathname}
@@ -130,7 +130,7 @@ function PageTransition() {
       initial="hidden"
       animate="show"
     >
-      <Outlet />
+      {soon ? <ComingSoon feature={soon} /> : <Outlet />}
     </motion.div>
   );
 }
@@ -147,14 +147,30 @@ function NavKey({
   attention?: number;
   onNavigate?: () => void;
 }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const under = item.also?.some((path) => pathname.startsWith(path)) ?? false;
+  if (item.soon) {
+    return (
+      <span
+        aria-disabled="true"
+        className="flex h-10 cursor-default items-center gap-3 rounded-[0.7rem] px-3 text-[0.9375rem] font-[560] text-ink-3 max-lg:h-12 [@media(max-height:760px)]:lg:h-9"
+      >
+        <item.icon className="size-[1.125rem] opacity-70" strokeWidth={1.8} aria-hidden />
+        <span className="flex-1">{item.label}</span>
+        <span className="legend">Bientôt</span>
+      </span>
+    );
+  }
   return (
     <Link
       to={item.to}
       activeOptions={{ exact: item.to === '/' }}
       onClick={onNavigate}
-      className="group relative flex h-10 items-center gap-3 rounded-[0.7rem] px-3 text-[0.9375rem] font-[560] text-ink-2 no-underline transition-colors duration-200 hover:text-ink max-lg:h-12"
+      className="group relative flex h-10 items-center gap-3 rounded-[0.7rem] px-3 text-[0.9375rem] font-[560] text-ink-2 no-underline transition-colors duration-200 hover:text-ink max-lg:h-12 [@media(max-height:760px)]:lg:h-9"
     >
-      {({ isActive }) => (
+      {({ isActive: exact }) => {
+        const isActive = exact || under;
+        return (
         <>
           {isActive && (
             <motion.span
@@ -183,7 +199,8 @@ function NavKey({
             </span>
           )}
         </>
-      )}
+        );
+      }}
     </Link>
   );
 }
@@ -202,7 +219,9 @@ function NavGroups({
       {NAV.map((group) => (
         <div key={group.label ?? 'accueil'} className="flex flex-col gap-0.5">
           {group.label && (
-            <p className="legend px-3 pt-4 pb-1.5">{group.label}</p>
+            <p className="legend px-3 pt-4 pb-1.5 [@media(max-height:760px)]:lg:pt-3 [@media(max-height:760px)]:lg:pb-1">
+              {group.label}
+            </p>
           )}
           {group.items.map((item) => (
             <motion.div
@@ -233,7 +252,7 @@ function NavGroups({
 function Sidebar() {
   return (
     <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line lg:flex">
-      <div className="px-5 pt-7 pb-5">
+      <div className="px-5 pt-7 pb-5 [@media(max-height:760px)]:pt-4 [@media(max-height:760px)]:pb-3">
         <UpsellLogo intro className="text-[1.5rem]" />
       </div>
       <div className="mx-3">
@@ -245,8 +264,8 @@ function Sidebar() {
       >
         <NavGroups knob="nav-knob" />
       </nav>
-      <div className="flex flex-col gap-3 border-t border-line px-3 py-4">
-        <ThemeSwitch className="self-start" />
+      <div className="flex flex-col gap-3 border-t border-line px-3 py-4 [@media(max-height:760px)]:flex-row-reverse [@media(max-height:760px)]:items-center [@media(max-height:760px)]:justify-between [@media(max-height:760px)]:py-2.5">
+        <ThemeSwitch className="self-start [@media(max-height:760px)]:self-center" />
         <AccountMenu showName side="top" align="start" />
       </div>
     </aside>
@@ -278,10 +297,11 @@ function BottomNav() {
   const attention = useAttention();
   const [more, setMore] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const under = (item: NavItem) => item.also?.some((path) => pathname.startsWith(path)) ?? false;
   const onPhoneKey = PHONE_KEYS.some((item) =>
     item.to === '/'
       ? pathname === '/'
-      : pathname === item.to || pathname.startsWith(`${item.to}/`),
+      : pathname === item.to || pathname.startsWith(`${item.to}/`) || under(item),
   );
 
   return (
@@ -300,7 +320,9 @@ function BottomNav() {
             activeOptions={{ exact: item.to === '/' }}
             className="relative flex h-14 flex-col items-center justify-center gap-1 rounded-xl text-[0.6875rem] font-[560] text-ink-3 no-underline"
           >
-            {({ isActive }) => (
+            {({ isActive: exact }) => {
+              const isActive = exact || under(item);
+              return (
               <>
                 {isActive && (
                   <motion.span
@@ -331,7 +353,8 @@ function BottomNav() {
                   )}
                 </span>
               </>
-            )}
+              );
+            }}
           </Link>
         ))}
         <button

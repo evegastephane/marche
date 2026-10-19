@@ -12,12 +12,13 @@ import type {
 import {
   CatalogReadModel,
   CatalogStorefrontReadModel,
+  type SellableVariant,
   type StorefrontProductFilter,
   type VariantSnapshot,
 } from './application/catalog.read-model.js';
 import { type BundleDiscount, type PricingLine, priceBundles } from './domain/bundle-pricing.js';
 
-export type { VariantSnapshot, StorefrontProductFilter, BundleDiscount, PricingLine };
+export type { VariantSnapshot, StorefrontProductFilter, BundleDiscount, PricingLine, SellableVariant };
 
 /** API publique du module catalog (commandes, panier, site, storefront). */
 @Injectable()
@@ -53,6 +54,11 @@ export class CatalogFacade {
     return this.storefront.listProductCards(filter);
   }
 
+  /** Catégories mises en avant par le thème du site (nom et slug pour le lien « Voir tout »). */
+  categoriesById(ids: readonly string[]): Promise<Map<string, { name: string; slug: string }>> {
+    return this.storefront.categoriesById(ids);
+  }
+
   getPublishedProduct(slug: string): Promise<StorefrontProductDto | null> {
     return this.storefront.getProduct(slug);
   }
@@ -66,6 +72,20 @@ export class CatalogFacade {
   async priceBundles(lines: readonly PricingLine[]): Promise<BundleDiscount[]> {
     const bundles = await this.storefront.activeBundles(lines.map((line) => line.productId));
     return priceBundles(bundles, lines);
+  }
+
+  /** Caisse : variantes vendables au comptoir (recherche). */
+  searchSellableVariants(query: { q?: string; cursor?: string; limit: number }): Promise<Paginated<SellableVariant>> {
+    return this.admin.searchSellableVariants(query);
+  }
+
+  /** Caisse : variante d'un code-barres ou d'un SKU lu à la douchette. */
+  findSellableVariantByCode(code: string): Promise<SellableVariant | null> {
+    return this.admin.findSellableVariantByCode(code);
+  }
+
+  findSellableVariants(variantIds: readonly string[]): Promise<Map<string, SellableVariant>> {
+    return this.admin.findSellableVariants(variantIds);
   }
 
   /** Produit de la boutique courante, quel que soit son statut (campagnes). */

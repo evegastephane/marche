@@ -3,6 +3,7 @@ import {
   DEFAULT_SHIPPING_SETTINGS,
   type ShippingSettings,
   storeSlugSchema,
+  type StorePlan,
   type StoreType,
   type UpdateStoreInput,
   type VerticalSettings,
@@ -27,6 +28,8 @@ export interface StoreProps {
   /** Mode ou Électronique : décide des sortes d'articles et de la fiche produit du site. */
   type: StoreType;
   verticalSettings: VerticalSettings;
+  /** Formule : changée par la plateforme seulement, jamais par le marchand. */
+  plan: StorePlan;
   createdAt: Date;
   archivedAt: Date | null;
 }
@@ -103,6 +106,7 @@ export class Store extends AggregateRoot {
       lowStockDefault: 5,
       type: input.type,
       verticalSettings: {},
+      plan: 'FREE',
       createdAt: now,
       archivedAt: null,
     });

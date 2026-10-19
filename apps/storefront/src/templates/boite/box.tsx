@@ -37,7 +37,7 @@ export function BoxFront({
           <span className="text-center text-2xl font-light tracking-[0.18em] uppercase">{title}</span>
         )}
       </div>
-      <span className="text-center text-sm font-light tracking-[0.22em] text-balance uppercase">{title}</span>
+      <span className="line-clamp-2 text-center text-sm font-light tracking-[0.22em] text-balance uppercase">{title}</span>
     </div>
   );
 }

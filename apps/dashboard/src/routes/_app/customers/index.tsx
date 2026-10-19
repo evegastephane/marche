@@ -34,7 +34,7 @@ function Clients() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Clients"
-        subtitle="Chaque commande crée ou complète la fiche de son client, retrouvé par son e-mail."
+        subtitle="Chaque commande crée ou complète la fiche de son client, retrouvé par son e-mail, ou par son téléphone au comptoir."
       />
 
       <motion.div variants={riseIn} className="flex justify-end">
@@ -99,7 +99,7 @@ function Clients() {
                         >
                           {customerName(customer)}
                         </Link>
-                        <span className="block truncate text-[0.8125rem] text-ink-2">{customer.email}</span>
+                        <span className="block truncate text-[0.8125rem] text-ink-2">{customer.email ?? 'Sans e-mail'}</span>
                       </div>
                     </div>
                   </td>

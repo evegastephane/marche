@@ -28,11 +28,34 @@ docs/               architecture et plan de code
 
 ## Démarrer en local
 
+### Tout en conteneurs (projet Docker « upsell »)
+
+Prérequis : Docker Desktop, et les fichiers d'environnement (`apps/api/.env`, `apps/dashboard/.env.local`, `apps/storefront/.env.local`, voir ci-dessous).
+
+```bash
+npm run upsell:up     # construit les images et démarre tout (docker compose up -d --build)
+npm run upsell:logs   # journaux de l'API et des fronts
+npm run upsell:down   # arrêt (les données restent dans les volumes)
+```
+
+| Service | Adresse |
+|---|---|
+| Dashboard marchand | http://localhost:7000 |
+| Site d'une boutique | http://{slug}.localhost:7001 (ex. http://chez-awa.localhost:7001) |
+| API (Swagger sur `/docs`, files sur `/admin/queues`) | http://localhost:7002 |
+| E-mails de dev (Mailpit) | http://localhost:7025 |
+| Stockage S3 (RustFS, console sur 7091) | http://localhost:7090 |
+| PostgreSQL / Redis | ports 7432 / 7379 |
+
+Les migrations et la préparation du bucket d'images tournent à chaque démarrage. Les ports sont regroupés dans le bloc 7000 pour ne pas gêner d'autres projets. `docker-compose.yml` ne remplace que les adresses : les secrets restent dans les fichiers d'environnement. Une modification du code demande `npm run upsell:up` (reconstruction des images).
+
+### Sur le poste, avec rechargement à chaud
+
 Prérequis : Node 26, npm 12 (`npm install -g npm@12`) et Docker Desktop.
 
 ```bash
 npm install
-npm run infra:up
+npm run infra:up      # PostgreSQL, Redis, RustFS et Mailpit seuls, dans le projet « upsell »
 cp apps/api/.env.example apps/api/.env
 cp apps/dashboard/.env.example apps/dashboard/.env.local
 cp apps/storefront/.env.example apps/storefront/.env.local
@@ -61,8 +84,8 @@ Le seed crée deux boutiques de démonstration (« Chez Awa » en XOF, « Maison
 | Dashboard marchand | http://localhost:5173 |
 | Site d'une boutique | http://{slug}.localhost:3001 (ex. http://chez-awa.localhost:3001) |
 | API (Swagger sur `/docs`, files sur `/admin/queues`) | http://localhost:3000 |
-| E-mails de dev (Mailpit) | http://localhost:8025 |
-| PostgreSQL / Redis / S3 (RustFS) | ports 5434 / 6379 / 9000 |
+| E-mails de dev (Mailpit) | http://localhost:7025 |
+| PostgreSQL / Redis / S3 (RustFS) | ports 7432 / 7379 / 7090 |
 
 `STOREFRONT_API_TOKEN` et `REVALIDATE_SECRET` doivent avoir la même valeur dans `apps/api/.env` et `apps/storefront/.env.local`.
 

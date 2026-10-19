@@ -31,6 +31,7 @@ function toDomain(row: StoreRow): Store {
     lowStockDefault: row.lowStockDefault,
     type: row.type,
     verticalSettings: vertical.success ? vertical.data : {},
+    plan: row.plan,
     createdAt: row.createdAt,
     archivedAt: row.archivedAt,
   });

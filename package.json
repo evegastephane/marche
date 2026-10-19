@@ -21,7 +21,10 @@
     "test:e2e": "turbo run test:e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "infra:up": "docker compose up -d",
+    "upsell:up": "docker compose up -d --build",
+    "upsell:down": "docker compose down",
+    "upsell:logs": "docker compose logs -f api storefront dashboard",
+    "infra:up": "docker compose up -d postgres redis s3 mailpit",
     "infra:down": "docker compose down",
     "depcruise": "depcruise apps/api/src packages/contracts/src --config .dependency-cruiser.cjs --output-type err-long"
   },
@@ -32,6 +35,7 @@
     "oxlint": "^1.58.0",
     "oxlint-tsgolint": "^7.0.2001",
     "prettier": "^3.4.2",
+    "shadcn": "^4.21.2",
     "turbo": "^2.11.4",
     "typescript": "^6.0.2",
     "vitest": "^4.1.11"

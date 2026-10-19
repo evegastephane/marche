@@ -1,11 +1,22 @@
 import type { Section, StorefrontStoreDto } from '@marche/contracts';
+import { Check } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { formatMoney } from '@/lib/format';
-import { getBrands, getCollections, getProducts } from '@/lib/storefront-api';
+import { cn, formatMoney } from '@/lib/format';
+import { getBrands, getProducts } from '@/lib/storefront-api';
 import { Reveal } from '../default/components/motion';
 import { BoxFront, Tick } from './box';
 import { ProductGrid } from './product-card';
+import { imageProps } from '../default/components/media';
+import {
+  contactLines,
+  faqItemsOf,
+  featuredSelection,
+  hasContact,
+  paragraphsOf,
+  SectionList,
+  sectionImage,
+} from '../shared/home-sections';
 
 interface SectionProps<T extends Section['type']> {
   site: string;
@@ -86,22 +97,18 @@ async function Hero({ site, store, section }: SectionProps<'hero'>) {
 }
 
 async function FeaturedCollection({ site, store, section }: SectionProps<'featured-collection'>) {
-  if (!section.collectionId) return null;
-  const collections = await getCollections(site, store.id);
-  const collection = collections.find((c) => c.id === section.collectionId);
-  if (!collection) return null;
-  const products = await getProducts(site, store.id, { collection: collection.slug, limit: section.limit });
-  if (products.items.length === 0) return null;
+  const selection = await featuredSelection(site, store, section);
+  if (!selection) return null;
   return (
     <Shelf
-      title={section.title || collection.title}
+      title={selection.title}
       action={
-        <Link href={`/collections/${collection.slug}`} className={seeAll}>
+        <Link href={selection.href} className={seeAll}>
           Tout le rayon →
         </Link>
       }
     >
-      <ProductGrid products={products.items} currency={store.currency} />
+      <ProductGrid products={selection.products} currency={store.currency} />
     </Shelf>
   );
 }
@@ -160,23 +167,144 @@ function RichText({ section }: SectionProps<'rich-text'>) {
   );
 }
 
+/** La photo de l'appareil hors de sa boîte, l'étiquette dépliée à côté : titre, texte, bouton. */
+function ImageText({ store, section }: SectionProps<'image-text'>) {
+  const image = sectionImage(store, section.imageMediaId);
+  const paragraphs = paragraphsOf(section.body);
+  if (!image && paragraphs.length === 0 && !section.title) return null;
+  return (
+    <Shelf>
+      <Reveal className="grid items-stretch gap-8 lg:grid-cols-2 lg:gap-12">
+        {image && (
+          <div className={cn('border border-line bg-surface p-3', section.imagePosition === 'right' && 'lg:order-2')}>
+            <div className="aspect-[4/3] overflow-hidden">
+              <img {...imageProps(image, '(min-width: 1024px) 45vw, 100vw')} alt={image.alt ?? ''} className="size-full object-cover" />
+            </div>
+          </div>
+        )}
+        <div className="flex flex-col justify-center gap-6 border border-line bg-surface p-6 text-on-surface sm:p-8">
+          {section.title && <h2 className="text-3xl leading-none font-semibold tracking-[-0.03em] text-balance sm:text-4xl">{section.title}</h2>}
+          {paragraphs.map((p, i) => (
+            <p key={i} className="max-w-[56ch] text-lg leading-relaxed opacity-85">
+              {p}
+            </p>
+          ))}
+          {section.ctaLabel && (
+            <Link
+              href={section.ctaHref ?? '/collections'}
+              className="inline-flex min-h-14 items-center justify-center gap-2 self-start bg-primary px-8 text-base font-semibold text-on-primary no-underline shadow-[0_14px_26px_-16px_var(--color-primary)] transition-transform duration-200 hover:-translate-y-px"
+            >
+              {section.ctaLabel} →
+            </Link>
+          )}
+        </div>
+      </Reveal>
+    </Shelf>
+  );
+}
+
+/** Questions fréquentes : la notice pliée dans la boîte, une question par ligne, cochée une fois ouverte. */
+function Faq({ section }: SectionProps<'faq'>) {
+  const items = faqItemsOf(section);
+  if (items.length === 0) return null;
+  return (
+    <Shelf title={section.title}>
+      <Reveal className="max-w-4xl divide-y divide-line border-y border-line">
+        {items.map((item) => (
+          <details key={item.id} className="group">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center gap-4 py-3 font-hand text-[0.9375rem] uppercase [&::-webkit-details-marker]:hidden">
+              <span aria-hidden className="grid size-5 shrink-0 place-items-center border border-current text-xs leading-none">
+                <Check className="hidden size-3.5 group-open:block" strokeWidth={2.5} />
+              </span>
+              <span className="flex-1">{item.question}</span>
+              <span aria-hidden className="text-primary transition-transform duration-200 group-open:rotate-90">
+                →
+              </span>
+            </summary>
+            <div className="flex flex-col gap-3 pb-6 pl-9 text-lg leading-relaxed">
+              {paragraphsOf(item.answer).map((p, i) => (
+                <p key={i} className="max-w-[62ch]">
+                  {p}
+                </p>
+              ))}
+            </div>
+          </details>
+        ))}
+      </Reveal>
+    </Shelf>
+  );
+}
+
+/** Contact : l'étiquette du service client, collée au dos de la boîte. */
+function Contact({ store, section }: SectionProps<'contact'>) {
+  const lines = contactLines(store, section);
+  if (!hasContact(section, lines)) return null;
+  return (
+    <Shelf title={section.title}>
+      <Reveal className="grid gap-6 border border-line bg-surface p-6 text-on-surface sm:p-8 lg:grid-cols-[1fr_1.2fr] lg:gap-12">
+        <div className="flex flex-col gap-4">
+          {section.subtitle && <p className="max-w-[44ch] text-lg leading-relaxed opacity-85">{section.subtitle}</p>}
+          {section.address && (
+            <p className="font-hand text-sm uppercase">
+              <span className="opacity-70">Adresse · </span>
+              {section.address}
+            </p>
+          )}
+          {section.hours && (
+            <p className="font-hand text-sm uppercase">
+              <span className="opacity-70">Horaires · </span>
+              {section.hours}
+            </p>
+          )}
+        </div>
+        {lines.length > 0 && (
+          <ul className="flex flex-col divide-y divide-line border-y border-line font-hand text-sm">
+            {lines.map((line) => (
+              <li key={line.kind}>
+                <a
+                  href={line.href}
+                  target={line.kind === 'whatsapp' ? '_blank' : undefined}
+                  rel={line.kind === 'whatsapp' ? 'noreferrer' : undefined}
+                  className="flex min-h-14 items-center gap-3 py-2 text-on-surface no-underline hover:underline"
+                >
+                  <Tick checked={line.kind === 'whatsapp'} />
+                  <span className="min-w-0 flex-1 uppercase">{line.action}</span>
+                  <span className="tabular truncate font-semibold text-primary">{line.value}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Reveal>
+    </Shelf>
+  );
+}
+
 export function HomeSections({ site, store }: { site: string; store: StorefrontStoreDto }) {
-  return store.theme.sections
-    .filter((section) => section.enabled)
-    .map((section) => {
-      switch (section.type) {
-        case 'hero':
-          return <Hero key={section.id} site={site} store={store} section={section} />;
-        case 'featured-collection':
-          return <FeaturedCollection key={section.id} site={site} store={store} section={section} />;
-        case 'product-grid':
-          return <ProductGridSection key={section.id} site={site} store={store} section={section} />;
-        case 'brand-strip':
-          return <BrandStrip key={section.id} site={site} store={store} section={section} />;
-        case 'rich-text':
-          return <RichText key={section.id} site={site} store={store} section={section} />;
-        default:
-          return null;
-      }
-    });
+  return (
+    <SectionList store={store}>
+      {(section) => {
+        switch (section.type) {
+          case 'hero':
+            return <Hero site={site} store={store} section={section} />;
+          case 'featured-collection':
+            return <FeaturedCollection site={site} store={store} section={section} />;
+          case 'product-grid':
+            return <ProductGridSection site={site} store={store} section={section} />;
+          case 'brand-strip':
+            return <BrandStrip site={site} store={store} section={section} />;
+          case 'rich-text':
+            return <RichText site={site} store={store} section={section} />;
+          case 'image-text':
+            return <ImageText site={site} store={store} section={section} />;
+          case 'faq':
+            return <Faq site={site} store={store} section={section} />;
+          case 'contact':
+            return <Contact site={site} store={store} section={section} />;
+          default:
+            return null;
+        }
+      }}
+    </SectionList>
+  );
 }

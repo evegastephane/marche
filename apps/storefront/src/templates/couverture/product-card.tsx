@@ -33,35 +33,39 @@ export function PageCard({
           <span className="absolute inset-0 flex items-end p-4 font-heading text-3xl leading-[0.85] font-black uppercase">{product.title}</span>
         )}
       </span>
+      {/* Taille fixe : titre sur deux lignes réservées, crédits sur une ligne (la marque s'abrège avant le prix), place des pastilles gardée. */}
       <span className="flex flex-col gap-1.5">
         <span
           className={cn(
-            'font-heading leading-[0.9] font-black text-balance uppercase decoration-[3px] underline-offset-[0.14em] group-hover:underline',
+            'line-clamp-2 min-h-[2lh] font-heading leading-[0.9] font-black text-balance uppercase decoration-[3px] underline-offset-[0.14em] group-hover:underline',
             spread ? 'text-[clamp(1.75rem,3vw,2.75rem)]' : 'text-[1.4rem] sm:text-[1.55rem]',
           )}
         >
           {product.title}
         </span>
-        <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[0.9375rem]">
-          {product.brand && <span className="opacity-80">{product.brand.name}</span>}
-          <span className="tabular font-semibold">
+        <span className="flex items-baseline gap-x-2 text-[0.9375rem] whitespace-nowrap">
+          {product.brand && <span className="min-w-0 truncate opacity-80">{product.brand.name}</span>}
+          <span className="tabular shrink-0 font-semibold">
             {product.priceMinAmount !== product.priceMaxAmount && 'dès '}
             {formatMoney(product.priceMinAmount, currency)}
           </span>
           {onSale && (
-            <s className="tabular opacity-70">
+            <s className="tabular shrink-0 opacity-70">
               <span className="sr-only">au lieu de </span>
               {formatMoney(product.compareAtAmount!, currency)}
             </s>
           )}
         </span>
-        {product.swatches.length > 1 && (
-          <span className="flex gap-1.5 pt-0.5" aria-label={`${product.swatches.length} coloris`}>
-            {product.swatches.slice(0, 6).map((s) => (
+        <span
+          className="flex h-4 gap-1.5 pt-0.5"
+          aria-label={product.swatches.length > 1 ? `${product.swatches.length} coloris` : undefined}
+          aria-hidden={product.swatches.length > 1 ? undefined : true}
+        >
+          {product.swatches.length > 1 &&
+            product.swatches.slice(0, 6).map((s) => (
               <span key={s.value} title={s.value} className="size-3.5 rounded-full shadow-[inset_0_0_0_1px_rgb(0_0_0/0.18)]" style={{ backgroundColor: s.hex }} />
             ))}
-          </span>
-        )}
+        </span>
       </span>
     </Link>
   );

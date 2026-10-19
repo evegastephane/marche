@@ -9,6 +9,7 @@ export const defaultTemplateManifest: TemplateManifest = {
   id: 'default',
   name: 'Natif',
   version: '2.0.0',
+  tier: 'free',
   tagline: 'Épuré et polyvalent : un grand bandeau d’accueil, des photos généreuses, vos polices.',
   storeTypes: ['FASHION', 'ELECTRONICS'],
   fontChoice: true,

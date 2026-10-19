@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import {
+  categoryDescendants,
   KINDS,
   type MediaDto,
   modelKey,
@@ -165,6 +166,15 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
     }));
   }
 
+  async categoriesById(ids: readonly string[]): Promise<Map<string, { name: string; slug: string }>> {
+    if (ids.length === 0) return new Map();
+    const rows = await this.txHost.tx.category.findMany({
+      where: { id: { in: [...new Set(ids)] }, archivedAt: null },
+      select: { id: true, name: true, slug: true },
+    });
+    return new Map(rows.map((row) => [row.id, { name: row.name, slug: row.slug }]));
+  }
+
   /** undefined : aucun catalogue demandé ; null : catalogue introuvable ou non publié. */
   private async publishedCollectionId(slug: string | undefined): Promise<string | null | undefined> {
     if (!slug) return undefined;
@@ -188,6 +198,11 @@ export class PrismaCatalogStorefrontReadModel extends CatalogStorefrontReadModel
     const taxonomy = await this.taxonomy();
     const where: Prisma.Sql[] = [];
     const having: Prisma.Sql[] = [];
+    if (filter.categorySlug) {
+      const category = taxonomy.categories.find((c) => c.slug === filter.categorySlug);
+      if (!category) return null;
+      where.push(inCategories(categoryDescendants(category.id, taxonomy.categories)));
+    }
     if (filter.brandSlug) where.push(Prisma.sql`AND b.slug = ${filter.brandSlug}`);
     if (filter.kind) where.push(inCategories(taxonomy.categoryIdsOfKind(filter.kind)));
     // Nature d'option (color, storage…) → axes de cette nature, portés par variants.options.

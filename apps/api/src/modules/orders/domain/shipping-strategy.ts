@@ -2,8 +2,17 @@ import type { ShippingSettings } from '@marche/contracts';
 
 /** Calcul des frais de livraison (pattern Strategy), choisi par la configuration de la boutique. */
 export interface ShippingStrategy {
-  readonly code: ShippingSettings['strategy'];
+  readonly code: ShippingSettings['strategy'] | 'IN_STORE';
   compute(subtotalAmount: number): number;
+}
+
+/** Vente au comptoir : le client repart avec ses articles, sans frais. */
+export class InStoreHandover implements ShippingStrategy {
+  readonly code = 'IN_STORE' as const;
+
+  compute(): number {
+    return 0;
+  }
 }
 
 export class FlatRateShipping implements ShippingStrategy {

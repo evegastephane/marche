@@ -10,6 +10,7 @@ export const patronTemplateManifest: TemplateManifest = {
   id: 'patron',
   name: 'Le patron de couture',
   version: '1.0.0',
+  tier: 'premium',
   tagline: 'Chaque article comme un patron de couture : grand numéro de référence, vues A, B, C, tableau des mesures et coupon à découper.',
   storeTypes: ['FASHION'],
   fontChoice: false,

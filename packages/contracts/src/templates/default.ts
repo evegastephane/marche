@@ -12,6 +12,10 @@ export const defaultTemplateManifest: TemplateManifest = {
   tier: 'free',
   tagline: 'Épuré et polyvalent : un grand bandeau d’accueil, des photos généreuses, vos polices.',
   storeTypes: ['FASHION', 'ELECTRONICS'],
+  sectors: ['telephones', 'informatique', 'audio', 'gaming', 'accessoires-tech', 'pret-a-porter', 'couture', 'chaussures', 'accessoires-mode'],
+  styles: ['epure'],
+  addedAt: '2026-09-27',
+  featured: true,
   fontChoice: true,
   palettes: [
     {

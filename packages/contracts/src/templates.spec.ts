@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   canUseTemplate,
+  filterTemplates,
   contrastRatio,
   readableOn,
   resolvePalette,
   TEMPLATE_LIST,
+  TEMPLATE_SECTORS,
   templatesFor,
+  templatesForStore,
 } from './templates/index.js';
 
 describe('Templates et palettes', () => {
@@ -100,6 +103,29 @@ describe('Templates et palettes', () => {
   it('propose d’abord les templates du type de boutique', () => {
     expect(templatesFor('FASHION').recommended.map((t) => t.manifest.id)).toEqual(['default', 'atelier', 'patron', 'couverture', 'devanture']);
     expect(templatesFor('ELECTRONICS').recommended.map((t) => t.manifest.id)).toEqual(['default', 'vitrine', 'boite', 'enseigne', 'devanture']);
+  });
+
+  it('ne propose à une boutique que les modèles de son type', () => {
+    expect(templatesForStore('ELECTRONICS').map((t) => t.manifest.id)).toEqual(['default', 'vitrine', 'boite', 'enseigne', 'devanture']);
+    expect(templatesForStore('FASHION').map((t) => t.manifest.id)).toEqual(['default', 'atelier', 'patron', 'couverture', 'devanture']);
+  });
+
+  it('classe chaque modèle dans les secteurs de ses types et dans des styles connus', () => {
+    for (const { manifest } of TEMPLATE_LIST) {
+      const allowed = manifest.storeTypes.flatMap((type) => TEMPLATE_SECTORS[type].map((s) => s.id as string));
+      expect(manifest.sectors.length, manifest.id).toBeGreaterThan(0);
+      for (const sector of manifest.sectors) expect(allowed, `${manifest.id} ${sector}`).toContain(sector);
+      expect(manifest.styles.length, manifest.id).toBeGreaterThan(0);
+      expect(manifest.addedAt, manifest.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
+  });
+
+  it('cherche sans accents ni casse, et combine les filtres', () => {
+    const tech = templatesForStore('ELECTRONICS');
+    expect(filterTemplates(tech, { q: 'LUMINEUX' }).map((t) => t.manifest.id)).toEqual(['vitrine', 'enseigne']);
+    expect(filterTemplates(tech, { style: 'epure', tier: 'premium' }).map((t) => t.manifest.id)).toEqual(['vitrine', 'boite']);
+    expect(filterTemplates(tech, { sector: 'gaming' }).map((t) => t.manifest.id)).toEqual(['default', 'enseigne']);
+    expect(filterTemplates(tech, { q: 'épuré télé' }).length).toBeGreaterThan(0);
   });
 
   it('ne laisse que le modèle natif gratuit', () => {

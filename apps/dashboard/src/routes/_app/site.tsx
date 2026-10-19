@@ -1,9 +1,10 @@
 import type { SiteDto, StoreDto } from '@marche/contracts';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ExternalLink, Eye, Globe, PowerOff, Rocket } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { z } from 'zod';
 import { useCurrentStore } from '@/features/shell/use-current-store';
 import { useSite, useSiteAction } from '@/features/site/api';
 import { LivePreview } from '@/features/site/live-preview';
@@ -20,7 +21,10 @@ import { LoadError, PageHeader, Skeleton } from '@/shared/ui/feedback';
 import { riseIn } from '@/shared/ui/motion';
 import { SiteAddress, siteHost } from '@/shared/ui/site-address';
 
-export const Route = createFileRoute('/_app/site')({ component: SitePage });
+/** `?ajouter=true` (raccourci de l'Accueil) : le choix d'une nouvelle section s'ouvre à l'arrivée. */
+const searchSchema = z.object({ ajouter: z.boolean().optional().catch(undefined) });
+
+export const Route = createFileRoute('/_app/site')({ validateSearch: searchSchema, component: SitePage });
 
 function SitePage() {
   const site = useSite();
@@ -107,6 +111,13 @@ function SansSite({ store }: { store: StoreDto }) {
 }
 
 function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
+  const { ajouter } = Route.useSearch();
+  const navigate = useNavigate();
+  // Ouvert une fois : l'adresse redevient /site, un rechargement ne rouvre pas le choix.
+  const [autoAdd] = useState(Boolean(ajouter));
+  useEffect(() => {
+    if (ajouter) void navigate({ to: '/site', search: {}, replace: true });
+  }, [ajouter, navigate]);
   const action = useSiteAction();
   const draft = useThemeDraft(site);
   const [focus, setFocus] = useState<{ id: string; nonce: number } | null>(null);
@@ -188,6 +199,7 @@ function SiteEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-8">
         <div className="flex flex-col gap-4">
           <SectionEditor
+            autoAdd={autoAdd}
             settings={draft.settings}
             edit={draft.edit}
             store={store}

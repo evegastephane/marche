@@ -19,6 +19,9 @@ export interface ReportingOverviewDto {
   ordersToFulfill: number;
   lowStockCount: number;
   outOfStockCount: number;
+  /** Clients de la boutique (créés à la commande ou au comptoir), et ceux arrivés sur la période. */
+  customersCount: number;
+  newCustomersCount: number;
   topProducts: { productId: string | null; title: string; quantity: number; revenueAmount: number }[];
   daily: { date: string; revenueAmount: number; ordersCount: number }[];
 }

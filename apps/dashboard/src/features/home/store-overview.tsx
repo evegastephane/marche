@@ -18,6 +18,9 @@ const PERIODS: { value: ReportingPeriod; label: string }[] = [
   { value: '90d', label: '90 j' },
 ];
 
+/** Lectures secondaires : plus petites au téléphone, où elles se partagent une rangée à trois. */
+const SMALL_READOUT = 'readout text-[1.75rem] sm:text-[2.75rem] lg:text-[3.5rem]';
+
 const today = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
 /** En-tête de l'accueil : le nom de la boutique, la date, et la fenêtre d'adresse du site. */
@@ -61,15 +64,17 @@ export function Afficheur({
 }) {
   const toShip = overview?.ordersToFulfill ?? 0;
   const lowStock = (overview?.lowStockCount ?? 0) + (overview?.outOfStockCount ?? 0);
+  const newCustomers = overview?.newCustomersCount ?? 0;
+  const span = PERIODS.find((p) => p.value === period)?.label ?? period;
 
   return (
     <motion.section
       variants={riseIn}
       aria-label="Afficheur"
-      className="display-window grid grid-cols-2 overflow-hidden rounded-2xl lg:grid-cols-[1.7fr_1fr_1fr]"
+      className="display-window grid grid-cols-3 overflow-hidden rounded-2xl lg:grid-cols-[1.6fr_1fr_1fr_1fr]"
     >
       <Reading
-        className="col-span-2 border-b border-display-line lg:col-span-1 lg:border-r lg:border-b-0"
+        className="col-span-3 border-b border-display-line lg:col-span-1 lg:border-r lg:border-b-0"
         label="Ventes"
         control={<PeriodSwitch value={period} onChange={onPeriodChange} />}
         value={
@@ -97,17 +102,24 @@ export function Afficheur({
         label="À expédier"
         led={toShip > 0}
         to="/orders"
-        value={overview ? <AnimatedNumber value={toShip} className="readout text-[2.75rem] sm:text-[3.5rem]" /> : undefined}
+        value={overview ? <AnimatedNumber value={toShip} className={SMALL_READOUT} /> : undefined}
         note={toShip > 0 ? 'en attente de départ' : 'rien en attente'}
       />
       <Reading
+        className="border-r border-display-line"
         label="Stock bas"
-        value={overview ? <AnimatedNumber value={lowStock} className="readout text-[2.75rem] sm:text-[3.5rem]" /> : undefined}
+        value={overview ? <AnimatedNumber value={lowStock} className={SMALL_READOUT} /> : undefined}
         note={
           overview && overview.outOfStockCount > 0
             ? `dont ${overview.outOfStockCount} en rupture`
             : 'articles sous le seuil'
         }
+      />
+      <Reading
+        label="Clients"
+        to="/customers"
+        value={overview ? <AnimatedNumber value={overview.customersCount} className={SMALL_READOUT} /> : undefined}
+        note={newCustomers > 0 ? `+${newCustomers} sur ${span}` : `aucun nouveau sur ${span}`}
       />
     </motion.section>
   );
@@ -127,7 +139,7 @@ function Reading({
   led?: boolean;
   value: ReactNode | undefined;
   note: ReactNode;
-  to?: '/orders';
+  to?: '/orders' | '/customers';
   className?: string;
 }) {
   const body = (
@@ -150,12 +162,12 @@ function Reading({
       <span className="text-[0.8125rem] text-display-dim">{note}</span>
     </>
   );
-  const box = cn('flex min-h-[10.5rem] flex-col justify-between gap-4 p-5 sm:p-6', className);
+  const box = cn('flex min-h-[10.5rem] min-w-0 flex-col justify-between gap-4 p-4 sm:p-6', className);
   if (!to) return <div className={box}>{body}</div>;
   return (
     <Link
       to={to}
-      search={{ filter: 'to-ship' }}
+      search={to === '/orders' ? { filter: 'to-ship' } : undefined}
       className={cn(box, 'group text-display-ink no-underline transition-colors duration-200 hover:bg-display-ink/[0.04]')}
     >
       {body}

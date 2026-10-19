@@ -24,6 +24,28 @@
 }
 
 @layer base {
+  /*
+   * La palette n'est posée que sur l'enveloppe du site (style de s/[site]/layout.tsx). Les classes maison
+   * (lettrage LED, papier ligné, étal éclairé…) lisent var(--color-*) : déclarées sur la racine seulement,
+   * ces variables y prendraient leurs valeurs de repli. On les redéclare donc sur l'enveloppe.
+   */
+  [data-template] {
+    --color-primary: var(--sf-primary, #101115);
+    --color-on-primary: var(--sf-on-primary, #ffffff);
+    --color-accent: var(--sf-accent, #f66b21);
+    --color-on-accent: var(--sf-on-accent, #101115);
+    --color-bg: var(--sf-bg, #ffffff);
+    --color-fg: var(--sf-fg, #101115);
+    --color-muted: var(--sf-muted, #595b62);
+    --color-line: var(--sf-line, #e4e4e0);
+    --color-surface: var(--sf-surface, #f4f4f1);
+    --color-on-surface: var(--sf-surface-fg, #101115);
+    --color-soft: color-mix(in oklab, var(--sf-fg, #101115) 5%, var(--sf-bg, #ffffff));
+    --font-heading: var(--sf-font-heading, ui-sans-serif, system-ui, sans-serif);
+    --font-body: var(--sf-font-body, ui-sans-serif, system-ui, sans-serif);
+    --font-hand: var(--sf-font-hand, var(--sf-font-heading, ui-sans-serif));
+  }
+
   body {
     background: var(--color-bg);
     color: var(--color-fg);

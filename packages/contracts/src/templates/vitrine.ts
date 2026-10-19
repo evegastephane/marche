@@ -12,6 +12,10 @@ export const vitrineTemplateManifest: TemplateManifest = {
   tier: 'premium',
   tagline: 'Votre boutique comme un comptoir vitré : appareils sur présentoirs, étiquettes de prix, état au marqueur.',
   storeTypes: ['ELECTRONICS'],
+  sectors: ['telephones', 'audio', 'accessoires-tech'],
+  styles: ['epure', 'lumineux'],
+  addedAt: '2026-09-28',
+  featured: true,
   fontChoice: false,
   palettes: [
     {

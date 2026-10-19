@@ -1,40 +1,58 @@
 import {
   canUseTemplate,
-  FONT_CHOICES,
+  filterTemplates,
   getTemplate,
   resolvePalette,
   type SiteDto,
   type StoreDto,
-  TEMPLATE_LIST,
-  type ThemeSettings,
+  TEMPLATE_SECTORS,
+  TEMPLATE_STYLES,
+  type TemplateDefinition,
+  templatesForStore,
 } from '@marche/contracts';
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { Crown, Undo2 } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
-import { useState } from 'react';
-import { toast } from 'sonner';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { ArrowLeft, Crown, LayoutTemplate, SearchX } from 'lucide-react';
+import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
+import { type ReactNode, useMemo, useState } from 'react';
+import { z } from 'zod';
 import { useCurrentStore } from '@/features/shell/use-current-store';
 import { useSite } from '@/features/site/api';
-import { LivePreview } from '@/features/site/live-preview';
-import { PublishBar } from '@/features/site/publish-bar';
-import { PalettePicker, TemplateGallery } from '@/features/site/theme-picker';
-import { switchTemplate } from '@/features/site/theme-switch';
 import { UnsavedGuard } from '@/features/site/unsaved-guard';
 import { useThemeDraft } from '@/features/site/use-theme-draft';
+import { PremiumDialog, premiumCount } from '@/features/templates/premium-dialog';
+import { Rayon, RayonItem } from '@/features/templates/rayon';
+import { TemplateCard } from '@/features/templates/template-card';
+import { TemplateThumb } from '@/features/templates/template-thumb';
+import { TemplateTrial } from '@/features/templates/template-trial';
 import { errorMessage } from '@/shared/api/client';
 import { Led } from '@/shared/ui/badge';
-import { Button, buttonClasses } from '@/shared/ui/button';
-import { Card, CardHeader } from '@/shared/ui/card';
-import { Dialog } from '@/shared/ui/dialog';
+import { Button } from '@/shared/ui/button';
+import { Card } from '@/shared/ui/card';
 import { EmptyState, LoadError, PageHeader, Skeleton } from '@/shared/ui/feedback';
-import { Field, Select } from '@/shared/ui/field';
-import { EASE_OUT, riseIn } from '@/shared/ui/motion';
+import { riseIn } from '@/shared/ui/motion';
+import { SearchInput } from '@/shared/ui/search';
+import { Tabs } from '@/shared/ui/tabs';
 
-export const Route = createFileRoute('/_app/templates')({ component: ModelesPage });
+/**
+ * Galerie et essai dans l'adresse : une recherche, un filtre ou un essai se partagent et survivent au rechargement.
+ * Sans recherche ni filtre (ni « vue=tout »), la galerie montre ses rayons ; sinon, la grille des résultats.
+ */
+const searchSchema = z.object({
+  q: z.string().trim().max(80).optional().catch(undefined),
+  secteur: z.string().max(40).optional().catch(undefined),
+  style: z.string().max(40).optional().catch(undefined),
+  formule: z.enum(['free', 'premium']).optional().catch(undefined),
+  vue: z.enum(['tout']).optional().catch(undefined),
+  essai: z.string().max(40).optional().catch(undefined),
+});
+type GallerySearch = z.infer<typeof searchSchema>;
 
-/** Adresse de l'équipe pour activer Premium, tant que le paiement en ligne n'existe pas (rien si absente). */
-const SUPPORT_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL as string | undefined)?.trim() || null;
-const PREMIUM_COUNT = TEMPLATE_LIST.filter((t) => t.manifest.tier === 'premium').length;
+export const Route = createFileRoute('/_app/templates')({ validateSearch: searchSchema, component: ModelesPage });
+
+/** Modèles par page de résultats ; « Afficher plus » en ajoute autant. */
+const PAGE = 24;
+/** Un rayon de style n'ouvre qu'à partir de deux modèles : un rayon d'un seul fait une étagère vide. */
+const MIN_STYLE_SHELF = 2;
 
 function ModelesPage() {
   const site = useSite();
@@ -44,6 +62,7 @@ function ModelesPage() {
     return (
       <div className="flex flex-col gap-6">
         <Skeleton className="h-16 w-48" />
+        <Skeleton className="h-56" />
         <Skeleton className="h-64" />
       </div>
     );
@@ -55,7 +74,7 @@ function ModelesPage() {
       <div className="flex flex-col gap-6">
         <PageHeader title="Modèles" />
         <Card>
-          <EmptyState icon={Crown} title="Votre site n’est pas encore en ligne">
+          <EmptyState icon={LayoutTemplate} title="Votre site n’est pas encore en ligne">
             Mettez-le en ligne depuis{' '}
             <Link to="/site" className="font-[600] text-ink underline underline-offset-4">
               Site
@@ -66,223 +85,335 @@ function ModelesPage() {
       </div>
     );
   }
-  return <ModelesEditor site={site.data} store={store.data} />;
+  return <Gallery site={site.data} store={store.data} />;
 }
 
-function ModelesEditor({ site, store }: { site: SiteDto; store: StoreDto }) {
+function Gallery({ site, store }: { site: SiteDto; store: StoreDto }) {
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
   const draft = useThemeDraft(site);
-  const current = draft.settings.template;
-  // Le modèle essayé dans l'aperçu ; ses couleurs et polices restent à part tant qu'on ne le prend pas.
-  const [trying, setTrying] = useState(current);
-  const [trial, setTrial] = useState<Pick<ThemeSettings, 'palette' | 'fonts'> | null>(null);
   const [premiumOpen, setPremiumOpen] = useState(false);
-  const host = new URL(site.url).host;
-  const premium = store.plan === 'PREMIUM';
+  // Capture d'où l'essai est parti : elle grandit jusqu'au plein écran (absent quand on arrive par un lien).
+  const [origin, setOrigin] = useState<string | null>(null);
 
-  const isCurrent = trying === current;
-  const template = getTemplate(trying) ?? getTemplate('default')!;
-  const allowed = canUseTemplate(store.plan, template.manifest);
-  const shown: ThemeSettings = isCurrent ? draft.settings : { ...switchTemplate(draft.settings, trying), ...trial };
-  const palette = resolvePalette(shown);
+  const all = useMemo(() => templatesForStore(store.type), [store.type]);
+  const current = getTemplate(draft.settings.template) ?? getTemplate('default')!;
+  const trying = search.essai ? getTemplate(search.essai) : undefined;
+  const locked = (t: TemplateDefinition) => !canUseTemplate(store.plan, t.manifest);
+  const set = (patch: Partial<GallerySearch>) =>
+    void navigate({ search: (prev: GallerySearch) => ({ ...prev, ...patch }), replace: true });
+  const open = (template: TemplateDefinition, layoutKey: string) => {
+    setOrigin(layoutKey);
+    set({ essai: template.manifest.id });
+  };
+  const filtering = Boolean(search.vue || search.q || search.secteur || search.style || search.formule);
 
-  const tryTemplate = (id: string) => {
-    setTrying(id);
-    setTrial(null);
-  };
-  const setLook = (patch: Partial<Pick<ThemeSettings, 'palette' | 'fonts'>>) => {
-    if (isCurrent) draft.edit((settings) => ({ ...settings, ...patch }));
-    else setTrial({ palette: shown.palette, fonts: shown.fonts, ...patch });
-  };
-  const adopt = () => {
-    draft.saveSettings(shown);
-    setTrial(null);
-    toast(`Modèle « ${template.manifest.name} » choisi`, { description: 'Publiez pour l’afficher sur votre site.' });
+  const card = (template: TemplateDefinition, shelf: string, eager = false) => {
+    const layoutKey = `${shelf}-${template.manifest.id}`;
+    return (
+      <TemplateCard
+        template={template}
+        storeType={store.type}
+        storeName={store.name}
+        current={template.manifest.id === current.manifest.id}
+        locked={locked(template)}
+        layoutKey={layoutKey}
+        opened={trying !== undefined && origin === layoutKey}
+        onOpen={() => open(template, layoutKey)}
+        eager={eager}
+      />
+    );
   };
 
   return (
-    <div className="flex flex-col gap-6 lg:gap-8">
-      <PageHeader
-        title="Modèles"
-        subtitle="L’apparence de votre site. Vos sections restent les mêmes dans chaque modèle : essayez-les sur votre vraie boutique."
-      />
+    <LayoutGroup>
+      <div className="flex flex-col gap-6 lg:gap-8">
+        <PageHeader
+          title="Modèles"
+          subtitle="L’apparence de votre site. Vos sections restent les mêmes dans chaque modèle : essayez-les sur votre vraie boutique."
+        />
 
-      <motion.section
-        variants={riseIn}
-        className="panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"
-      >
-        <div className="flex items-start gap-3">
-          <span className="well inline-flex size-10 shrink-0 items-center justify-center rounded-[0.7rem] text-ink-2">
-            <Crown className="size-[1.125rem]" strokeWidth={1.8} aria-hidden />
-          </span>
-          <div className="flex flex-col gap-0.5">
-            <p className="flex items-center gap-2 font-[600]">
-              <Led tone={premium ? 'on' : 'off'} />
-              {premium ? 'Formule Premium' : 'Formule Gratuite'}
-            </p>
-            <p className="text-[0.875rem] text-ink-2">
-              {premium
-                ? `Tous les modèles sont à vous, Natif compris.`
-                : `Le modèle Natif est inclus. Les ${PREMIUM_COUNT} autres sont réservés à Premium : essayez-les librement dans l’aperçu.`}
-            </p>
-          </div>
-        </div>
-        {!premium && (
-          <Button variant="secondary" icon={<Crown strokeWidth={1.8} />} onClick={() => setPremiumOpen(true)}>
-            Passer à Premium
-          </Button>
+        <CurrentFace
+          template={current}
+          store={store}
+          paletteName={resolvePalette(draft.settings).name}
+          query={search.q ?? ''}
+          onQuery={(q) => set({ q: q || undefined })}
+          opened={trying !== undefined && origin === `actuel-${current.manifest.id}`}
+          onCustomize={() => open(current, `actuel-${current.manifest.id}`)}
+          onUpgrade={() => setPremiumOpen(true)}
+        />
+
+        {filtering ? (
+          <Results all={all} storeType={store.type} search={search} set={set} card={card} />
+        ) : (
+          <Shelves all={all} store={store} set={set} card={card} />
         )}
-      </motion.section>
-
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-8">
-        <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader title="Choisir un modèle" count={TEMPLATE_LIST.length} />
-            <div className="px-3 pb-4 sm:px-5 sm:pb-6">
-              <TemplateGallery
-                storeType={store.type}
-                value={trying}
-                onChange={tryTemplate}
-                currentId={current}
-                locked={(t) => !canUseTemplate(store.plan, t.manifest)}
-                content={{ storeName: store.name }}
-              />
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title={template.manifest.fontChoice ? 'Couleurs et polices' : 'Couleurs'} />
-            <div className="flex flex-col gap-5 px-3 pb-4 sm:px-5 sm:pb-6">
-              <p className="px-1 text-[0.875rem] text-ink-2">
-                Palettes préparées pour « {template.manifest.name} » : textes et boutons restent lisibles dans chacune.
-              </p>
-              <PalettePicker
-                palettes={template.manifest.palettes}
-                value={palette.id}
-                onChange={(id) => setLook({ palette: id })}
-              />
-              {template.manifest.fontChoice && (
-                <div className="grid gap-4 px-1 sm:grid-cols-2">
-                  {(['heading', 'body'] as const).map((role) => (
-                    <Field key={role} label={role === 'heading' ? 'Police des titres' : 'Police du texte'}>
-                      {(props) => (
-                        <Select
-                          {...props}
-                          value={shown.fonts[role]}
-                          onChange={(e) =>
-                            setLook({ fonts: { ...shown.fonts, [role]: e.target.value as (typeof FONT_CHOICES)[number] } })
-                          }
-                        >
-                          {FONT_CHOICES.map((f) => (
-                            <option key={f}>{f}</option>
-                          ))}
-                        </Select>
-                      )}
-                    </Field>
-                  ))}
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-
-        <motion.div id="apercu" variants={riseIn} className="flex scroll-mt-6 flex-col gap-4 lg:sticky lg:top-10">
-          <LivePreview settings={shown} host={host} />
-          <AnimatePresence mode="wait" initial={false}>
-            {isCurrent ? (
-              <motion.div
-                key="publier"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0, transition: { duration: 0.24, ease: EASE_OUT } }}
-                exit={{ opacity: 0, y: -4, transition: { duration: 0.14 } }}
-              >
-                <PublishBar site={site} draft={draft} />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="essai"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0, transition: { duration: 0.24, ease: EASE_OUT } }}
-                exit={{ opacity: 0, y: -4, transition: { duration: 0.14 } }}
-                className="panel flex flex-wrap items-center justify-between gap-3 p-4"
-                aria-live="polite"
-              >
-                <span className="flex min-w-0 items-center gap-2 text-[0.875rem] text-ink-2">
-                  <Led tone="attention" />
-                  <span className="min-w-0">
-                    Essai de <span className="font-[600] text-ink">« {template.manifest.name} »</span>
-                    {!allowed && ' · Premium'}
-                  </span>
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="ghost" icon={<Undo2 strokeWidth={1.8} />} onClick={() => tryTemplate(current)}>
-                    Revenir au mien
-                  </Button>
-                  {allowed ? (
-                    <Button variant="primary" loading={draft.busy === 'save'} disabled={draft.busy !== null} onClick={adopt}>
-                      Utiliser ce modèle
-                    </Button>
-                  ) : (
-                    <Button variant="primary" icon={<Crown strokeWidth={1.8} />} onClick={() => setPremiumOpen(true)}>
-                      Passer à Premium
-                    </Button>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
       </div>
+
+      <AnimatePresence>
+        {trying && (
+          <TemplateTrial
+            key={trying.manifest.id}
+            template={trying}
+            layoutId={origin ?? undefined}
+            site={site}
+            store={store}
+            draft={draft}
+            onClose={() => set({ essai: undefined })}
+            onUpgrade={() => setPremiumOpen(true)}
+          />
+        )}
+      </AnimatePresence>
 
       <PremiumDialog open={premiumOpen} onOpenChange={setPremiumOpen} store={store} />
       <UnsavedGuard draft={draft} />
+    </LayoutGroup>
+  );
+}
+
+/** En tête : le modèle du site (capture, nom, palette, Personnaliser), la formule et la recherche. */
+function CurrentFace({
+  template,
+  store,
+  paletteName,
+  query,
+  onQuery,
+  opened,
+  onCustomize,
+  onUpgrade,
+}: {
+  template: TemplateDefinition;
+  store: StoreDto;
+  paletteName: string;
+  query: string;
+  onQuery: (q: string) => void;
+  opened: boolean;
+  onCustomize: () => void;
+  onUpgrade: () => void;
+}) {
+  const premium = store.plan === 'PREMIUM';
+  return (
+    <motion.section
+      variants={riseIn}
+      aria-labelledby="votre-modele"
+      className="panel grid gap-5 p-3 sm:p-4 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:items-center lg:gap-7"
+    >
+      <button
+        type="button"
+        onClick={onCustomize}
+        aria-label={`Personnaliser « ${template.manifest.name} »`}
+        className="group block rounded-[0.8rem] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      >
+        <motion.span
+          layoutId={opened ? undefined : `actuel-${template.manifest.id}`}
+          style={{ opacity: opened ? 0 : 1 }}
+          className="block overflow-hidden rounded-[0.7rem] shadow-[0_0_0_1px_var(--color-line)] transition-[box-shadow,translate] duration-300 ease-out-soft group-hover:-translate-y-0.5 group-hover:shadow-[0_0_0_1px_var(--color-line-strong),0_14px_28px_-18px_hsl(var(--shadow-color)/0.45)]"
+        >
+          <TemplateThumb template={template} storeType={store.type} storeName={store.name} eager />
+        </motion.span>
+      </button>
+
+      <div className="flex min-w-0 flex-col gap-5 px-1 pb-1 lg:pr-2">
+        <div className="flex flex-col gap-1.5">
+          <h2 id="votre-modele" className="heading text-[1rem]">
+            Votre modèle
+          </h2>
+          <p className="text-[1.375rem] leading-tight font-[650] tracking-[-0.015em]">{template.manifest.name}</p>
+          <p className="text-[0.875rem] text-ink-2">Palette « {paletteName} »</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" onClick={onCustomize}>
+            Personnaliser
+          </Button>
+          {!premium && (
+            <Button variant="ghost" icon={<Crown strokeWidth={1.8} />} onClick={onUpgrade}>
+              Passer à Premium
+            </Button>
+          )}
+        </div>
+        <div className="flex flex-col gap-3 border-t border-line pt-4 xl:flex-row xl:items-center xl:justify-between">
+          <p className="flex items-center gap-2 text-[0.875rem] text-ink-2">
+            <Led tone={premium ? 'on' : 'off'} />
+            {premium
+              ? 'Formule Premium : tous les modèles de votre boutique'
+              : `Formule Gratuite : Natif inclus, ${premiumCount(store.type)} modèles Premium à essayer`}
+          </p>
+          <SearchInput
+            label="Chercher un modèle"
+            placeholder="Chercher un modèle"
+            value={query}
+            onChange={onQuery}
+            className="w-full xl:w-64 xl:shrink-0"
+          />
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+type CardFor = (template: TemplateDefinition, shelf: string, eager?: boolean) => ReactNode;
+
+/** Les rayons : sélections d'Upsell, nouveautés, gratuits, puis un rayon par style. */
+function Shelves({
+  all,
+  store,
+  set,
+  card,
+}: {
+  all: TemplateDefinition[];
+  store: StoreDto;
+  set: (patch: Partial<GallerySearch>) => void;
+  card: CardFor;
+}) {
+  const featured = all.filter((t) => t.manifest.featured);
+  const newest = [...all].sort((a, b) => b.manifest.addedAt.localeCompare(a.manifest.addedAt)).slice(0, 12);
+  const free = all.filter((t) => t.manifest.tier === 'free');
+  const styles = TEMPLATE_STYLES.map((style) => ({
+    style,
+    templates: all.filter((t) => t.manifest.styles.includes(style.id)),
+  })).filter((shelf) => shelf.templates.length >= MIN_STYLE_SHELF);
+
+  const shelves: { key: string; title: string; templates: TemplateDefinition[]; seeAll: Partial<GallerySearch> }[] = [
+    { key: 'pour-vous', title: 'Pour votre boutique', templates: featured, seeAll: { vue: 'tout' as const } },
+    { key: 'nouveautes', title: 'Nouveautés', templates: newest, seeAll: { vue: 'tout' as const } },
+    ...(store.plan === 'FREE' && free.length > 0
+      ? [{ key: 'gratuits', title: 'Gratuits', templates: free, seeAll: { formule: 'free' as const } }]
+      : []),
+    ...styles.map(({ style, templates }) => ({
+      key: `style-${style.id}`,
+      title: style.label,
+      templates,
+      seeAll: { style: style.id },
+    })),
+  ].filter((shelf) => shelf.templates.length > 0);
+
+  return (
+    <div className="flex flex-col gap-7 lg:gap-9">
+      {shelves.map((shelf, index) => (
+        <Rayon key={shelf.key} title={shelf.title} count={shelf.templates.length} onSeeAll={() => set(shelf.seeAll)}>
+          {shelf.templates.map((template) => (
+            <RayonItem key={template.manifest.id}>{card(template, shelf.key, index === 0)}</RayonItem>
+          ))}
+        </Rayon>
+      ))}
+      <motion.div variants={riseIn} className="flex justify-center">
+        <Button variant="secondary" onClick={() => set({ vue: 'tout' })}>
+          Tous les modèles de votre boutique
+          <span className="tabular text-ink-3">{all.length}</span>
+        </Button>
+      </motion.div>
     </div>
   );
 }
 
-/** Ce que Premium débloque, et comment l'obtenir tant que le paiement en ligne n'existe pas. */
-function PremiumDialog({
-  open,
-  onOpenChange,
-  store,
+/** La grille : recherche et filtres (secteur, style, formule) sur les modèles du type de boutique. */
+function Results({
+  all,
+  storeType,
+  search,
+  set,
+  card,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  store: StoreDto;
+  all: TemplateDefinition[];
+  storeType: StoreDto['type'];
+  search: GallerySearch;
+  set: (patch: Partial<GallerySearch>) => void;
+  card: CardFor;
 }) {
-  const premiumTemplates = TEMPLATE_LIST.filter((t) => t.manifest.tier === 'premium');
-  const mailto = SUPPORT_EMAIL
-    ? `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Formule Premium pour ${store.name}`)}&body=${encodeURIComponent(
-        `Bonjour,\n\nJe souhaite passer la boutique « ${store.name} » (${store.slug}) en formule Premium.\n`,
-      )}`
-    : null;
+  const [shown, setShown] = useState(PAGE);
+  const filters = { q: search.q, sector: search.secteur, style: search.style, tier: search.formule };
+  const results = filterTemplates(all, filters).sort(
+    (a, b) => Number(b.manifest.featured) - Number(a.manifest.featured) || b.manifest.addedAt.localeCompare(a.manifest.addedAt),
+  );
+  // Seuls les secteurs et styles qui ont des modèles pour cette boutique deviennent des filtres.
+  const sectors = TEMPLATE_SECTORS[storeType].filter((s) => all.some((t) => t.manifest.sectors.includes(s.id)));
+  const styles = TEMPLATE_STYLES.filter((s) => all.some((t) => t.manifest.styles.includes(s.id)));
+  const reset = () => set({ q: undefined, secteur: undefined, style: undefined, formule: undefined, vue: undefined });
+  const refine = (patch: Partial<GallerySearch>) => {
+    setShown(PAGE);
+    set({ vue: 'tout', ...patch });
+  };
+
   return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Passer à Premium"
-      description="Premium débloque tous les modèles. Vos sections, vos produits et vos réglages restent tels quels : seul l’habillage change."
-    >
-      <ul className="grid grid-cols-2 gap-x-4 gap-y-2">
-        {premiumTemplates.map((t) => (
-          <li key={t.manifest.id} className="flex items-center gap-2 text-[0.875rem]">
-            <Led tone="on" />
-            {t.manifest.name}
-          </li>
-        ))}
-      </ul>
-      <p className="well rounded-xl px-4 py-3 text-[0.875rem] text-ink-2">
-        Le paiement en ligne arrive bientôt. En attendant, l’équipe Upsell active Premium sur demande.
-      </p>
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button variant="ghost" onClick={() => onOpenChange(false)}>
-          Fermer
-        </Button>
-        {mailto && (
-          <a href={mailto} className={buttonClasses('primary')}>
-            Écrire à l’équipe Upsell
-          </a>
-        )}
+    <motion.section variants={riseIn} aria-label="Tous les modèles" className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={reset}
+          className="group inline-flex min-h-9 items-center gap-1.5 self-start text-[0.875rem] font-[560] text-ink-2 hover:text-ink"
+        >
+          <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" strokeWidth={1.8} aria-hidden />
+          Les sélections
+        </button>
+        <FilterRow label="Secteur">
+          <Tabs
+            label="Secteur"
+            value={search.secteur ?? ''}
+            onChange={(secteur) => refine({ secteur: secteur || undefined })}
+            items={[{ value: '', label: 'Tous' }, ...sectors.map((s) => ({ value: s.id, label: s.label }))]}
+          />
+        </FilterRow>
+        <FilterRow label="Style">
+          <Tabs
+            label="Style"
+            value={search.style ?? ''}
+            onChange={(style) => refine({ style: style || undefined })}
+            items={[{ value: '', label: 'Tous' }, ...styles.map((s) => ({ value: s.id, label: s.label }))]}
+          />
+        </FilterRow>
+        <FilterRow label="Formule">
+          <Tabs
+            label="Formule"
+            value={search.formule ?? ''}
+            onChange={(formule) => refine({ formule: (formule || undefined) as GallerySearch['formule'] })}
+            items={[
+              { value: '', label: 'Toutes' },
+              { value: 'free', label: 'Gratuits' },
+              { value: 'premium', label: 'Premium' },
+            ]}
+          />
+        </FilterRow>
       </div>
-    </Dialog>
+
+      <p className="tabular px-1 text-[0.875rem] text-ink-2" aria-live="polite">
+        {results.length} modèle{results.length > 1 ? 's' : ''}
+        {search.q && <> pour « {search.q} »</>}
+      </p>
+
+      {results.length === 0 ? (
+        <Card>
+          <EmptyState icon={SearchX} title="Aucun modèle ne correspond">
+            Essayez un autre mot ou moins de filtres.{' '}
+            <button type="button" onClick={reset} className="font-[600] text-ink underline underline-offset-4">
+              Tout effacer
+            </button>
+          </EmptyState>
+        </Card>
+      ) : (
+        <>
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-2">
+            {results.slice(0, shown).map((template, index) => (
+              <li key={template.manifest.id}>{card(template, 'grille', index < 6)}</li>
+            ))}
+          </ul>
+          {results.length > shown && (
+            <Button variant="secondary" className="self-center" onClick={() => setShown((n) => n + PAGE)}>
+              Afficher plus de modèles
+              <span className="tabular text-ink-3">{results.length - shown}</span>
+            </Button>
+          )}
+        </>
+      )}
+    </motion.section>
+  );
+}
+
+function FilterRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+      <span className="legend w-16 shrink-0 px-1">{label}</span>
+      <div className="min-w-0">{children}</div>
+    </div>
   );
 }

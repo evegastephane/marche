@@ -191,6 +191,9 @@ describe('Commandes et clients (e2e)', () => {
     expect(response.body.ordersCount).toBeGreaterThanOrEqual(3);
     expect(response.body.revenueAmount).toBeGreaterThan(0);
     expect(response.body.daily).toHaveLength(7);
+    // Les commandes créent leurs clients : ils comptent au total et parmi les nouveaux de la période.
+    expect(response.body.customersCount).toBeGreaterThanOrEqual(1);
+    expect(response.body.newCustomersCount).toBe(response.body.customersCount);
     expect(response.body.topProducts[0]).toMatchObject({ productId: tracked.productId, title: 'Pagne wax' });
     expect(userId).toBeTruthy();
   });

@@ -13,6 +13,10 @@ export const patronTemplateManifest: TemplateManifest = {
   tier: 'premium',
   tagline: 'Chaque article comme un patron de couture : grand numéro de référence, vues A, B, C, tableau des mesures et coupon à découper.',
   storeTypes: ['FASHION'],
+  sectors: ['couture', 'pret-a-porter'],
+  styles: ['retro', 'artisanal'],
+  addedAt: '2026-09-28',
+  featured: false,
   fontChoice: false,
   palettes: [
     {

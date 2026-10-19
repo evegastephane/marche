@@ -9,7 +9,8 @@ import type { ThemeDraft } from './use-theme-draft';
  */
 export function UnsavedGuard({ draft }: { draft: ThemeDraft }) {
   const blocker = useBlocker({
-    shouldBlockFn: () => draft.dirty,
+    // Changer de filtre ou ouvrir un essai change seulement la recherche de l'adresse : on ne bloque qu'en quittant la page.
+    shouldBlockFn: ({ current, next }) => draft.dirty && current.pathname !== next.pathname,
     enableBeforeUnload: () => draft.dirty,
     withResolver: true,
   });

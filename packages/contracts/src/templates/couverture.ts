@@ -13,6 +13,10 @@ export const couvertureTemplateManifest: TemplateManifest = {
   tier: 'premium',
   tagline: 'Votre boutique comme le numéro du mois : la une à votre nom, vos articles en titres de couverture, chaque fiche en page mode.',
   storeTypes: ['FASHION'],
+  sectors: ['pret-a-porter', 'chaussures', 'accessoires-mode'],
+  styles: ['editorial', 'audacieux'],
+  addedAt: '2026-09-29',
+  featured: true,
   fontChoice: false,
   palettes: [
     {

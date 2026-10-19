@@ -41,7 +41,7 @@ export class ReportingQueries {
     const [{ since }] = await tx.$queryRaw<{ since: Date }[]>`
       SELECT (date_trunc('day', now() AT TIME ZONE ${tz}) - make_interval(days => ${days - 1})) AT TIME ZONE ${tz} AT TIME ZONE 'UTC' AS since`;
 
-    const [totals, toFulfill, stock, top, daily] = await Promise.all([
+    const [totals, toFulfill, stock, customers, top, daily] = await Promise.all([
       tx.$queryRaw<{ revenue: bigint; orders: number }[]>`
         SELECT COALESCE(SUM(total_amount), 0)::bigint AS revenue, COUNT(*)::int AS orders
         FROM orders
@@ -56,6 +56,9 @@ export class ReportingQueries {
         JOIN product_variants v ON v.id = il.variant_id
         JOIN products p ON p.id = v.product_id
         WHERE il.store_id = ${storeId}::uuid AND v.track_inventory AND v.archived_at IS NULL AND p.status <> 'ARCHIVED'`,
+      tx.$queryRaw<{ total: number; fresh: number }[]>`
+        SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE created_at >= ${since})::int AS fresh
+        FROM customers WHERE store_id = ${storeId}::uuid`,
       tx.$queryRaw<{ product_id: string | null; title: string; quantity: number; revenue: bigint }[]>`
         SELECT v.product_id, MAX(ol.product_title) AS title, SUM(ol.quantity)::int AS quantity,
                SUM(ol.line_total_amount)::bigint AS revenue
@@ -94,6 +97,8 @@ export class ReportingQueries {
       ordersToFulfill: toFulfill[0]?.count ?? 0,
       lowStockCount: stock[0]?.low ?? 0,
       outOfStockCount: stock[0]?.out ?? 0,
+      customersCount: customers[0]?.total ?? 0,
+      newCustomersCount: customers[0]?.fresh ?? 0,
       topProducts: top.map((row) => ({
         productId: row.product_id,
         title: row.title,

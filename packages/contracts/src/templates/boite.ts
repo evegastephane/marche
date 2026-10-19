@@ -13,6 +13,10 @@ export const boiteTemplateManifest: TemplateManifest = {
   tier: 'premium',
   tagline: 'Chaque appareil comme sa boîte d’origine : la photo en façade, l’étiquette où l’on coche capacité, couleur et état.',
   storeTypes: ['ELECTRONICS'],
+  sectors: ['telephones', 'informatique'],
+  styles: ['epure'],
+  addedAt: '2026-09-29',
+  featured: false,
   fontChoice: false,
   palettes: [
     {

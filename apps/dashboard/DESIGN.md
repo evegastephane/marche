@@ -487,7 +487,7 @@ Pas de pastilles de couleur : les états sont des **témoins lumineux** suivis d
 - **Sélecteur de boutique :** ligne à plat de 44 px (pastille carrée, nom en 600, chevrons) ; son menu sort d'elle à sa largeur, boutique active cochée.
 - **Compte :** pastille ronde ; avec nom et e-mail dans le panneau, seule (40 px) dans l'en-tête mobile.
 - **Retour :** lien « ← Commandes » en encre seconde, flèche qui recule au survol.
-- **Menu (depuis le 2026-10-18) :** dix touches. Catalogue = Produits et Stock ; Catégories et Marques sont des onglets en tête de Produits (rail en creux, la page ouverte porte la face de touche) et la touche Produits reste allumée sur eux. Boutique = Site, Modèles, Paramètres. Sous 760 px de haut, le panneau se resserre (touches de 36 px, thème et compte sur une ligne) pour que Paramètres reste visible.
+- **Menu (depuis le 2026-10-19) :** neuf touches. Vendre = Commandes, Clients, puis Campagnes éteinte (« Bientôt » en légende, sans lien) ; Caisse et Demandes sont retirées du menu, leurs anciennes adresses affichent une page « Bientôt disponible » (pictogramme en creux, témoin pointillé, phrase de ce que la rubrique fera, retour à l'Accueil). Catalogue = Produits et Stock ; Catégories et Marques sont des onglets en tête de Produits (rail en creux, la page ouverte porte la face de touche) et la touche Produits reste allumée sur eux. Boutique = Site, Modèles, Paramètres. Sous 760 px de haut, le panneau se resserre (touches de 36 px, thème et compte sur une ligne).
 
 ### Sélecteurs à glissière et interrupteurs
 - **Sélecteur (filtres, stratégie de livraison, type de mouvement) :** rail en creux (rayon 0.75rem, 4 px de marge) ; positions de 32 px (40 px sous 768 px) en 0.8125rem ; la position choisie porte un curseur blanc à arête qui glisse. Un filtre qui contient du travail porte un témoin orange et son compteur. Au téléphone, le rail défile horizontalement.
@@ -497,7 +497,7 @@ Pas de pastilles de couleur : les états sont des **témoins lumineux** suivis d
 
 ### Afficheur (composant signature)
 La fenêtre des chiffres qui comptent : verre LCD, rayon 1rem, légendes en segments éteints, lectures en chiffres fins qui roulent.
-- **Accueil :** pleine largeur, trois lectures en colonnes séparées par des filets d'afficheur (Ventes sur 7 j / 30 j / 90 j avec l'unité de la devise, À expédier avec témoin orange qui respire, Stock bas), 168 px de haut au moins ; la lecture « À expédier » mène aux commandes.
+- **Accueil :** pleine largeur, quatre lectures en colonnes séparées par des filets d'afficheur (Ventes sur 7 j / 30 j / 90 j avec l'unité de la devise, À expédier avec témoin orange qui respire, Stock bas, Clients avec les nouveaux de la période), 168 px de haut au moins ; « À expédier » mène aux commandes, « Clients » aux clients. Au téléphone, Ventes occupe la première rangée et les trois autres se partagent la seconde (chiffres de 1.75rem).
 - **Totaux :** petite fenêtre (rayon 0.75rem) en pied de commande, de nouvelle commande, d'audience de campagne, de stock avant/après ajustement ; stock disponible d'une variante dans le formulaire produit.
 - **Fiche client :** trois lectures (total dépensé, commandes, panier moyen).
 - **Adresse du site :** fenêtre de 36 px avec témoin, allumé quand le site est en ligne ; elle se soulève d'1 px au survol quand elle est un lien.
@@ -526,11 +526,17 @@ La fenêtre des chiffres qui comptent : verre LCD, rayon 1rem, légendes en segm
 - **À compléter :** témoin pointillé et « À compléter » à la place du résumé ; dans la section ouverte, la phrase qui dit quoi faire (et le lien vers les Paramètres quand c'est là que ça se règle).
 - **Aperçu :** ouvrir ou ajouter une section fait défiler l'aperçu jusqu'à elle. La barre Enregistrer / Publier suit l'aperçu ; au téléphone elle reste collée au-dessus de la rangée de touches.
 
-### Modèles et formule Premium (page Modèles)
-- **Formule :** une face en tête : témoin plein « Formule Premium » ou anneau « Formule Gratuite », phrase, et « Passer à Premium » en touche blanche (l'orange reste à l'action de l'aperçu).
-- **Galerie :** les vignettes des modèles ; un modèle hors formule porte un cadenas sur sa vignette, celui du site la légende « Le vôtre ». Toucher une vignette l'essaie dans l'aperçu, avec les vraies sections du marchand.
-- **Barre d'essai :** à la place de la barre de publication tant qu'on essaie un autre modèle : témoin orange « Essai de … », « Revenir au mien » en fantôme, et la touche orange « Utiliser ce modèle » (ou « Passer à Premium » si le modèle est réservé).
-- **Quitter avec des réglages non enregistrés :** dialogue « Enregistrer avant de quitter ? » (Enregistrer et continuer en orange, Quitter sans enregistrer en fantôme), sur Site comme sur Modèles.
+### Raccourcis (Accueil)
+- **Touches de fonction :** sous l'afficheur, une légende « Raccourcis » puis six touches blanches à arête (Nouveau produit, Nouvelle commande, Importer des produits, Ajouter une section, Changer de modèle, Voir mon site) : pictogramme en creux de 36 px et libellé en 600, 68 px de haut, en grille de six à l'ordinateur large, trois puis deux au téléphone. Aucune n'est orange : la lumière de l'Accueil reste à la prochaine commande. « Ajouter une section » ouvre directement le choix de section de la page Site.
+
+### Galerie de modèles (page Modèles)
+- **Catalogue :** seuls les modèles du type de la boutique (Mode ou Électronique) ; chaque modèle porte des secteurs, des styles, une date d'arrivée et un drapeau « sélection ».
+- **Votre modèle :** une face en tête : la capture du modèle du site à gauche, puis le titre « Votre modèle », le nom en 1.375rem, la palette, « Personnaliser » en touche blanche (et « Passer à Premium » en fantôme en formule Gratuite) ; sous un filet, la formule à son témoin et la recherche.
+- **Rayons :** « Pour votre boutique » (sélections), « Nouveautés », « Gratuits » (formule Gratuite), puis un rayon par style à partir de deux modèles ; chaque rayon a son titre et son compte, « Voir tout », des touches précédent / suivant à l'ordinateur, et une étagère en creux qui défile cran par cran (aimantée), quatre captures à l'ordinateur large, une et demie au téléphone.
+- **Carte :** la capture 16:10 de la page d'accueil du modèle sur une boutique du même type, posée comme un écran (filet, coins de 0.7rem, elle se soulève d'un demi-pixel au survol) ; dessous le nom en 650, les styles en encre seconde ; témoin plein « Le vôtre » ; un modèle hors formule porte une petite touche « Premium » à cadenas sur sa capture. Sans capture, le croquis dessiné du modèle prend sa place.
+- **Grille :** recherche, « Voir tout » ou un filtre ouvrent la grille : rails en creux Secteur, Style, Formule (légende à gauche), compte des résultats, captures en colonnes de 15rem au moins, « Afficher plus » par 24 ; sans résultat, un état vide qui propose de tout effacer. Tout vit dans l'adresse (q, secteur, style, formule, vue, essai).
+- **Essai plein écran :** toucher une capture la fait grandir jusqu'à un écran entier au-dessus de l'application (transition de mise en page partagée) : barre du haut (← Modèles, nom, témoin de l'état de l'essai), aperçu en direct qui tient en largeur et en hauteur, colonne de 22rem avec l'idée du modèle, ses palettes en quatre colonnes, ses polices s'il les laisse choisir, puis la touche orange « Utiliser ce modèle » ou « Passer à Premium » (barre Enregistrer / Publier pour le modèle du site). Échap ou « Modèles » ramènent à la galerie.
+- **Quitter avec des réglages non enregistrés :** dialogue « Enregistrer avant de quitter ? » ; changer de filtre ou ouvrir un essai ne le déclenche pas.
 
 ### Emblème et wordmark
 Le chariot suit la couleur du texte (encre en clair, blanc en sombre) ; ses deux roues restent orange dans tous les thèmes. À l'arrivée, il s'allume : le panier se trace (0.62 s), la flèche jaillit, puis les roues s'allument l'une après l'autre comme des témoins. Le wordmark est un masque qui suit la couleur du texte ; la taille du logo suit la taille de police.

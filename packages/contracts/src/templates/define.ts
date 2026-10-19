@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type { StorePlan } from '../stores.js';
 import type { StoreType } from '../verticals.js';
+import type { TemplateSector, TemplateStyle } from './catalog.js';
 import { type Palette, type Section, type ThemeSettings, themeSettingsBaseSchema } from './theme.js';
 
 /** Gratuit pour toutes les boutiques, ou réservé à la formule Premium. */
@@ -13,8 +14,16 @@ export interface TemplateManifest {
   tier: TemplateTier;
   /** Une phrase qui dit l'idée du template, affichée dans la galerie du dashboard. */
   tagline: string;
-  /** Types de boutique pour lesquels il est pensé (les autres le voient aussi, plus bas). */
+  /** Types de boutique pour lesquels il est pensé : seules ces boutiques le voient dans la galerie. */
   storeTypes: readonly StoreType[];
+  /** Secteurs servis, à l'intérieur de ces types (filtre de la galerie). */
+  sectors: readonly TemplateSector[];
+  /** Styles (rayons et filtre de la galerie). */
+  styles: readonly TemplateStyle[];
+  /** Arrivée dans la galerie, AAAA-MM-JJ (rayon « Nouveautés »). */
+  addedAt: string;
+  /** Choisi par Upsell pour le rayon « Pour votre boutique ». */
+  featured: boolean;
   /** Palettes préréglées ; la première est celle d'origine. */
   palettes: readonly Palette[];
   /** Le marchand choisit ses polices (template natif) ; sinon elles font partie du template. */

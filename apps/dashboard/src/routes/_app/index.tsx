@@ -4,6 +4,7 @@ import { ArrowRight, Truck, Warehouse } from 'lucide-react';
 import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
 import { useState } from 'react';
 import { useLowStock, useOverview } from '@/features/home/api';
+import { Shortcuts } from '@/features/home/shortcuts';
 import { Afficheur, StoreHeader } from '@/features/home/store-overview';
 import { useOrderPreview } from '@/features/orders/api';
 import { OrderQuickActions } from '@/features/orders/quick-actions';
@@ -41,6 +42,7 @@ function Accueil() {
       <StoreHeader store={store.data} site={site.data} lightSite={nothingToShip} />
       <Afficheur overview={overview.data} period={period} onPeriodChange={setPeriod} />
       {overview.error && <LoadError message={errorMessage(overview.error)} onRetry={() => void overview.refetch()} />}
+      <Shortcuts site={site.data} />
       <motion.div
         variants={riseIn}
         className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] lg:gap-8"

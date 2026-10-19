@@ -42,11 +42,14 @@ export function LivePreview({
   settings,
   host,
   focus,
+  fill = false,
 }: {
   settings: ThemeSettings;
   host: string;
   /** Section à montrer : l'aperçu revient à l'accueil et défile jusqu'à elle (nonce : même section, nouvelle demande). */
   focus?: { id: string; nonce: number } | null;
+  /** Plein écran : l'aperçu occupe toute la hauteur de son parent et la page s'y ajuste entière. */
+  fill?: boolean;
 }) {
   const api = useApi();
   const frame = useRef<HTMLIFrameElement>(null);
@@ -191,7 +194,7 @@ export function LivePreview({
   };
 
   return (
-    <figure className="flex flex-col gap-3">
+    <figure className={cn('flex flex-col gap-3', fill && 'h-full min-h-0')}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Segmented
           label="Page affichée"
@@ -234,7 +237,12 @@ export function LivePreview({
         />
       </div>
 
-      <div className="overflow-hidden rounded-2xl bg-surface shadow-float ring-1 ring-line">
+      <div
+        className={cn(
+          'overflow-hidden rounded-2xl bg-surface shadow-float ring-1 ring-line',
+          fill && 'flex min-h-0 flex-1 flex-col',
+        )}
+      >
         <div className="flex items-center gap-2 bg-surface-2 px-3 py-2">
           <span className="flex gap-1" aria-hidden>
             <span className="size-2.5 rounded-full bg-line-strong" />
@@ -278,7 +286,7 @@ export function LivePreview({
             </a>
           )}
         </div>
-        <Stage device={device}>
+        <Stage device={device} fit={fill}>
           {link && (
             <iframe
               ref={frame}
@@ -323,7 +331,7 @@ export function LivePreview({
           )}
         </Stage>
       </div>
-      <figcaption className="flex items-center gap-2 text-[0.8125rem] text-ink-2">
+      <figcaption className={cn('flex items-center gap-2 text-[0.8125rem] text-ink-2', fill && 'sr-only')}>
         {invalid
           ? 'Un réglage n’est pas encore valide : l’aperçu garde le dernier état correct.'
           : 'Votre vraie boutique, avec vos réglages en cours. Vos visiteurs voient la version publiée tant que vous ne publiez pas.'}
@@ -332,21 +340,26 @@ export function LivePreview({
   );
 }
 
-/** Scène à l'échelle : la page garde sa vraie largeur (1280 ou 390 px) et se réduit pour tenir. */
-function Stage({ device, children }: { device: Device; children: ReactNode }) {
+/**
+ * Scène à l'échelle : la page garde sa vraie largeur (1280 ou 390 px) et se réduit pour tenir.
+ * `fit` : elle tient aussi en hauteur (plein écran), centrée dans la place disponible.
+ */
+function Stage({ device, fit = false, children }: { device: Device; fit?: boolean; children: ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
+  const [size, setSize] = useState({ width: 0, height: 0 });
   useEffect(() => {
     const node = box.current;
     if (!node) return;
     const observer = new ResizeObserver(([entry]) =>
-      setWidth(entry!.contentRect.width),
+      setSize({ width: entry!.contentRect.width, height: entry!.contentRect.height }),
     );
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
   const viewport = VIEWPORT[device];
-  const shown = device === 'desktop' ? width : Math.min(width - 32, 340);
+  const byWidth = device === 'desktop' ? size.width : Math.min(size.width - 32, 340);
+  const byHeight = fit && size.height > 0 ? ((size.height - (device === 'phone' ? 40 : 0)) * viewport.width) / viewport.height : Infinity;
+  const shown = Math.max(0, Math.min(byWidth, byHeight));
   const scale = shown > 0 ? shown / viewport.width : 0;
   return (
     <div
@@ -354,6 +367,7 @@ function Stage({ device, children }: { device: Device; children: ReactNode }) {
       className={cn(
         'relative w-full bg-surface-2',
         device === 'phone' && 'flex justify-center py-5',
+        fit && 'flex min-h-0 flex-1 items-center justify-center',
       )}
     >
       <motion.div

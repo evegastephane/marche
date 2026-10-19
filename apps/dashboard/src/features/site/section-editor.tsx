@@ -34,14 +34,17 @@ export function SectionEditor({
   edit,
   store,
   onFocus,
+  autoAdd = false,
 }: {
+  /** Ouvrir le choix d'une section dès l'arrivée (raccourci de l'Accueil), à la fin de la page. */
+  autoAdd?: boolean;
   settings: ThemeSettings;
   edit: (next: (current: ThemeSettings) => ThemeSettings) => void;
   store: StoreDto;
   onFocus: (sectionId: string) => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const [insertAt, setInsertAt] = useState<number | null>(null);
+  const [insertAt, setInsertAt] = useState<number | null>(autoAdd ? settings.sections.length : null);
   const categories = useCategories();
   const categoryName = (id: string) => categories.data?.find((c) => c.id === id)?.name;
   const sections = settings.sections;

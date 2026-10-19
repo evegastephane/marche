@@ -14,6 +14,10 @@ export const enseigneTemplateManifest: TemplateManifest = {
   tier: 'premium',
   tagline: 'Votre boutique comme une enseigne LED le soir : le nom qui défile, les prix en chiffres lumineux, les appareils sur l’étal éclairé.',
   storeTypes: ['ELECTRONICS'],
+  sectors: ['telephones', 'audio', 'gaming'],
+  styles: ['lumineux', 'audacieux'],
+  addedAt: '2026-09-30',
+  featured: true,
   fontChoice: false,
   palettes: [
     {

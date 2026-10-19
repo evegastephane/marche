@@ -12,6 +12,10 @@ export const atelierTemplateManifest: TemplateManifest = {
   tier: 'premium',
   tagline: 'Votre boutique comme le cahier de l’atelier : photos collées, tailles entourées au stylo, bon de commande à détacher.',
   storeTypes: ['FASHION'],
+  sectors: ['couture', 'pret-a-porter'],
+  styles: ['artisanal'],
+  addedAt: '2026-09-28',
+  featured: true,
   fontChoice: false,
   palettes: [
     {

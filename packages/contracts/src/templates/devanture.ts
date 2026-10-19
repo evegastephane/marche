@@ -12,6 +12,10 @@ export const devantureTemplateManifest: TemplateManifest = {
   tier: 'premium',
   tagline: 'Votre boutique comme une devanture peinte : le nom en grandes lettres, les rayons en enseignes, des couleurs franches.',
   storeTypes: ['FASHION', 'ELECTRONICS'],
+  sectors: ['pret-a-porter', 'chaussures', 'telephones', 'accessoires-tech'],
+  styles: ['artisanal', 'retro'],
+  addedAt: '2026-09-30',
+  featured: false,
   fontChoice: false,
   palettes: [
     {

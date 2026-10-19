@@ -2,7 +2,6 @@ import { Link, Outlet, useRouterState } from '@tanstack/react-router';
 import {
   Boxes,
   House,
-  Inbox,
   LayoutTemplate,
   type LucideIcon,
   Megaphone,
@@ -10,7 +9,6 @@ import {
   Package,
   ReceiptText,
   Settings,
-  Wallet,
   Store,
   Users,
 } from 'lucide-react';
@@ -62,9 +60,8 @@ const NAV: NavGroup[] = [
     items: [
       { to: '/orders', label: 'Commandes', icon: ReceiptText },
       { to: '/customers', label: 'Clients', icon: Users },
-      // En préparation (voir SOON_FEATURES) : visibles mais éteintes, en fin de groupe.
-      { to: '/pos', label: 'Caisse', icon: Wallet, soon: true },
-      { to: '/requests', label: 'Demandes', icon: Inbox, soon: true },
+      // En préparation (voir SOON_FEATURES) : visible mais éteinte, en fin de groupe.
+      // Caisse et Demandes sont retirées du menu ; leurs anciens liens affichent « Bientôt disponible ».
       { to: '/campaigns', label: 'Campagnes', icon: Megaphone, soon: true },
     ],
   },

@@ -12,6 +12,7 @@ import { vitrineTemplate } from './vitrine.js';
 
 export * from './theme.js';
 export * from './sections.js';
+export * from './catalog.js';
 export * from './color.js';
 export * from './define.js';
 export * from './default.js';
@@ -43,6 +44,11 @@ export const DEFAULT_TEMPLATE_ID = defaultTemplateManifest.id;
 
 export function getTemplate(templateId: string): TemplateDefinition | undefined {
   return TEMPLATES[templateId];
+}
+
+/** Modèles proposés à une boutique : seulement ceux pensés pour son type (le natif convient aux deux). */
+export function templatesForStore(storeType: StoreType): TemplateDefinition[] {
+  return TEMPLATE_LIST.filter((t) => t.manifest.storeTypes.includes(storeType));
 }
 
 /** Templates pensés pour ce type de boutique d'abord, puis les autres (le natif convient aux deux). */
